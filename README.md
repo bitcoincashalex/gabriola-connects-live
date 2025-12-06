@@ -1,22 +1,22 @@
-# Gabriola Connect
+# Gabriola Connect - Read Me needs to be updated.
 
 A responsive community web app for Gabriola Island featuring event calendars, bulletin board, business directory, and ferry status updates.
 
 ## Features
 
-### 📅 Calendar
-- Opens on December 1st, 2024
+### 📅 Calendar (In Progress)
+- Opens on December 1st, 2025
 - 546+ events from gabriolaevents.ca, artsgabriola, hellogabriola, and soundernews
 - Click any day to view all events
 - Event cards with title, time, location, poster images, descriptions
 - RSVP functionality
 - Auto-refreshes every hour
 
-### 💬 BBS (Bulletin Board System)
-- Open community forum - no sign-up required
+### 💬 BBS/Forum (Bulletin Board System)
+- Open Community forum
 - Post anonymously or with your name
-- Threaded replies up to 3 levels deep
-- Categories: General, Health, Politics-US, Politics-Canada, Ferry, Events Chat
+- Threaded replies up to 3 levels deep ?
+- Categories: General, Health, Politics-US, Politics-Canada, Ferry, Events Chat 
 - Image upload with AI content moderation (flags nudity for human review)
 - Search and filter by category
 - Optional news link attachments
@@ -25,7 +25,7 @@ A responsive community web app for Gabriola Island featuring event calendars, bu
 - Island business listings (cafes, mechanics, yoga studios, etc.)
 - Scraped from Gabriola directory sites
 - Click to view on map with location details
-- "Add Business" form - instant submission, no vetting
+- "Add Business" form - instant submission, no vetting?
 - Filter by category
 - Contact info and descriptions
 
@@ -192,8 +192,8 @@ OPENAI_API_KEY=for_image_moderation
 
 ## License
 
-MIT
+Free!
 
 ## Contact
 
-Built for the Gabriola Island community. Questions or feedback? Post on the BBS!
+Built for the Gabriola Island community. Questions or feedback? Post on the Forum!
