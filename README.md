@@ -1,4 +1,4 @@
-# Gabriola Connect - Read Me needs to be updated.
+# Gabriola Connects - Read Me needs to be updated.
 
 A responsive community web app for Gabriola Island featuring event calendars, bulletin board, business directory, and ferry status updates.
 
