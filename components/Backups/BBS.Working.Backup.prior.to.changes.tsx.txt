@@ -1,0 +1,86 @@
+// components/BBS.tsx
+'use client';
+
+import { useState } from 'react';
+import { LogIn } from 'lucide-react';
+import CreateThread from './CreateThread';
+import ThreadList from './ThreadList';
+import { useUser } from '@/components/AuthProvider';
+import type { User } from '@/lib/types';
+
+const categories = [
+  { value: 'all', label: 'All Posts' },
+  { value: 'general', label: 'General' },
+  { value: 'events', label: 'Events' },
+  { value: 'buy-sell', label: 'Buy & Sell' },
+  { value: 'ferry', label: 'Ferry' },
+  { value: 'politics-canada', label: 'Politics – Canada' },
+  { value: 'politics-us', label: 'Politics – US' },
+  { value: 'politics-world', label: 'Politics – World' },
+  { value: 'politics-local', label: 'Politics – Local' },
+  { value: 'environment', label: 'Environment' },
+  { value: 'housing', label: 'Housing' },
+  { value: 'health', label: 'Health' },
+];
+
+export default function BBS() {
+  const { user, loading } = useUser();
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  if (loading) return <div className="text-center py-20">Loading...</div>;
+  if (!user) {
+  return (
+    <div className="text-center py-20">
+      <button
+        onClick={() => (window.location.href = '/signin')}  // ← CHANGE THIS LINE
+        className="bg-gabriola-green text-white px-8 py-4 rounded-full text-xl font-bold hover:bg-gabriola-green-dark transition shadow-lg"
+      >
+        <LogIn className="inline w-6 h-6 mr-3" />
+        Sign In to Join the Conversation
+      </button>
+      <p className="mt-6 text-gray-600">
+        You need to be logged in to post or reply.
+      </p>
+    </div>
+  );
+}
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="text-center mb-12">
+        <h1 className="text-5xl font-bold text-gabriola-green mb-4">Community Forum</h1>
+        <p className="text-xl text-gray-600">Real conversations. Real neighbours. Real Gabriola.</p>
+        <p className="mt-4 text-lg">
+          Logged in as <strong>{user.full_name}</strong>
+          {user.role === 'admin' && ' 👑 Admin'}
+          {user.role === 'moderator' && ' ⭐ Mod'}
+        </p>
+      </div>
+
+      {/* Category tabs */}
+      <div className="flex flex-wrap justify-center gap-3 mb-10">
+        {categories.map(cat => (
+          <button
+            key={cat.value}
+            onClick={() => setSelectedCategory(cat.value)}
+            className={`px-6 py-3 rounded-full font-medium transition ${
+              selectedCategory === cat.value
+                ? 'bg-gabriola-green text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Create Thread */}
+      {user.can_post && (
+        <CreateThread currentUser={user} onSuccess={() => setSelectedCategory('all')} />
+      )}
+
+      {/* Thread List */}
+      <ThreadList category={selectedCategory} currentUser={user} />
+    </div>
+  );
+}

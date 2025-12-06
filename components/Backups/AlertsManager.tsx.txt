@@ -1,0 +1,235 @@
+// components/AlertsManager.tsx — FINAL, WITH BLUE "INFO" + CLEAR EXPIRY
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useUser } from '@/components/AuthProvider';
+import { AlertTriangle, X, Plus, Clock } from 'lucide-react';
+
+interface Alert {
+  id: string;
+  title: string;
+  message: string;
+  severity: 'critical' | 'important' | 'advisory' | 'info';
+  issuer: string;
+  organization: string;
+  created_at: string;
+  expires_at?: string | null;
+  active: boolean;
+}
+
+export default function AlertsManager() {
+  const { user } = useUser();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    message: '',
+    severity: 'important' as Alert['severity'],
+    issuer: user?.full_name || '',
+    organization: '',
+    expiresInHours: 24,
+  });
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
+
+  const fetchAlerts = async () => {
+    const { data } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+    setAlerts(data || []);
+    setLoading(false);
+  };
+
+  const createAlert = async () => {
+    if (!formData.title.trim() || !formData.message.trim()) {
+      alert('Title and message are required');
+      return;
+    }
+
+    const expiresAt = formData.expiresInHours > 0 
+      ? new Date(Date.now() + formData.expiresInHours * 60 * 60 * 1000).toISOString()
+      : null;
+
+    const { error } = await supabase.from('alerts').insert({
+      title: formData.title.trim(),
+      message: formData.message.trim(),
+      severity: formData.severity,
+      issuer: formData.issuer.trim() || 'Anonymous',
+      organization: formData.organization.trim() || 'Gabriola Connects',
+      expires_at: expiresAt,
+      active: true,
+    });
+
+    if (!error) {
+      alert('Alert published!');
+      setShowForm(false);
+      setFormData({ ...formData, title: '', message: '' });
+      fetchAlerts();
+    } else {
+      alert('Error: ' + error.message);
+    }
+  };
+
+  const deleteAlert = async (id: string) => {
+    if (!confirm('Delete this alert permanently?')) return;
+    await supabase.from('alerts').delete().eq('id', id);
+    fetchAlerts();
+  };
+
+  const getSeverityColor = (severity: Alert['severity']) => {
+    switch (severity) {
+      case 'critical': return 'from-red-600 to-red-700 border-red-800';
+      case 'important': return 'from-orange-500 to-orange-600 border-orange-700';
+      case 'advisory': return 'from-yellow-500 to-yellow-600 border-yellow-700';
+      case 'info': return 'from-blue-600 to-blue-700 border-blue-800';
+    }
+  };
+
+  if (loading) return <div className="text-center py-32 text-2xl">Loading alerts...</div>;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Header */}
+      <div className="bg-white border-b-4 border-red-600 shadow-xl">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-5">
+              <AlertTriangle className="w-14 h-14 text-red-600" />
+              <div>
+                <h1 className="text-5xl font-bold text-red-600">Emergency Alerts</h1>
+                <p className="text-2xl text-gray-700 mt-2">{alerts.length} active alert{alerts.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 flex items-center gap-3 shadow-xl text-xl"
+              >
+                <Plus className="w-7 h-7" />
+                {showForm ? 'Cancel' : 'New Alert'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Create Form */}
+      {showForm && user?.role === 'admin' && (
+        <div className="max-w-4xl mx-auto p-10 bg-white shadow-2xl border-b-8 border-red-600 -mt-8 relative z-10">
+          <h2 className="text-4xl font-bold text-red-600 mb-8">Create New Alert</h2>
+          <div className="space-y-8">
+            <input
+              placeholder="Alert Title (required)"
+              value={formData.title}
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+              className="w-full p-5 border-2 rounded-xl text-xl focus:border-red-500 outline-none"
+            />
+            <textarea
+              placeholder="Detailed message (required)"
+              value={formData.message}
+              onChange={e => setFormData({ ...formData, message: e.target.value })}
+              rows={6}
+              className="w-full p-5 border-2 rounded-xl text-lg resize-none focus:border-red-500 outline-none"
+            />
+            <div className="grid md:grid-cols-3 gap-6">
+              <select
+                value={formData.severity}
+                onChange={e => setFormData({ ...formData, severity: e.target.value as any })}
+                className="p-5 border-2 rounded-xl text-lg focus:border-red-500 outline-none"
+              >
+                <option value="critical">Critical (Red)</option>
+                <option value="important">Important (Orange)</option>
+                <option value="advisory">Advisory (Yellow)</option>
+                <option value="info">Info (Blue)</option>
+              </select>
+              <input
+                placeholder="Your Name"
+                value={formData.issuer}
+                onChange={e => setFormData({ ...formData, issuer: e.target.value })}
+                className="p-5 border-2 rounded-xl text-lg focus:border-red-500 outline-none"
+              />
+              <input
+                type="number"
+                placeholder="Expires in hours (0 = never)"
+                value={formData.expiresInHours}
+                onChange={e => setFormData({ ...formData, expiresInHours: parseInt(e.target.value) || 0 })}
+                min="0"
+                className="p-5 border-2 rounded-xl text-lg focus:border-red-500 outline-none"
+              />
+            </div>
+            <button
+              onClick={createAlert}
+              className="w-full bg-red-600 text-white py-6 rounded-xl font-bold text-2xl hover:bg-red-700 transition shadow-xl"
+            >
+              Publish Alert
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Alerts */}
+      <div className="max-w-4xl mx-auto p-10 space-y-10">
+        {alerts.length === 0 ? (
+          <div className="text-center py-32">
+            <AlertTriangle className="w-32 h-32 text-gray-300 mx-auto mb-8" />
+            <p className="text-4xl font-bold text-gray-500">No active alerts</p>
+            <p className="text-2xl text-gray-400 mt-4">All is calm on Gabriola Island</p>
+          </div>
+        ) : (
+          alerts.map(alert => (
+            <div
+              key={alert.id}
+              className={`bg-gradient-to-br ${getSeverityColor(alert.severity)} border-4 rounded-2xl shadow-2xl overflow-hidden text-white`}
+            >
+              <div className="p-10">
+                <div className="flex justify-between items-start mb-8">
+                  <div>
+                    <div className="flex items-center gap-6 mb-6">
+                      <span className="px-8 py-3 bg-white/30 rounded-full font-bold text-2xl uppercase">
+                        {alert.severity}
+                      </span>
+                      {alert.organization && (
+                        <span className="text-xl opacity-90">{alert.organization}</span>
+                      )}
+                    </div>
+                    <h3 className="text-5xl font-bold mb-4">{alert.title}</h3>
+                    <p className="text-2xl opacity-95">Issued by: {alert.issuer}</p>
+                  </div>
+                  {user?.role === 'admin' && (
+                    <button
+                      onClick={() => deleteAlert(alert.id)}
+                      className="p-4 bg-white/20 hover:bg-white/30 rounded-full transition"
+                    >
+                      <X className="w-10 h-10" />
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-2xl leading-relaxed mb-10 whitespace-pre-wrap">
+                  {alert.message}
+                </p>
+
+                <div className="flex items-center justify-between text-lg opacity-90 pt-6 border-t border-white/30">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-6 h-6" />
+                    <span>Posted {new Date(alert.created_at).toLocaleString()}</span>
+                  </div>
+                  {alert.expires_at && (
+                    <span>Expires {new Date(alert.expires_at).toLocaleString()}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
