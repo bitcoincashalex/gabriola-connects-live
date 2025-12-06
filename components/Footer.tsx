@@ -13,7 +13,7 @@ export default function Footer() {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
           <Link 
-            href="https://github.com/bitcoincashalex/gabriola-connects" 
+            href="https://github.com/bitcoincashalex/gabriola-connects-live" 
             target="_blank" 
             className="hover:underline flex items-center gap-2"
           >
