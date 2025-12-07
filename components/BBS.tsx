@@ -1,8 +1,7 @@
-// components/BBS.tsx — FINAL, CLEAN, PROFESSIONAL
+// components/BBS.tsx — FINAL: SHOWS ALL ROLES + RESIDENT FLAG
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import CreateThread from './CreateThread';
 import ThreadList from './ThreadList';
@@ -28,32 +27,56 @@ export default function BBS() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-2xl text-gray-600">Sign in to join the conversation</p>
+      </div>
+    );
+  }
+
+  // Role detection (add more as needed)
+  const roles = [];
+  if (user.is_super_admin || user.role === 'admin') roles.push({ label: 'Admin', color: 'bg-red-600' });
+  if (user.is_moderator) roles.push({ label: 'Moderator', color: 'bg-purple-600' });
+  if (user.is_fire) roles.push({ label: 'Fire', color: 'bg-orange-600' });
+  if (user.is_police) roles.push({ label: 'Police', color: 'bg-blue-700' });
+  if (user.is_medic) roles.push({ label: 'Medic', color: 'bg-red-700' });
+  if (user.is_resident) roles.push({ label: 'Resident', color: 'bg-green-600' });
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex justify-between items-start mb-8">
             <div>
               <h1 className="text-5xl font-bold text-gabriola-green">Community Forum</h1>
               <p className="text-xl text-gray-600 mt-2">Real conversations. Real neighbours. Real Gabriola.</p>
-              {user && (
-                <p className="text-lg text-gray-700 mt-4">
-                  Logged in as <span className="font-bold">{user.full_name}</span>
-                  {user.role === 'admin' && ' Admin'}
-                </p>
-              )}
+
+              <div className="flex flex-wrap items-center gap-3 mt-4 text-lg">
+                <span className="font-medium">Logged in as</span>
+                <span className="font-bold text-gabriola-green">
+                  {user.full_name || user.email}
+                </span>
+
+                {/* All roles — automatically shows any you have */}
+                {roles.map(role => (
+                  <span
+                    key={role.label}
+                    className={`${role.color} text-white px-3 py-1 rounded-full text-sm font-bold`}
+                  >
+                    {role.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            {/* Floating "New Post" button — only for logged-in users */}
-            {user && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="fixed bottom-8 right-8 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
-              >
-                <Plus className="w-8 h-8" />
-              </button>
-            )}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="fixed bottom-8 right-8 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
+            >
+              <Plus className="w-8 h-8" />
+            </button>
           </div>
 
           {/* Category Tabs */}
@@ -75,26 +98,15 @@ export default function BBS() {
         </div>
       </div>
 
-      {/* Thread List — fills the page */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <ThreadList category={activeCategory} currentUser={user} />
       </div>
 
-      {/* Create Thread Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <CreateThread
-              currentUser={user!}
-              onSuccess={() => {
-                setShowCreateModal(false);
-                window.location.reload();
-              }}
-            />
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="mt-6 w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
+            <CreateThread currentUser={user} onSuccess={() => { setShowCreateModal(false); window.location.reload(); }} />
+            <button onClick={() => setShowCreateModal(false)} className="mt-6 w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
               Cancel
             </button>
           </div>

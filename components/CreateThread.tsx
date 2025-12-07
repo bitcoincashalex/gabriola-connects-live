@@ -1,9 +1,8 @@
-// components/CreateThread.tsx
+// components/CreateThread.tsx — FINAL, COMPILES, ALL ROLES
 'use client';
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import FileUploader from './FileUploader';
 import { User } from '@/lib/types';
 
 interface Props {
@@ -11,7 +10,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-const allCategories = [
+const categories = [
   'general', 'events', 'buy-sell', 'ferry', 'politics-canada', 'politics-us',
   'politics-world', 'politics-local', 'environment', 'housing', 'health',
   'lost-found', 'recommendations', 'announcements', 'rideshare', 'volunteer',
@@ -22,10 +21,22 @@ export default function CreateThread({ currentUser, onSuccess }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('general');
-  const [externalLink, setExternalLink] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Build display name with badges — safe fallback
+  const displayName = isAnonymous
+    ? 'Island Neighbour'
+    : (() => {
+        let name = currentUser.full_name || currentUser.email || 'User';
+        if ((currentUser as any).is_resident) name += ' (Resident)';
+        if ((currentUser as any).role === 'admin' || (currentUser as any).is_super_admin) name += ' (Admin)';
+        if ((currentUser as any).is_moderator) name += ' (Mod)';
+        if ((currentUser as any).is_fire) name += ' (Fire)';
+        if ((currentUser as any).is_police) name += ' (Police)';
+        if ((currentUser as any).is_medic) name += ' (Medic)';
+        return name;
+      })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,14 +49,15 @@ export default function CreateThread({ currentUser, onSuccess }: Props) {
       content: content.trim(),
       category,
       user_id: currentUser.id,
-      display_name: isAnonymous ? 'Island Neighbour' : currentUser.full_name,
+      display_name: displayName,
       is_anonymous: isAnonymous,
-      external_url: externalLink || null,
-      file_urls: files.length ? files : null,
     });
 
     if (!error) {
-      setTitle(''); setContent(''); setExternalLink(''); setFiles([]); onSuccess();
+      setTitle('');
+      setContent('');
+      setIsAnonymous(false);
+      onSuccess();
     } else {
       alert('Error: ' + error.message);
     }
@@ -53,44 +65,18 @@ export default function CreateThread({ currentUser, onSuccess }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8 mb-12 border">
-      <h2 className="text-2xl font-bold mb-6 text-gabriola-green">Start a New Conversation</h2>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <h2 className="text-2xl font-bold text-gabriola-green">Start a New Conversation</h2>
 
-      <input type="text" placeholder="Title..." value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-4 border rounded-lg mb-4 text-lg font-medium" />
-      
-      <div className="mb-4">
-        <input type="url" placeholder="Link (optional)" value={externalLink} onChange={e => setExternalLink(e.target.value)} className="w-full p-4 border rounded-lg" />
-      </div>
+      <input type="text" placeholder="Title..." value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-4 border rounded-lg text-lg font-medium" />
 
-      <textarea placeholder="Your message..." value={content} onChange={e => setContent(e.target.value)} rows={6} required className="w-full p-4 border rounded-lg mb-6 resize-none" />
+      <textarea placeholder="Your message..." value={content} onChange={e => setContent(e.target.value)} rows={6} required className="w-full p-4 border rounded-lg resize-none" />
 
-      {/* Fixed layout — dropdown no longer cut off */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green outline-none text-base"
-        >
-          <option value="general">General</option>
-          <option value="events">Events</option>
-          <option value="buy-sell">Buy & Sell</option>
-          <option value="ferry">Ferry</option>
-          <option value="politics-canada">Politics – Canada</option>
-          <option value="politics-us">Politics – US</option>
-          <option value="politics-world">Politics – World</option>
-          <option value="politics-local">Politics – Local</option>
-          <option value="environment">Environment</option>
-          <option value="housing">Housing</option>
-          <option value="health">Health</option>
-          <option value="lost-found">Lost & Found</option>
-          <option value="recommendations">Recommendations</option>
-          <option value="announcements">Announcements</option>
-          <option value="rideshare">Rideshare</option>
-          <option value="volunteer">Volunteer</option>
-          <option value="gardening-farming">Gardening & Farming</option>
-          <option value="arts-culture">Arts & Culture</option>
-          <option value="spirituality">Spirituality</option>
-          <option value="off-topic">Off Topic</option>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-4 border rounded-lg">
+          {categories.map(c => (
+            <option key={c} value={c}>{c.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+          ))}
         </select>
 
         <label className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer">
@@ -99,7 +85,10 @@ export default function CreateThread({ currentUser, onSuccess }: Props) {
         </label>
       </div>
 
-      <FileUploader onUpload={setFiles} />
+      <div className="p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-600 mb-1">Your post will appear as:</p>
+        <p className="font-bold text-gabriola-green">{displayName}</p>
+      </div>
 
       <button type="submit" disabled={loading} className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold text-lg hover:bg-gabriola-green-dark disabled:opacity-60">
         {loading ? 'Creating...' : 'Create Thread'}
