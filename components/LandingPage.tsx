@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { Calendar, MessageSquare, Book, Anchor, Bell, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
+import EmergencyBanner from './EmergencyBanner';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -73,43 +74,10 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           }}>
             Your Island Community Hub
           </p>
-          <div className="flex flex-wrap justify-center gap-3 text-sm text-white" style={{
-            textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
-          }}>
-            <button onClick={() => onNavigate('calendar')} className="hover:scale-110 transition-transform cursor-pointer">
-              Events
-            </button>
-            <button onClick={() => onNavigate('forum')} className="hover:scale-110 transition-transform cursor-pointer">
-              Discussion
-            </button>
-            <button onClick={() => onNavigate('directory')} className="hover:scale-110 transition-transform cursor-pointer">
-              Directory
-            </button>
-            <button onClick={() => onNavigate('ferry')} className="hover:scale-110 transition-transform cursor-pointer">
-              Ferry Info
-            </button>
-            <button onClick={() => onNavigate('calendar')} className="hover:scale-110 transition-transform cursor-pointer">
-              Alerts
-            </button>
-          </div>
+<EmergencyBanner />          
         </div>
       </div>
-{/* === ACTIVE ALERTS BANNER — TOP OF LANDING PAGE === */}
-<div className="w-full bg-red-600 text-white shadow-2xl">
-  <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div className="flex items-center gap-4">
-      <AlertTriangle className="w-8 h-8 animate-pulse" />
-      <div>
-        <h3 className="text-xl font-bold">EMERGENCY: Wildfire Evacuation Alert</h3>
-        <p className="text-sm opacity-90">South end of island under immediate evacuation order</p>
-      </div>
-    </div>
-    <Link href="/alerts" className="bg-white text-red-600 px-6 py-3 rounded-full font-bold hover:bg-gray-100 transition">
-      View Details →
-    </Link>
-  </div>
-</div>
-{/* =============================================== */}
+
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

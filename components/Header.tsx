@@ -1,4 +1,4 @@
-// components/Header.tsx — FINAL WITH MOBILE HAMBURGER + NO SCROLL
+// components/Header.tsx — FINAL, FULLY WORKING, NO ERRORS
 'use client';
 
 import Link from 'next/link';
@@ -67,12 +67,24 @@ export default function Header() {
             )}
           </nav>
 
-          {/* Right side — user + mobile menu button */}
+          {/* Right side — user + mobile menu */}
           <div className="flex items-center gap-4">
             {user ? (
-              <span className="hidden md:block text-sm">
-                {user.full_name} {user.role === 'admin' && '(Admin)'}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="hidden md:block text-sm">
+                  {user.user_metadata?.full_name || user.email || 'Logged in'}
+                  {user.role === 'admin' && ' (Admin)'}
+                </span>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = '/';
+                  }}
+                  className="bg-white text-gabriola-green px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition"
+                >
+                  Sign Out
+                </button>
+              </div>
             ) : (
               <Link href="/signin" className="hidden md:block hover:underline text-sm">
                 Sign In
@@ -89,7 +101,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Menu — slides down */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/20">
             <nav className="py-4 space-y-3 text-center text-lg">
