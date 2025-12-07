@@ -1,4 +1,4 @@
-// components/Header.tsx — FINAL, FULLY WORKING, NO ERRORS
+// components/Header.tsx
 'use client';
 
 import Link from 'next/link';
@@ -72,8 +72,9 @@ export default function Header() {
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="hidden md:block text-sm">
-                  {user.user_metadata?.full_name || user.email || 'Logged in'}
-                  {user.role === 'admin' && ' (Admin)'}
+                  {user.full_name || user.username || user.email || 'Logged in'}
+                  {user.is_super_admin && ' (Super Admin)'}
+                  {!user.is_super_admin && user.role === 'admin' && ' (Admin)'}
                 </span>
                 <button
                   onClick={async () => {

@@ -1,0 +1,394 @@
+// app/signin/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+
+export default function SignInPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [isResident, setIsResident] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handlePostalChange = (value: string) => {
+    const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const formatted = cleaned.length > 3 ? `${cleaned.slice(0,3)} ${cleaned.slice(3,6)}` : cleaned;
+    setPostalCode(formatted.slice(0,7));
+    setIsResident(cleaned.startsWith('V0R'));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('🚀 Form submitted!', { isSignup, isForgot });
+    
+    setLoading(true);
+    setMessage('');
+    setError('');
+
+    // Validate password length for signup
+    if (isSignup && password.length < 8) {
+      console.log('❌ Password too short');
+      setError('Password must be at least 8 characters long');
+      setLoading(false);
+      return;
+    }
+
+    if (isForgot) {
+      console.log('📧 Resetting password for:', email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      console.log('Reset result:', error);
+      setMessage(error ? error.message : 'Check your email for reset link!');
+      setLoading(false);
+    } else if (isSignup) {
+      console.log('📝 Starting signup...', { email, username });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { 
+            full_name: fullName, 
+            username, 
+            postal_code: postalCode || null, 
+            is_resident: isResident 
+          },
+        },
+      });
+      
+      console.log('Signup result:', { data, error });
+      
+      if (error) {
+        console.log('❌ Signup error:', error.message);
+        if (error.message.includes('already registered')) {
+          setError('This email is already registered. Please sign in instead or use a different email.');
+        } else if (error.message.includes('password')) {
+          setError('Password must be at least 8 characters long.');
+        } else {
+          setError(error.message);
+        }
+        setLoading(false);
+      } else {
+        console.log('✅ Signup successful!');
+        console.log('Session:', data.session ? 'EXISTS' : 'NULL');
+        console.log('User:', data.user ? 'EXISTS' : 'NULL');
+        
+        if (data.user && data.session) {
+          console.log('🎉 Auto-confirmed! Redirecting in 2 seconds...');
+          setMessage('Account created successfully! Redirecting...');
+          
+          // Try multiple redirect methods
+          setTimeout(() => {
+            console.log('🔄 Attempting redirect...');
+            try {
+              // Method 1: window.location.href
+              window.location.href = '/';
+            } catch (err) {
+              console.error('Redirect method 1 failed:', err);
+              // Method 2: window.location.replace
+              try {
+                window.location.replace('/');
+              } catch (err2) {
+                console.error('Redirect method 2 failed:', err2);
+                // Method 3: Show manual link
+                setMessage('Redirect failed. Click here to continue: ');
+              }
+            }
+          }, 2000);
+        } else {
+          console.log('📧 Email confirmation required');
+          setMessage('Account created! Check your email for confirmation link.');
+          setLoading(false);
+        }
+      }
+    } else {
+      // Sign in
+      console.log('🔐 Starting signin...', { email });
+      
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      console.log('📊 Signin result:', { 
+        hasData: !!data, 
+        hasSession: !!data?.session,
+        hasUser: !!data?.user,
+        error: signInError 
+      });
+      
+      if (signInError) {
+        console.log('❌ Signin error:', signInError.message);
+        
+        // Check if user exists
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email.toLowerCase())
+          .single();
+        
+        console.log('User lookup:', userData ? 'FOUND' : 'NOT FOUND');
+        
+        if (!userData) {
+          setError('No account found with this email address.');
+        } else {
+          setError('Incorrect password. Please try again.');
+        }
+        setLoading(false);
+      } else {
+        console.log('✅ Signin successful!');
+        console.log('Session token:', data.session?.access_token ? 'EXISTS' : 'MISSING');
+        
+        setMessage('Signing in...');
+        
+        // Alert for debugging
+        alert('Sign in successful! Redirecting to home page...');
+        
+        setTimeout(() => {
+          console.log('🔄 Executing redirect to home...');
+          try {
+            window.location.href = '/';
+            console.log('✅ Redirect called');
+          } catch (err) {
+            console.error('❌ Redirect failed:', err);
+            alert('Redirect failed! Error: ' + err);
+          }
+        }, 1000);
+      }
+    }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    setMessage(error ? error.message : 'Confirmation email resent!');
+    setLoading(false);
+  };
+
+  if (isForgot) {
+    return (
+      <div className="max-w-md mx-auto mt-32 p-8 bg-white rounded-2xl shadow-xl text-center">
+        <h1 className="text-3xl font-bold text-gabriola-green mb-8">Reset Password</h1>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <input 
+            type="email" 
+            placeholder="Your email" 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+            required 
+            className="w-full p-4 border rounded-lg" 
+          />
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:opacity-50"
+          >
+            {loading ? 'Sending...' : 'Send Reset Link'}
+          </button>
+        </form>
+        {message && <p className="mt-6 text-lg text-green-600">{message}</p>}
+        {error && <p className="mt-6 text-lg text-red-600">{error}</p>}
+        <button 
+          onClick={() => setIsForgot(false)} 
+          className="mt-6 text-gabriola-green underline hover:no-underline"
+        >
+          Back to Sign In
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-xl">
+      <h1 className="text-3xl font-bold text-center mb-2 text-gabriola-green">
+        {isSignup ? 'Join Gabriola Connects' : 'Welcome'}
+      </h1>
+      
+      <p className="text-center text-gray-600 mb-8">
+        {isSignup ? 'Connect with your island community' : 'Sign in to your account'}
+      </p>
+
+      {message ? (
+        <div className="text-center py-12">
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gabriola-green mb-6">{message}</h2>
+          {message.includes('email') && !message.includes('Redirecting') && (
+            <button 
+              onClick={handleResend} 
+              disabled={loading} 
+              className="bg-gabriola-green text-white px-8 py-3 rounded-lg font-bold mb-4 hover:bg-gabriola-green-dark transition disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Resend Confirmation Email'}
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              console.log('Manual redirect button clicked');
+              window.location.href = '/';
+            }} 
+            className="block w-full text-gabriola-green underline hover:no-underline mt-4"
+          >
+            Continue to Site →
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Show error at top if exists */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <input 
+                type="email" 
+                placeholder="Email" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                required 
+                className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+              />
+            </div>
+
+            <div>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder={isSignup ? "Password (min 8 characters)" : "Password"}
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                  minLength={isSignup ? 8 : undefined}
+                  className="w-full p-4 border rounded-lg pr-12 focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {isSignup && password.length > 0 && password.length < 8 && (
+                <p className="text-sm text-orange-600 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  Password must be at least 8 characters
+                </p>
+              )}
+              {isSignup && password.length >= 8 && (
+                <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" />
+                  Password strength: Good
+                </p>
+              )}
+            </div>
+
+            {isSignup && (
+              <>
+                <div>
+                  <input 
+                    type="text" 
+                    placeholder="Full Name" 
+                    value={fullName} 
+                    onChange={e => setFullName(e.target.value)} 
+                    required 
+                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+                  />
+                </div>
+
+                <div>
+                  <input 
+                    type="text" 
+                    placeholder="Username (no spaces)" 
+                    value={username} 
+                    onChange={e => setUsername(e.target.value.replace(/\s/g,''))} 
+                    required 
+                    className="w-full p-4 border rounded-lg font-mono focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+                  />
+                </div>
+
+                <div>
+                  <input 
+                    type="text" 
+                    placeholder="Postal Code (optional)" 
+                    value={postalCode} 
+                    onChange={e => handlePostalChange(e.target.value)} 
+                    className="w-full p-4 border rounded-lg font-mono focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+                  />
+                  {isResident && (
+                    <div className="mt-3 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-green-800 font-bold text-center flex items-center justify-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Welcome, Gabriola Resident!
+                    </div>
+                  )}
+                </div>
+
+                {/* Community Guidelines */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-gray-700">
+                  <p className="font-semibold text-gabriola-green mb-2">Community Guidelines</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Be respectful and kind to fellow islanders</li>
+                    <li>• No spam, harassment, or hate speech</li>
+                    <li>• Keep discussions civil and constructive</li>
+                    <li>• Respect privacy - no personal attacks</li>
+                    <li>• Follow Canadian laws and community standards</li>
+                  </ul>
+                  <p className="mt-2 text-xs text-gray-600">
+                    By creating an account, you agree to our community guidelines.
+                  </p>
+                </div>
+              </>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={loading || (isSignup && password.length < 8)} 
+              className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading 
+                ? (isSignup ? 'Creating Account...' : 'Signing In...') 
+                : (isSignup ? 'Create Account' : 'Sign In')
+              }
+            </button>
+          </form>
+
+          <div className="text-center mt-8 space-y-4">
+            {!isSignup && (
+              <button 
+                onClick={() => setIsForgot(true)} 
+                className="text-gabriola-green underline hover:no-underline"
+              >
+                Forgot password?
+              </button>
+            )}
+            <p className="text-gray-600">
+              {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsSignup(!isSignup);
+                  setError('');
+                  setMessage('');
+                  setPassword('');
+                }} 
+                className="text-gabriola-green font-bold underline hover:no-underline"
+              >
+                {isSignup ? 'Sign In' : 'Sign Up'}
+              </button>
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

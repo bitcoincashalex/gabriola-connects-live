@@ -1,8 +1,9 @@
-// app/signin/page.tsx — FINAL: EVERYTHING WORKS
+// app/signin/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Eye, EyeOff, CheckCircle, AlertCircle, Mail, Lock, User, MapPin, Loader2 } from 'lucide-react';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -14,8 +15,9 @@ export default function SignInPage() {
   const [isSignup, setIsSignup] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handlePostalChange = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -27,108 +29,418 @@ export default function SignInPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
     setError('');
+    setMessage('');
 
-    if (isForgot) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      setMessage(error ? error.message : 'Check your email for reset link!');
-    } else if (isSignup) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName, username, postal_code: postalCode || null, is_resident: isResident },
-        },
-      });
-      setMessage(error ? error.message : 'Check your email for confirmation link!');
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError('Invalid email or password');
-      else window.location.href = '/';
+    // Validate password length for signup
+    if (isSignup && password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      if (isForgot) {
+        // Password reset
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        
+        if (error) {
+          setError(error.message);
+        } else {
+          setMessage('Password reset link sent! Check your email.');
+        }
+        setLoading(false);
+        
+      } else if (isSignup) {
+        // Sign up
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { 
+              full_name: fullName, 
+              username,
+              postal_code: postalCode || null,
+              is_resident: isResident
+            },
+          },
+        });
+        
+        if (error) {
+          if (error.message.includes('already registered')) {
+            setError('This email is already registered. Please sign in instead.');
+          } else {
+            setError(error.message);
+          }
+          setLoading(false);
+        } else if (data.user) {
+          // Show success message
+          setMessage('Account created! Setting up your profile...');
+          
+          // Wait for user record to be created
+          let attempts = 0;
+          let userFound = false;
+          
+          while (attempts < 10 && !userFound) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const { data: userRecord } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', data.user.id)
+              .single();
+            
+            if (userRecord) {
+              userFound = true;
+              // Set flag in sessionStorage so home page can show welcome message
+              sessionStorage.setItem('justSignedUp', 'true');
+              sessionStorage.setItem('newUserName', fullName);
+              window.location.href = '/';
+            } else {
+              attempts++;
+            }
+          }
+          
+          if (!userFound) {
+            sessionStorage.setItem('justSignedUp', 'true');
+            sessionStorage.setItem('newUserName', fullName);
+            window.location.href = '/';
+          }
+        }
+        
+      } else {
+        // Sign in
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
+        
+        if (error) {
+          // Check if user exists
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email.toLowerCase())
+            .single();
+          
+          if (!userData) {
+            setError('No account found with this email address.');
+          } else {
+            setError('Incorrect password. Please try again.');
+          }
+          setLoading(false);
+        } else {
+          window.location.href = '/';
+        }
+      }
+    } catch (err: any) {
+      setError('An error occurred: ' + (err?.message || 'Unknown error'));
+      setLoading(false);
+    }
   };
 
-  const handleResend = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
-    setMessage(error ? error.message : 'Confirmation email resent!');
-    setLoading(false);
-  };
-
+  // Forgot password view
   if (isForgot) {
     return (
-      <div className="max-w-md mx-auto mt-32 p-8 bg-white rounded-2xl shadow-xl text-center">
-        <h1 className="text-3xl font-bold text-gabriola-green mb-8">Reset Password</h1>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <input type="email" placeholder="Your email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full p-4 border rounded-lg" />
-          <button type="submit" disabled={loading} className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold">
-            {loading ? 'Sending...' : 'Send Reset Link'}
-          </button>
-        </form>
-        {message && <p className="mt-6 text-lg">{message}</p>}
-        <button onClick={() => setIsForgot(false)} className="mt-6 text-gabriola-green underline">Back</button>
+      <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gabriola-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-gabriola-green" />
+            </div>
+            <h1 className="text-3xl font-bold text-gabriola-green mb-2">Reset Password</h1>
+            <p className="text-gray-600">Enter your email to receive a reset link</p>
+          </div>
+
+          {message ? (
+            <div className="text-center py-8">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <p className="text-lg text-green-600 mb-6">{message}</p>
+              <button 
+                onClick={() => setIsForgot(false)}
+                className="text-gabriola-green font-semibold underline hover:no-underline"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input 
+                    type="email" 
+                    placeholder="Email" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    required 
+                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
+                  />
+                </div>
+
+                {error && (
+                  <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </form>
+
+              <div className="text-center mt-6">
+                <button 
+                  onClick={() => setIsForgot(false)}
+                  className="text-gabriola-green font-semibold underline hover:no-underline"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-md mx-auto mt-32 p-8 bg-white rounded-2xl shadow-xl">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gabriola-green">
-        {isSignup ? 'Join Gabriola Connects' : 'Welcome Back'}
-      </h1>
-
-      {message ? (
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-gabriola-green mb-6">{message}</h2>
-          <button onClick={handleResend} disabled={loading} className="bg-gabriola-green text-white px-8 py-3 rounded-lg font-bold mb-4">
-            {loading ? 'Sending...' : 'Resend Confirmation Email'}
-          </button>
-          <button onClick={() => window.location.href = '/'} className="block text-gabriola-green underline">
-            Continue to Site →
-          </button>
+  // Show success message with animation
+  if (message && isSignup) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <Loader2 className="w-16 h-16 text-gabriola-green mx-auto mb-4 animate-spin" />
+          <h2 className="text-2xl font-bold text-gabriola-green mb-2">{message}</h2>
+          <p className="text-gray-600">Please wait, this may take a few seconds...</p>
+          <div className="mt-6 flex justify-center gap-2">
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full p-4 border rounded-lg" />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full p-4 border rounded-lg" />
+      </div>
+    );
+  }
 
+  // Main sign in/up view
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gabriola-green/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-gabriola-green" />
+          </div>
+          <h1 className="text-3xl font-bold text-gabriola-green mb-2">
+            {isSignup ? 'Join Gabriola Connects' : 'Welcome Back'}
+          </h1>
+          <p className="text-gray-600">
+            {isSignup ? 'Connect with your island community' : 'Sign in to your account'}
+          </p>
+        </div>
+
+        {/* Error Messages */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-700 text-sm font-medium">{error}</p>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email */}
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="email" 
+              placeholder="Email" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              required 
+              className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                placeholder={isSignup ? "Password (min 8 characters)" : "Password"}
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                required 
+                minLength={isSignup ? 8 : undefined}
+                className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            
+            {/* Password strength indicator */}
+            {isSignup && password.length > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                {password.length < 8 ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                    <span className="text-orange-600">Password must be at least 8 characters</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-green-600">Password strength: Good</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Signup-only fields */}
           {isSignup && (
             <>
-              <input type="text" placeholder="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required className="w-full p-4 border rounded-lg" />
-              <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value.replace(/\s/g,''))} required className="w-full p-4 border rounded-lg" />
+              {/* Full Name */}
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Full Name" 
+                  value={fullName} 
+                  onChange={e => setFullName(e.target.value)} 
+                  required 
+                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
+                />
+              </div>
+
+              {/* Username */}
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Username (no spaces)" 
+                  value={username} 
+                  onChange={e => setUsername(e.target.value.replace(/\s/g,'').toLowerCase())} 
+                  required 
+                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
+                />
+              </div>
+
+              {/* Postal Code */}
               <div>
-                <input type="text" placeholder="Postal Code" value={postalCode} onChange={e => handlePostalChange(e.target.value)} className="w-full p-4 border rounded-lg font-mono" />
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Postal Code (optional)" 
+                    value={postalCode} 
+                    onChange={e => handlePostalChange(e.target.value)} 
+                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
+                  />
+                </div>
+                
+                {/* Resident badge */}
                 {isResident && (
-                  <div className="mt-3 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-green-800 font-bold text-center">
-                    Welcome, Gabriola Resident!
+                  <div className="mt-3 p-4 bg-green-50 border-2 border-green-400 rounded-xl text-green-800 font-bold text-center flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <CheckCircle className="w-5 h-5" />
+                    Welcome, Gabriola Resident! 🏝️
                   </div>
                 )}
+              </div>
+
+              {/* Community Guidelines */}
+              <div className="bg-gradient-to-br from-blue-50 to-gabriola-green/5 border-2 border-blue-200 rounded-xl p-5">
+                <p className="font-bold text-gabriola-green mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  Community Guidelines
+                </p>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-gabriola-green mt-0.5">•</span>
+                    <span>Be respectful and kind to fellow islanders</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gabriola-green mt-0.5">•</span>
+                    <span>No spam, harassment, or hate speech</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gabriola-green mt-0.5">•</span>
+                    <span>Keep discussions civil and constructive</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gabriola-green mt-0.5">•</span>
+                    <span>Respect privacy - no personal attacks</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gabriola-green mt-0.5">•</span>
+                    <span>Follow Canadian laws and community standards</span>
+                  </li>
+                </ul>
+                <p className="mt-3 text-xs text-gray-600 italic">
+                  By creating an account, you agree to these community guidelines.
+                </p>
               </div>
             </>
           )}
 
-          <button type="submit" disabled={loading} className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold">
-            {loading ? 'Loading...' : isSignup ? 'Create Account' : 'Sign In'}
+          {/* Submit Button */}
+          <button 
+            type="submit" 
+            disabled={loading || (isSignup && password.length < 8)} 
+            className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            {loading 
+              ? (isSignup ? 'Creating Account...' : 'Signing In...') 
+              : (isSignup ? 'Create Account' : 'Sign In')
+            }
           </button>
         </form>
-      )}
 
-      {error && <p className="text-red-600 text-center mt-4">{error}</p>}
+        {/* Footer Links */}
+        <div className="mt-8 space-y-4">
+          {/* Forgot Password */}
+          {!isSignup && (
+            <div className="text-center">
+              <button 
+                onClick={() => setIsForgot(true)}
+                className="text-sm text-gabriola-green hover:underline font-medium"
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
 
-      <div className="text-center mt-8">
-        {!isSignup && (
-          <button onClick={() => setIsForgot(true)} className="text-gabriola-green underline">
-            Forgot password?
-          </button>
-        )}
-        <p className="text-gray-600 mt-4">
-          {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button type="button" onClick={() => setIsSignup(!isSignup)} className="text-gabriola-green font-bold underline">
-            {isSignup ? 'Sign In' : 'Sign Up'}
-          </button>
-        </p>
+          {/* Toggle Sign Up/In */}
+          <div className="text-center pt-4 border-t border-gray-200">
+            <p className="text-gray-600 text-sm">
+              {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsSignup(!isSignup);
+                  setError('');
+                  setMessage('');
+                  setPassword('');
+                }} 
+                className="text-gabriola-green font-bold hover:underline"
+              >
+                {isSignup ? 'Sign In' : 'Sign Up'}
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,89 @@
+// app/signin/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+export default function SignInPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    console.log('SIGN IN START');
+    
+    try {
+      const result = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      console.log('SIGN IN RESULT:', result);
+      
+      if (result.error) {
+        console.log('ERROR:', result.error);
+        setError(result.error.message);
+        setLoading(false);
+      } else {
+        console.log('SUCCESS! REDIRECTING NOW!');
+        // Immediate redirect - no delays
+        window.location.href = '/';
+      }
+    } catch (err) {
+      console.error('CATCH ERROR:', err);
+      setError('An error occurred');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-32 p-8 bg-white rounded-2xl shadow-xl">
+      <h1 className="text-3xl font-bold text-center mb-8 text-gabriola-green">
+        Sign In
+      </h1>
+
+      <form onSubmit={handleSignIn} className="space-y-6">
+        <input 
+          type="email" 
+          placeholder="Email" 
+          value={email} 
+          onChange={e => setEmail(e.target.value)} 
+          required 
+          className="w-full p-4 border rounded-lg" 
+        />
+
+        <input 
+          type="password" 
+          placeholder="Password" 
+          value={password} 
+          onChange={e => setPassword(e.target.value)} 
+          required 
+          className="w-full p-4 border rounded-lg" 
+        />
+
+        <button 
+          type="submit" 
+          disabled={loading} 
+          className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold disabled:opacity-50"
+        >
+          {loading ? 'Signing In...' : 'Sign In'}
+        </button>
+      </form>
+
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
+
+      <p className="text-center mt-6 text-gray-600">
+        Test Version - Ultra Simple
+      </p>
+    </div>
+  );
+}

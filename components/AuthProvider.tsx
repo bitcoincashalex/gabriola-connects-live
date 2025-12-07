@@ -1,18 +1,19 @@
-// components/AuthProvider.tsx — FINAL, NO ERRORS, WORKS 100%
+// components/AuthProvider.tsx
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { User } from '@/lib/types';
 
 type AuthContextType = {
-  user: any;
+  user: User | null;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,13 +21,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: userProfile } = await supabase
+          .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        setUser(profile || session.user);
+        setUser(userProfile);
       } else {
         setUser(null);
       }
@@ -37,13 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: userProfile } = await supabase
+          .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        setUser(profile || session.user);
+        setUser(userProfile);
       } else {
         setUser(null);
       }

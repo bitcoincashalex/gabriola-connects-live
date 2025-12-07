@@ -154,34 +154,31 @@ export interface CreateAlertData {
 // User types
 export type UserRole = 'user' | 'moderator' | 'admin';
 
+// COMPLETE USER INTERFACE - Merges old fields + new permission system
 export interface User {
-  // Core fields
+  // Core identity fields
   id: string;
-  full_name: string;
-
-  // These three lines have been REMOVED — they were duplicates
-  // real_name?: string;
-  // can_post?: boolean;
-  // is_moderator?: boolean;
-
-  username: string;
   email?: string;
-  postal_code: string;
+  full_name: string;
+  username?: string;
+  postal_code?: string;
   
   // Profile fields
   avatar_url?: string;
   bio?: string;
-  facebook_url?: string;
   phone?: string;
   website?: string;
+  facebook_url?: string;
   
   // Residency
   is_resident: boolean;
   residency_verified_at?: string;
   resident_since?: string;
   
-  // Permissions
-  role: UserRole;
+  // Legacy role field (kept for compatibility)
+  role: string;
+  
+  // General permissions
   can_post: boolean;
   can_comment: boolean;
   can_rsvp: boolean;
@@ -189,27 +186,67 @@ export interface User {
   can_moderate_events: boolean;
   can_edit_directory: boolean;
   can_issue_alerts: boolean;
+  
+  // NEW: Super admin & module admins
+  is_super_admin: boolean;
+  admin_events: boolean;
+  admin_forum: boolean;
+  admin_alerts: boolean;
+  admin_directory: boolean;
+  admin_ferry: boolean;
+  
+  // NEW: Forum-specific roles
+  forum_moderator: boolean;
+  forum_banned: boolean;
+  forum_read_only: boolean;
+  forum_banned_reason?: string;
+  forum_banned_at?: string;
+  forum_banned_by?: string;
+  
+  // NEW: Special role badges
+  is_fire: boolean;
+  is_police: boolean;
+  is_medic: boolean;
+  is_coast_guard: boolean;
+  
+  // NEW: Events-specific permissions
+  events_moderator: boolean;
+  events_featured_creator: boolean;
+  
+  // NEW: Alerts-specific permissions
+  alerts_max_severity: string; // 'none', 'info', 'advisory', 'important', 'critical'
+  
+  // NEW: Directory-specific permissions
+  directory_verified: boolean;
+  
+  // Legacy alert permission (kept for compatibility)
   alert_level_permission: 'none' | 'minor' | 'moderate' | 'major' | 'emergency';
+  
+  // Ban status
   is_banned: boolean;
-  banned_at?: string;
   banned_reason?: string;
+  banned_at?: string;
   banned_by?: string;
   
-  // Engagement
+  // Engagement metrics
   posts_count: number;
   events_created_count: number;
-  last_active_at?: string;
-  email_notifications: boolean;
   
-  // Future fields
-  stripe_customer_id?: string;
+  // Notifications
+  email_notifications: boolean;
   notification_preferences?: any;
+  
+  // Privacy
   privacy_settings?: any;
+  
+  // Business integration
   business_id?: string;
+  stripe_customer_id?: string;
   
   // Timestamps
   created_at: string;
   updated_at?: string;
+  last_active_at?: string;
 }
 
 export interface UserProfile {

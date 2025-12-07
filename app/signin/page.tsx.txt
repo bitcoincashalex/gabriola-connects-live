@@ -1,0 +1,548 @@
+// app/signin/page.tsx — IMPROVED VERSION with validation
+'use client';
+
+import { useState, FormEvent } from 'react';
+import { supabase } from '@/lib/supabase';
+import {
+  validateEmail,
+  validatePassword,
+  validateUsername,
+  validatePostalCode,
+  formatPostalCode,
+  isGabriolaPostalCode,
+} from '@/lib/auth-utils';
+import { AlertCircle, CheckCircle, Loader2, Mail } from 'lucide-react';
+
+type FormMode = 'signin' | 'signup' | 'forgot';
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+  fullName?: string;
+  username?: string;
+  postalCode?: string;
+  general?: string;
+}
+
+export default function SignInPage() {
+  // Form state
+  const [mode, setMode] = useState<FormMode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showEmailSent, setShowEmailSent] = useState(false);
+  
+  // Computed
+  const isResident = isGabriolaPostalCode(postalCode);
+
+  // Validation helpers
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!validateEmail(email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (mode === 'signup') {
+      if (!fullName.trim()) {
+        newErrors.fullName = 'Please enter your full name';
+      }
+
+      const usernameCheck = validateUsername(username);
+      if (!usernameCheck.valid) {
+        newErrors.username = usernameCheck.error;
+      }
+
+      const passwordCheck = validatePassword(password);
+      if (!passwordCheck.valid) {
+        newErrors.password = passwordCheck.error;
+      }
+
+      if (password !== confirmPassword) {
+        newErrors.password = 'Passwords do not match';
+      }
+
+      if (postalCode && !validatePostalCode(postalCode)) {
+        newErrors.postalCode = 'Invalid postal code format (e.g., V0R 1X0)';
+      }
+    }
+
+    if (mode === 'signin' && !password) {
+      newErrors.password = 'Please enter your password';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Check username availability
+  const checkUsername = async (username: string) => {
+    if (username.length < 3) return;
+
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('username')
+        .ilike('username', username)
+        .limit(1);
+
+      if (data && data.length > 0) {
+        setErrors(prev => ({ ...prev, username: 'Username already taken' }));
+      } else {
+        setErrors(prev => ({ ...prev, username: undefined }));
+      }
+    } catch (error) {
+      console.error('Error checking username:', error);
+    }
+  };
+
+  // Handle signup
+  const handleSignup = async () => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            username: username.trim(),
+            postal_code: postalCode ? formatPostalCode(postalCode) : null,
+            is_resident: isResident,
+          },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        setShowEmailSent(true);
+        setSuccessMessage('Check your email to confirm your account!');
+      } else if (data.session) {
+        // Auto-signed in (if email confirmation is disabled)
+        window.location.href = '/';
+      }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      setErrors({ general: error.message || 'Failed to create account' });
+    }
+  };
+
+  // Handle signin
+  const handleSignin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Check if user is banned (will be caught by AuthProvider too)
+      const { data: profile } = await supabase
+        .from('users')
+        .select('is_banned, banned_reason')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profile?.is_banned) {
+        await supabase.auth.signOut();
+        setErrors({
+          general: profile.banned_reason || 'Your account has been suspended',
+        });
+        return;
+      }
+
+      // Success - redirect
+      window.location.href = '/';
+    } catch (error: any) {
+      console.error('Signin error:', error);
+      setErrors({ general: 'Invalid email or password' });
+    }
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setShowEmailSent(true);
+      setSuccessMessage('Check your email for password reset instructions');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      setErrors({ general: error.message || 'Failed to send reset email' });
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    // Clear previous errors and messages
+    setErrors({});
+    setSuccessMessage('');
+    setShowEmailSent(false);
+
+    // Validate
+    if (!validateForm()) return;
+
+    setLoading(true);
+
+    try {
+      if (mode === 'signup') {
+        await handleSignup();
+      } else if (mode === 'signin') {
+        await handleSignin();
+      } else if (mode === 'forgot') {
+        await handleForgotPassword();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend confirmation email
+  const handleResendConfirmation = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) throw error;
+      setSuccessMessage('Confirmation email resent!');
+    } catch (error: any) {
+      setErrors({ general: error.message || 'Failed to resend email' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render email sent state
+  if (showEmailSent) {
+    return (
+      <div className="min-h-screen bg-gabriola-sand/10 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="mb-6">
+            <Mail className="w-20 h-20 text-gabriola-green mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-gabriola-green mb-2">Check Your Email</h1>
+            <p className="text-lg text-gray-600">{successMessage}</p>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleResendConfirmation}
+              disabled={loading}
+              className="w-full bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Sending...
+                </span>
+              ) : (
+                'Resend Confirmation Email'
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setShowEmailSent(false);
+                setMode('signin');
+              }}
+              className="w-full text-gabriola-green underline"
+            >
+              Back to Sign In
+            </button>
+
+            <button
+              onClick={() => (window.location.href = '/')}
+              className="w-full text-gray-600 underline"
+            >
+              Continue to Site →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render forgot password form
+  if (mode === 'forgot') {
+    return (
+      <div className="min-h-screen bg-gabriola-sand/10 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+          <h1 className="text-3xl font-bold text-center mb-8 text-gabriola-green">
+            Reset Password
+          </h1>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <input
+                type="email"
+                placeholder="Your email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                className={`w-full p-4 border rounded-lg ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
+            {errors.general && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span>{errors.general}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Sending...
+                </span>
+              ) : (
+                'Send Reset Link'
+              )}
+            </button>
+          </form>
+
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setMode('signin')}
+              className="text-gabriola-green underline"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render main signin/signup form
+  return (
+    <div className="min-h-screen bg-gabriola-sand/10 flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+        <h1 className="text-3xl font-bold text-center mb-8 text-gabriola-green">
+          {mode === 'signup' ? 'Join Gabriola Connects' : 'Welcome Back'}
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Email */}
+          <div>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className={`w-full p-4 border rounded-lg ${
+                errors.email ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {errors.email}
+              </p>
+            )}
+          </div>
+
+          {/* Password */}
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className={`w-full p-4 border rounded-lg ${
+                errors.password ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {errors.password}
+              </p>
+            )}
+            {mode === 'signup' && !errors.password && (
+              <p className="mt-1 text-xs text-gray-500">
+                8+ characters, uppercase, lowercase, number
+              </p>
+            )}
+          </div>
+
+          {/* Signup-only fields */}
+          {mode === 'signup' && (
+            <>
+              {/* Confirm Password */}
+              <div>
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full p-4 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              {/* Full Name */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  className={`w-full p-4 border rounded-lg ${
+                    errors.fullName ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.fullName && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.fullName}
+                  </p>
+                )}
+              </div>
+
+              {/* Username */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Username (no spaces)"
+                  value={username}
+                  onChange={e => {
+                    const cleaned = e.target.value.replace(/\s/g, '');
+                    setUsername(cleaned);
+                  }}
+                  onBlur={() => checkUsername(username)}
+                  required
+                  className={`w-full p-4 border rounded-lg ${
+                    errors.username ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.username && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.username}
+                  </p>
+                )}
+              </div>
+
+              {/* Postal Code */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Postal code (optional)"
+                  value={postalCode}
+                  onChange={e => {
+                    const cleaned = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const formatted = cleaned.length > 3 
+                      ? `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)}` 
+                      : cleaned;
+                    setPostalCode(formatted.slice(0, 7));
+                  }}
+                  className={`w-full p-4 border rounded-lg font-mono ${
+                    errors.postalCode ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.postalCode && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.postalCode}
+                  </p>
+                )}
+                {isResident && !errors.postalCode && (
+                  <div className="mt-3 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-green-800 font-bold text-center flex items-center justify-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    Welcome, Gabriola Resident!
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* General error */}
+          {errors.general && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{errors.general}</span>
+            </div>
+          )}
+
+          {/* Submit button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                {mode === 'signup' ? 'Creating Account...' : 'Signing In...'}
+              </span>
+            ) : (
+              mode === 'signup' ? 'Create Account' : 'Sign In'
+            )}
+          </button>
+        </form>
+
+        {/* Footer links */}
+        <div className="text-center mt-8 space-y-3">
+          {mode === 'signin' && (
+            <button
+              onClick={() => setMode('forgot')}
+              className="text-gabriola-green underline block w-full"
+            >
+              Forgot password?
+            </button>
+          )}
+
+          <p className="text-gray-600">
+            {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setMode(mode === 'signup' ? 'signin' : 'signup');
+                setErrors({});
+              }}
+              className="text-gabriola-green font-bold underline"
+            >
+              {mode === 'signup' ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

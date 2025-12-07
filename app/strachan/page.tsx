@@ -21,7 +21,7 @@ export default function StrachanPage() {
             Building Community Connections on Gabriola Island
           </p>
           <p className="text-gabriola-sand/80 text-sm text-center mt-1">
-            Property owners since 1990, residents since 2004
+            Property owners since 1990
           </p>
         </div>
       </header>
