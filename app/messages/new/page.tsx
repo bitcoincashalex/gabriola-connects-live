@@ -8,6 +8,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Search, Send, Loader2, Image as ImageIcon, Link as LinkIcon, X } from 'lucide-react';
 
+// Tell Next.js this page is dynamic (uses search params)
+export const dynamic = 'force-dynamic';
+
 export default function NewMessagePage() {
   const { user } = useUser();
   const router = useRouter();
