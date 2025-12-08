@@ -1,4 +1,6 @@
 // components/Footer.tsx
+// v1.3 - Dec 8, 2025 - Simplified to two lines, matches production design
+
 import Link from 'next/link';
 
 export default function Footer() {
@@ -21,7 +23,6 @@ export default function Footer() {
             About
           </Link>
         </p>
-        
       </div>
     </footer>
   );
