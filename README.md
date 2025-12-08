@@ -46,7 +46,7 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 - Delete/moderate content (admin)
 - View counter (IP-based, no inflation)
 - User badges (Fire Dept, RCMP, Medic, Coast Guard, Admin)
-- **Privacy:** Public forum visible to all, posting requires account
+- **Privacy:** Public forum visible and usable only by community
 
 ### **🏢 Business Directory** ✅
 - 16+ categories (Accommodations, Arts & Crafts, Automotive, etc.)
@@ -60,17 +60,17 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 - Nanaimo → Gabriola and return
 - Current status indicator
 - Mobile-optimized display
-- **Coming soon:** BC Ferries API integration for live delays
+- **Coming soon:** BC Ferries API integration for live delays (MAYBE)
 
 ### **🚨 Community Alerts** ✅
-- Important community announcements
 - Emergency notifications
 - Service disruptions
 - Event cancellations
+- Important community announcements
 - Mobile-friendly alert feed
 - **Coming soon:** Push notifications, SMS alerts
 
-### **👤 User Authentication & Profiles** ✅ *NEW*
+### **👤 User Authentication & Profiles** ✅ 
 - Email/password signup and signin
 - First name + last name fields
 - Resident verification (V0R postal codes)
@@ -82,7 +82,7 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 - Session management with persistent login
 - **Security:** Row-level security (RLS), HTTPS encryption, password hashing
 
-### **💬 Private Messaging System** ✅ *NEW*
+### **💬 Private Messaging System** ✅ 
 - Resident-to-resident direct messaging
 - Real-time message delivery (Supabase subscriptions)
 - Image + URL attachments in messages
@@ -93,9 +93,9 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 - Block users
 - Search conversations
 - Opt-in messaging directory (residents only)
-- **Coming soon:** Typing indicators, admin broadcast messages
+- **Coming soon:** Typing indicators
 
-### **🔐 Privacy & Security** ✅ *NEW*
+### **🔐 Privacy & Security** ✅ 
 - Row-Level Security (RLS) on all user data
 - HTTPS/TLS encryption in transit
 - Database encryption at rest
@@ -108,13 +108,11 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 
 ## 🔨 **IN ACTIVE DEVELOPMENT**
 
-### **Admin Panel** 🚧 (Hooks Ready, UI Coming)
-- User management (ban, read-only mode, role changes)
-- Deleted content review and restoration
-- Reports queue (flagged posts/messages)
-- Broadcast messaging to all users or specific groups
-- Analytics dashboard
-- **Target:** January 2026
+### **Email Verification** 📧 (Planned)
+- Verify email address on signup
+- Prevent spam/fake accounts
+- Password reset via email
+- **Target:** December/January 2026
 
 ### **Enhanced Forum Features** 🚧
 - Edit posts/replies
@@ -131,13 +129,7 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 - Contact preferences (phone, email, message)
 - Photo uploads
 - Expiration dates for listings
-- **Target:** February 2026
-
-### **Email Verification** 📧 (Planned)
-- Verify email address on signup
-- Prevent spam/fake accounts
-- Password reset via email
-- **Target:** January 2026
+- **Target:** January/February 2026
 
 ---
 
@@ -146,7 +138,7 @@ Your island community hub - connecting neighbors, sharing events, finding local 
 Progressive Web App features:
 - Add to home screen (works like native app)
 - Push notifications (alerts, ferry updates, new messages)
-- Offline mode (view cached events, directory, ferry schedule)
+- Offline mode (view cached events, business directory, ferry schedule)
 - Faster loading, smoother experience
 - Works on ALL phones (iPhone + Android)
 
@@ -162,7 +154,7 @@ Based on community feedback:
 - Interest groups (Hikers, Artists, Gardeners, etc.)
 - Event RSVPs with attendee list
 - Photo galleries for events
-- BC Ferries API integration (real-time delays)
+- BC Ferries API integration *MAYBE* (real-time delays)
 
 ---
 
@@ -192,12 +184,11 @@ Based on community feedback:
 
 **Current Limitations:**
 - No email verification yet (coming January)
-- No admin UI yet (hooks ready, interface coming)
-- Forum search not implemented
+- Forum search not yet implemented
 - No push notifications yet
 - No offline mode yet
 - Limited to text + images (no video uploads)
-- Manual resident verification (postal code only)
+- Manual resident verification  (postal code only)
 
 **Minor Bugs Being Fixed:**
 - Occasional auth timeout on page navigation (workaround in place)
@@ -215,28 +206,27 @@ Based on community feedback:
 - Private messaging
 - Profiles
 
-### **Phase 2: Polish & Admin Tools** 🔨 (Jan 2026)
-- Admin panel UI
+### **Phase 2: Polish** 🔨 (Jan 2026)
 - Email verification
 - Forum search
 - Enhanced moderation
 - Bug fixes from beta testing
 
-### **Phase 3: Mobile & Engagement** 📱 (Feb-Mar 2026)
+### **Phase 3: Mobile & Engagement** 📱 (Jan-Feb 2026)
 - PWA features
 - Push notifications
 - Classifieds/Marketplace
 - Service listings
 - Event RSVPs
 
-### **Phase 4: Island Features** 🌟 (Q2 2026)
+### **Phase 4: Island Features** 🌟 (Q1 2026)
 - Weather/Tides
 - Lost & Found
 - Rideshare board
 - Interest groups
-- BC Ferries API
+- BC Ferries API (MAYBE)
 
-### **Phase 5: Community Growth** 🚀 (Mid 2026+)
+### **Phase 5: Community Growth** 🚀 (Q2 2026+)
 - Features based on YOUR feedback
 - Scaling for 5,000+ users
 - Performance optimization

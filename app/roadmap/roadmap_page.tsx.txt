@@ -1,0 +1,260 @@
+// app/roadmap/page.tsx
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
+
+export default function RoadmapPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8 text-lg font-medium"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Home
+        </Link>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8 prose prose-lg max-w-none">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gabriola-green-dark mb-2">
+              🗺️ Gabriola Connects
+            </h1>
+            <p className="text-xl text-gray-600">Beta Status & Roadmap</p>
+            <p className="text-sm text-gray-500 mt-2">Last Updated: December 8, 2025</p>
+          </div>
+
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-8">
+            <p className="text-blue-900 font-bold text-center mb-2">
+              📢 ACTIVE BETA TESTING
+            </p>
+            <p className="text-blue-800 text-center text-sm">
+              We're building in public - your feedback shapes this platform!
+            </p>
+          </div>
+
+          {/* What is Gabriola Connects */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🎯 What is Gabriola Connects?</h2>
+            <p className="text-gray-700">
+              Your island community hub - connecting neighbors, sharing events, finding local services, 
+              checking ferry times, and staying informed about what matters on Gabriola Island.
+            </p>
+            <p className="text-gray-700 font-bold mt-3">
+              Core Vision: A platform BY islanders, FOR islanders. Open source, community-driven, 
+              and built with privacy and transparency at its core.
+            </p>
+          </section>
+
+          {/* Live Features */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🚀 LIVE & WORKING NOW</h2>
+            
+            <div className="space-y-4">
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">📅 Events Calendar</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Browse upcoming island events</li>
+                  <li>• Filter by category (Community, Arts, Sports, etc.)</li>
+                  <li>• Mobile-friendly calendar view</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">💬 Community Forum</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Multiple discussion categories</li>
+                  <li>• Create threads with images + URLs</li>
+                  <li>• Nested reply system (reply to replies)</li>
+                  <li>• Anonymous posting option</li>
+                  <li>• Like/report posts and replies</li>
+                  <li>• User badges (Fire Dept, RCMP, Admin, etc.)</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">🏢 Business Directory</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• 16+ categories</li>
+                  <li>• Search by name or category</li>
+                  <li>• Mobile-friendly listings</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">⛴️ Ferry Schedule</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Real-time departure times</li>
+                  <li>• Current status indicator</li>
+                  <li>• Mobile-optimized</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">👤 User Profiles & Authentication</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Email/password signup</li>
+                  <li>• Resident verification (V0R postal codes)</li>
+                  <li>• Profile photos + avatars</li>
+                  <li>• Privacy controls</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">💬 Private Messaging</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Resident-to-resident messaging</li>
+                  <li>• Real-time delivery</li>
+                  <li>• Image + URL attachments</li>
+                  <li>• Read receipts</li>
+                  <li>• Privacy settings</li>
+                </ul>
+              </div>
+
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-xl font-bold text-gray-800">🔐 Privacy & Security</h3>
+                <ul className="text-gray-700 text-sm mt-2">
+                  <li>• Row-Level Security (RLS)</li>
+                  <li>• HTTPS encryption</li>
+                  <li>• No selling data</li>
+                  <li>• Data stays in Canada</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Coming Soon */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🔨 IN ACTIVE DEVELOPMENT</h2>
+            <div className="space-y-3">
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3">
+                <p className="font-bold text-gray-800">📧 Email Verification</p>
+                <p className="text-sm text-gray-600">Target: December/January 2026</p>
+              </div>
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3">
+                <p className="font-bold text-gray-800">🔍 Enhanced Forum Features</p>
+                <p className="text-sm text-gray-600">Search, sorting, tags - Target: January 2026</p>
+              </div>
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3">
+                <p className="font-bold text-gray-800">🛒 Classifieds/Marketplace</p>
+                <p className="text-sm text-gray-600">Buy/sell/trade locally - Target: Jan/Feb 2026</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Mobile App */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">📱 MOBILE APP (PWA) - Q1 2026</h2>
+            <ul className="text-gray-700">
+              <li>• Add to home screen (works like native app)</li>
+              <li>• Push notifications</li>
+              <li>• Offline mode</li>
+              <li>• Works on ALL phones</li>
+            </ul>
+          </section>
+
+          {/* Island Features */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🌟 ISLAND-SPECIFIC FEATURES - Q1/Q2 2026</h2>
+            <p className="text-gray-700">Based on community feedback:</p>
+            <ul className="text-gray-700 mt-2">
+              <li>• Weather & Tides dashboard</li>
+              <li>• Lost & Found board</li>
+              <li>• Rideshare/Carpool coordination</li>
+              <li>• Interest groups</li>
+              <li>• Event RSVPs</li>
+            </ul>
+          </section>
+
+          {/* Timeline */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🗺️ ROADMAP TIMELINE</h2>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">✅</span>
+                <div>
+                  <p className="font-bold text-gray-800">Phase 1: Foundation (Dec 2025)</p>
+                  <p className="text-sm text-gray-600">Auth, Forum, Messaging, Profiles - COMPLETE</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🔨</span>
+                <div>
+                  <p className="font-bold text-gray-800">Phase 2: Polish (Jan 2026)</p>
+                  <p className="text-sm text-gray-600">Email verification, search, bug fixes</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📱</span>
+                <div>
+                  <p className="font-bold text-gray-800">Phase 3: Mobile & Engagement (Feb-Mar 2026)</p>
+                  <p className="text-sm text-gray-600">PWA, push notifications, classifieds</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🌟</span>
+                <div>
+                  <p className="font-bold text-gray-800">Phase 4: Island Features (Q2 2026)</p>
+                  <p className="text-sm text-gray-600">Weather, tides, lost & found, interest groups</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">🚀</span>
+                <div>
+                  <p className="font-bold text-gray-800">Phase 5: Community Growth (Mid 2026+)</p>
+                  <p className="text-sm text-gray-600">Features based on YOUR feedback!</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Get Involved */}
+          <section className="mb-8 bg-gabriola-green/10 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">📢 HOW TO HELP</h2>
+            <div className="space-y-3 text-gray-700">
+              <p><strong>Beta Testers Wanted!</strong> Create an account and explore features, report bugs, suggest improvements.</p>
+              <p><strong>Developers Welcome!</strong> Open source project (MIT license) - contributions welcome!</p>
+              <p><strong>Community Input Needed!</strong> What features matter most to YOU?</p>
+            </div>
+          </section>
+
+          {/* Vision */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">🏝️ OUR BIGGER VISION</h2>
+            <p className="text-gray-700">
+              If Gabriola Connects succeeds here, we hope other Gulf Islands will launch their own 
+              community hubs: Mayne Connects, Pender Connects, Salt Spring Connects, Denman Connects, 
+              Hornby Connects.
+            </p>
+            <p className="text-gray-700 font-bold mt-3">
+              Together, we can strengthen island communities across the Salish Sea. 🌊
+            </p>
+          </section>
+
+          {/* Contact */}
+          <section className="text-center bg-gray-50 rounded-lg p-6">
+            <p className="text-gray-700 mb-3">
+              <strong>Email:</strong>{' '}
+              <a href="mailto:gabriolaconnects@gmail.com" className="text-gabriola-green hover:underline">
+                gabriolaconnects@gmail.com
+              </a>
+            </p>
+            <p className="text-gray-700 mb-3">
+              <strong>GitHub:</strong>{' '}
+              <a 
+                href="https://github.com/bitcoincashalex/gabriola-connects-live" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gabriola-green hover:underline"
+              >
+                View Source Code
+              </a>
+            </p>
+            <p className="text-sm text-gray-500 italic">
+              Open Source • Free Forever • Built for Community
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
