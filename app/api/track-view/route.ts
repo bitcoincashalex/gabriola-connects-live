@@ -1,0 +1,50 @@
+// app/api/track-view/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export async function POST(request: NextRequest) {
+  try {
+    const { postId, type } = await request.json();
+
+    // Get real IP address
+    const ip = 
+      request.headers.get('x-real-ip') ||
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('cf-connecting-ip') ||
+      request.headers.get('x-vercel-forwarded-for') ||
+      request.ip ||
+      '0.0.0.0';
+
+    if (type === 'post') {
+      // Track post view (will be unique per IP per day)
+      const { error } = await supabase.from('post_views').insert({
+        post_id: postId,
+        ip_address: ip,
+        view_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+      });
+
+      // Update view count on post
+      if (!error) {
+        const { count } = await supabase
+          .from('post_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('post_id', postId);
+
+        await supabase
+          .from('bbs_posts')
+          .update({ view_count: count || 0 })
+          .eq('id', postId);
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Track view error:', error);
+    return NextResponse.json({ error: 'Failed to track view' }, { status: 500 });
+  }
+}

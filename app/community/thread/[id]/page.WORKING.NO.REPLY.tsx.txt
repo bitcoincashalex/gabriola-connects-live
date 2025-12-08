@@ -2,75 +2,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, ThumbsUp, Flag } from 'lucide-react';
-import ReplyForm from '@/components/ReplyForm';
-import ReplyList from '@/components/ReplyList';
-import { useUser } from '@/components/AuthProvider';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function ThreadPage() {
   const params = useParams();
-  const { user } = useUser();
+  const router = useRouter();
   const [thread, setThread] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [replyCount, setReplyCount] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    const fetchThread = async () => {
+      const { data, error } = await supabase
+        .from('bbs_posts')
+        .select('*')
+        .eq('id', params.id)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        console.error('Error fetching thread:', error);
+        setError(true);
+      } else {
+        setThread(data);
+      }
+      setLoading(false);
+    };
+
     fetchThread();
-    fetchReplyCount();
-    
-    // Track view with IP
-    trackView(params.id as string, 'post');
-  }, [params.id, refreshKey]);
-
-  const trackView = async (postId: string, type: 'post' | 'reply' = 'post') => {
-    try {
-      await fetch('/api/track-view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId, type }),
-      });
-    } catch (err) {
-      console.error('Failed to track view:', err);
-    }
-  };
-
-  const fetchThread = async () => {
-    const { data, error } = await supabase
-      .from('bbs_posts')
-      .select('*')
-      .eq('id', params.id)
-      .eq('is_active', true)
-      .single();
-
-    if (error || !data) {
-      console.error('Error fetching thread:', error);
-      setError(true);
-    } else {
-      setThread(data);
-    }
-    setLoading(false);
-  };
-
-  const fetchReplyCount = async () => {
-    const { count } = await supabase
-      .from('bbs_replies')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', params.id)
-      .eq('is_active', true);
-
-    setReplyCount(count || 0);
-  };
-
-  const handleReplySuccess = () => {
-    fetchReplyCount();
-    setRefreshKey(prev => prev + 1);
-  };
+  }, [params.id]);
 
   if (loading) {
     return (
@@ -165,66 +129,21 @@ export default function ThreadPage() {
             {thread.body}
           </div>
 
-          {/* Stats and Actions */}
-          <div className="flex items-center justify-between pt-6 border-t">
-            <div className="flex items-center gap-6 text-sm text-gray-500">
-              <span>👁️ {thread.view_count || 0} views</span>
-              <span>💬 {replyCount} replies</span>
-              <span>❤️ {thread.like_count || 0} likes</span>
-            </div>
-
-            {/* Like and Report buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={async () => {
-                  if (!user) {
-                    alert('Sign in to like threads');
-                    return;
-                  }
-                  await supabase
-                    .from('bbs_posts')
-                    .update({ like_count: (thread.like_count || 0) + 1 })
-                    .eq('id', params.id);
-                  fetchThread();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gabriola-green hover:text-white rounded-lg transition"
-              >
-                <ThumbsUp className="w-4 h-4" />
-                Like
-              </button>
-              <button
-                onClick={async () => {
-                  if (!user) {
-                    alert('Sign in to report threads');
-                    return;
-                  }
-                  if (!confirm('Report this thread as inappropriate?')) return;
-                  await supabase
-                    .from('bbs_posts')
-                    .update({ reported_count: (thread.reported_count || 0) + 1 })
-                    .eq('id', params.id);
-                  alert('Thread reported. Moderators will review it.');
-                  fetchThread();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-red-600 hover:text-white rounded-lg transition"
-              >
-                <Flag className="w-4 h-4" />
-                Report
-              </button>
-            </div>
+          {/* Stats */}
+          <div className="flex items-center gap-6 text-sm text-gray-500 pt-6 border-t">
+            <span>👁️ {thread.view_count || 0} views</span>
+            <span>💬 {thread.reply_count || 0} replies</span>
+            <span>❤️ {thread.like_count || 0} likes</span>
           </div>
         </article>
 
-        {/* Replies Section */}
-        <section className="mb-12">
+        {/* Replies Section - Coming Soon */}
+        <section className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Replies ({replyCount})
+            Replies ({thread.reply_count || 0})
           </h2>
-          <ReplyList key={refreshKey} postId={params.id as string} />
+          <p className="text-gray-500 italic text-center py-8">Reply system coming soon...</p>
         </section>
-
-        {/* Reply Form */}
-        <ReplyForm postId={params.id as string} onSuccess={handleReplySuccess} />
       </div>
     </div>
   );

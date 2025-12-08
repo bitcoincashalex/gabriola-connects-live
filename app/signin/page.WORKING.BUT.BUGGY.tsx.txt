@@ -111,7 +111,7 @@ export default function SignInPage() {
         }
         
       } else {
-        // Sign in - wait for auth to fully complete
+        // Sign in
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
@@ -132,33 +132,6 @@ export default function SignInPage() {
           }
           setLoading(false);
         } else {
-          // Wait for user profile to be loaded before redirecting
-          setMessage('Loading your profile...');
-          
-          // Poll for user session to be fully established
-          let attempts = 0;
-          while (attempts < 20) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-              // Check if profile exists
-              const { data: profile } = await supabase
-                .from('users')
-                .select('id')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (profile) {
-                // Profile found, safe to redirect
-                window.location.href = '/';
-                return;
-              }
-            }
-            attempts++;
-          }
-          
-          // Fallback: redirect anyway after timeout
           window.location.href = '/';
         }
       }
