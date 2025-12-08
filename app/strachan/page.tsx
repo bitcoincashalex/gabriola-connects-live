@@ -18,7 +18,7 @@ export default function StrachanPage() {
             The Strachan Family
           </h1>
           
-          <p className="text-gabriola-sand/90 text-lg text-center mt-1">
+          <p className="text-gabriola-sand/90 text-lg text-center">
             Three decades on Gabriola Island
           </p>
 		  <p className="text-gabriola-sand/90 text-lg text-center">
