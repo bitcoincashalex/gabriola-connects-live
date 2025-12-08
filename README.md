@@ -1,199 +1,306 @@
-# Gabriola Connects - Read Me needs to be updated.
+# 🏝️ Gabriola Connects - Beta Status & Roadmap
 
-A responsive community web app for Gabriola Island featuring event calendars, bulletin board, business directory, and ferry status updates.
+**Last Updated:** December 8, 2025  
+**Status:** ACTIVE BETA TESTING  
+**Built by:** The Strachan Family for Gabriola Island
 
-## Features
+---
 
-### 📅 Calendar (In Progress)
-- Opens on December 1st, 2025
-- 546+ events from gabriolaevents.ca, artsgabriola, hellogabriola, and soundernews
-- Click any day to view all events
-- Event cards with title, time, location, poster images, descriptions
-- RSVP functionality
-- Auto-refreshes every hour
+## 🎯 **What is Gabriola Connects?**
 
-### 💬 BBS/Forum (Bulletin Board System)
-- Open Community forum
-- Post anonymously or with your name
-- Threaded replies up to 3 levels deep ?
-- Categories: General, Health, Politics-US, Politics-Canada, Ferry, Events Chat 
-- Image upload with AI content moderation (flags nudity for human review)
-- Search and filter by category
-- Optional news link attachments
+Your island community hub - connecting neighbors, sharing events, finding local services, checking ferry times, and staying informed about what matters on Gabriola Island.
 
-### 📖 Directory
-- Island business listings (cafes, mechanics, yoga studios, etc.)
-- Scraped from Gabriola directory sites
-- Click to view on map with location details
-- "Add Business" form - instant submission, no vetting?
-- Filter by category
-- Contact info and descriptions
+**Core Vision:** A platform BY islanders, FOR islanders. Open source, community-driven, and built with privacy and transparency at its core.
 
-### ⚓ Ferry Status
-- Live BC Ferries Nanaimo-Gabriola route data
-- Next departure and arrival times
-- Delay status (on time or minutes late)
-- Last known ferry location
-- "Get Latest" button for manual refresh
-- Auto-updates every 2 minutes
+---
 
-### 🚨 Emergency Alert System
-- Restricted to authorized issuers:
-  - Fire Department
-  - RCMP
-  - Gabriola Chamber of Commerce
-  - Island Health
-  - Ambulance Service
-- Red triangle badge in top-right corner when active
-- Full-screen alert modal with auto-dismiss (30 seconds)
-- One-tap manual dismissal
+## ✅ **Currently in BETA (Testing Phase)**
 
-## Design
+### **What "Beta" Means:**
+- ✅ Core features are working and being tested
+- 🧪 Actively gathering feedback and fixing bugs
+- 🔧 Refining user experience based on real usage
+- 📝 Features may change based on community needs
+- ⚠️ Not yet production-ready for 5,000 users
 
-- **Theme**: Gabriola green (#2D5F3F) with sand and ocean accents
-- **Responsive**: Perfect on mobile and desktop
-- **Typography**: Georgia serif for headers, system sans-serif for body
-- **Bottom Navigation**: Large, thumb-safe tap targets
-- **Icons**: Calendar square, chat bubble, book, anchor
+**We're building in public - your feedback shapes this platform!**
 
-## Tech Stack
+---
 
-- **Framework**: Next.js 14 with App Router
-- **Styling**: Tailwind CSS
-- **Calendar**: react-big-calendar
-- **Icons**: lucide-react
-- **TypeScript**: Full type safety
-- **Deployment**: Vercel-ready
+## 🚀 **LIVE & WORKING NOW**
 
-## Installation
+### **📅 Events Calendar** ✅
+- Browse upcoming island events
+- Filter by category (Community, Arts, Sports, etc.)
+- Mobile-friendly calendar view
+- Event details with date, time, location, description
+- **Coming soon:** User-submitted events, RSVPs, reminders
 
-```bash
-# Install dependencies
-npm install
+### **💬 Community Forum (Discussion Board)** ✅
+- Multiple discussion categories
+- Create threads with title + body + images + URLs
+- Nested reply system (reply to replies)
+- Anonymous posting option
+- Like/report posts and replies
+- Pin important threads (admin)
+- Delete/moderate content (admin)
+- View counter (IP-based, no inflation)
+- User badges (Fire Dept, RCMP, Medic, Coast Guard, Admin)
+- **Privacy:** Public forum visible to all, posting requires account
 
-# Run development server
-npm run dev
-```
+### **🏢 Business Directory** ✅
+- 16+ categories (Accommodations, Arts & Crafts, Automotive, etc.)
+- Search by business name or category
+- Business details: name, category, contact info, description
+- Mobile-friendly listing display
+- **Coming soon:** User reviews, ratings, photos, hours
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+### **⛴️ Ferry Schedule** ✅
+- Real-time ferry departure times
+- Nanaimo → Gabriola and return
+- Current status indicator
+- Mobile-optimized display
+- **Coming soon:** BC Ferries API integration for live delays
 
-## Project Structure
+### **🚨 Community Alerts** ✅
+- Important community announcements
+- Emergency notifications
+- Service disruptions
+- Event cancellations
+- Mobile-friendly alert feed
+- **Coming soon:** Push notifications, SMS alerts
 
-```
-gabriola-connect/
-├── app/
-│   ├── globals.css          # Global styles with Gabriola theme
-│   ├── layout.tsx            # Root layout with metadata
-│   └── page.tsx              # Main app with tab navigation
-├── components/
-│   ├── Calendar.tsx          # Event calendar with modal
-│   ├── BBS.tsx               # Bulletin board with threading
-│   ├── Directory.tsx         # Business directory with map
-│   ├── Ferry.tsx             # Ferry status display
-│   └── EmergencyAlert.tsx    # Full-screen alert modal
-├── lib/
-│   ├── types.ts              # TypeScript interfaces
-│   └── data.ts               # Mock data and utilities
-├── public/                   # Static assets
-├── package.json
-├── tsconfig.json
-├── tailwind.config.js        # Gabriola color theme
-└── next.config.js
-```
+### **👤 User Authentication & Profiles** ✅ *NEW*
+- Email/password signup and signin
+- First name + last name fields
+- Resident verification (V0R postal codes)
+- User roles: Resident, Seasonal Resident, Business Owner, Visitor, Former Resident
+- Profile photos + avatars (separate images)
+- Bio/about me section (500 chars)
+- Privacy controls (who can view profile, show/hide email, show/hide location)
+- Profile visibility settings (public, members-only, private)
+- Session management with persistent login
+- **Security:** Row-level security (RLS), HTTPS encryption, password hashing
 
-## Data Sources (Production Implementation)
+### **💬 Private Messaging System** ✅ *NEW*
+- Resident-to-resident direct messaging
+- Real-time message delivery (Supabase subscriptions)
+- Image + URL attachments in messages
+- Read receipts ("Read" indicator)
+- Message threads/conversations
+- Unread message counter in header
+- Privacy settings (who can message you: everyone, members, connections, nobody)
+- Block users
+- Search conversations
+- Opt-in messaging directory (residents only)
+- **Coming soon:** Typing indicators, admin broadcast messages
 
-### Events Scraper
-Scrape from:
-- gabriolaevents.ca
-- artsgabriola.com
-- hellogabriola.com
-- soundernews.com
+### **🔐 Privacy & Security** ✅ *NEW*
+- Row-Level Security (RLS) on all user data
+- HTTPS/TLS encryption in transit
+- Database encryption at rest
+- Privacy explainer page (/privacy/messaging)
+- Granular privacy controls per user
+- IP tracking for view counts and ban evasion detection
+- **Transparent:** No selling data, no AI training on messages, data stays in Canada
 
-Run daily via cron job or Vercel serverless function.
+---
 
-### Ferry API
-Integrate with BC Ferries API:
-- Endpoint: `https://www.bcferries.com/api/...`
-- Route: Nanaimo (Departure Bay) to Gabriola
-- Update every 2 minutes
+## 🔨 **IN ACTIVE DEVELOPMENT**
 
-### BBS Storage
-Use Vercel Postgres or similar:
-```sql
-CREATE TABLE posts (
-  id UUID PRIMARY KEY,
-  name VARCHAR(255),
-  title VARCHAR(255),
-  message TEXT,
-  category VARCHAR(50),
-  news_link TEXT,
-  image_url TEXT,
-  image_status VARCHAR(20),
-  created_at TIMESTAMP
-);
+### **Admin Panel** 🚧 (Hooks Ready, UI Coming)
+- User management (ban, read-only mode, role changes)
+- Deleted content review and restoration
+- Reports queue (flagged posts/messages)
+- Broadcast messaging to all users or specific groups
+- Analytics dashboard
+- **Target:** January 2026
 
-CREATE TABLE replies (
-  id UUID PRIMARY KEY,
-  post_id UUID REFERENCES posts(id),
-  parent_id UUID REFERENCES replies(id),
-  name VARCHAR(255),
-  message TEXT,
-  created_at TIMESTAMP
-);
-```
+### **Enhanced Forum Features** 🚧
+- Edit posts/replies
+- Search forum (global + per-category)
+- Sorting options (newest, most liked, most replies)
+- Tags/labels for posts
+- User post history on profile
+- **Target:** January 2026
 
-### Directory Storage
-Similar Postgres table for business listings with lat/lng coordinates.
+### **Classifieds/Marketplace** 📋 (Planned)
+- Buy/sell/trade locally
+- Service offerings (babysitting, handyman, carpool)
+- Categories: For Sale, Wanted, Services, Free Stuff
+- Contact preferences (phone, email, message)
+- Photo uploads
+- Expiration dates for listings
+- **Target:** February 2026
 
-### Emergency Alerts
-Admin authentication using NextAuth.js:
-- Email/password for authorized issuers
-- POST endpoint to create alerts
-- WebSocket or polling for real-time updates
+### **Email Verification** 📧 (Planned)
+- Verify email address on signup
+- Prevent spam/fake accounts
+- Password reset via email
+- **Target:** January 2026
 
-## Deployment to Vercel
+---
 
-1. **Push to GitHub**
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
+## 📱 **MOBILE APP (PWA) - Q1 2026**
 
-2. **Import to Vercel**
-- Go to [vercel.com](https://vercel.com)
-- Click "Import Project"
-- Select your GitHub repository
-- Deploy!
+Progressive Web App features:
+- Add to home screen (works like native app)
+- Push notifications (alerts, ferry updates, new messages)
+- Offline mode (view cached events, directory, ferry schedule)
+- Faster loading, smoother experience
+- Works on ALL phones (iPhone + Android)
 
-3. **Environment Variables**
-Add in Vercel dashboard:
-```
-POSTGRES_URL=your_database_url
-FERRY_API_KEY=your_bc_ferries_key
-OPENAI_API_KEY=for_image_moderation
-```
+---
 
-## Future Enhancements
+## 🌟 **ISLAND-SPECIFIC FEATURES - Q1/Q2 2026**
 
-- [ ] Real-time BBS updates with WebSockets
-- [ ] Push notifications for emergency alerts
-- [ ] User profiles and RSVP tracking
-- [ ] Event organizer dashboard
-- [ ] Ferry schedule integration
-- [ ] Weather widget
-- [ ] Tide tables
-- [ ] Community marketplace
-- [ ] Restaurant menus
-- [ ] Trail maps
+Based on community feedback:
+- Weather & Tides dashboard
+- Lost & Found board
+- Rideshare/Carpool coordination
+- Volunteering opportunities
+- Interest groups (Hikers, Artists, Gardeners, etc.)
+- Event RSVPs with attendee list
+- Photo galleries for events
+- BC Ferries API integration (real-time delays)
 
-## License
+---
 
-Free!
+## 📊 **TECHNICAL ARCHITECTURE**
 
-## Contact
+**Frontend:**
+- Next.js 14 (React framework)
+- TypeScript (type safety)
+- Tailwind CSS (responsive design)
+- Deployed on Vercel (global CDN)
 
-Built for the Gabriola Island community. Questions or feedback? Post on the Forum!
+**Backend:**
+- Supabase (PostgreSQL database)
+- Row-Level Security (RLS)
+- Real-time subscriptions
+- Secure authentication
+
+**Design Philosophy:**
+- Mobile-first responsive design
+- Privacy by default
+- Accessibility (WCAG standards)
+- Open source (MIT license)
+
+---
+
+## 🐛 **KNOWN ISSUES / LIMITATIONS**
+
+**Current Limitations:**
+- No email verification yet (coming January)
+- No admin UI yet (hooks ready, interface coming)
+- Forum search not implemented
+- No push notifications yet
+- No offline mode yet
+- Limited to text + images (no video uploads)
+- Manual resident verification (postal code only)
+
+**Minor Bugs Being Fixed:**
+- Occasional auth timeout on page navigation (workaround in place)
+- Profile photo uploads limited to 10MB
+- No image compression (large photos load slowly)
+
+---
+
+## 🗺️ **ROADMAP TIMELINE**
+
+### **Phase 1: Foundation** ✅ (COMPLETE - Dec 2025)
+- Basic modules working
+- User authentication
+- Forum with replies
+- Private messaging
+- Profiles
+
+### **Phase 2: Polish & Admin Tools** 🔨 (Jan 2026)
+- Admin panel UI
+- Email verification
+- Forum search
+- Enhanced moderation
+- Bug fixes from beta testing
+
+### **Phase 3: Mobile & Engagement** 📱 (Feb-Mar 2026)
+- PWA features
+- Push notifications
+- Classifieds/Marketplace
+- Service listings
+- Event RSVPs
+
+### **Phase 4: Island Features** 🌟 (Q2 2026)
+- Weather/Tides
+- Lost & Found
+- Rideshare board
+- Interest groups
+- BC Ferries API
+
+### **Phase 5: Community Growth** 🚀 (Mid 2026+)
+- Features based on YOUR feedback
+- Scaling for 5,000+ users
+- Performance optimization
+- Advanced community tools
+
+---
+
+## 📢 **HOW TO HELP / GET INVOLVED**
+
+**Beta Testers Wanted!**
+- Create an account and explore features
+- Report bugs or confusing UX
+- Suggest features you'd actually use
+- Join the Discussion forum
+
+**Developers Welcome!**
+- Open source project (MIT license)
+- Contributions welcome on GitHub
+- Help us make it better!
+
+**Community Input Needed!**
+- What features matter most to YOU?
+- How can we make island life easier?
+- What's missing from other platforms?
+
+---
+
+## 🙏 **ACKNOWLEDGMENTS**
+
+Built with love for Gabriola Island by the Strachan Family (property owners since 1990).
+
+**Technology Partners:**
+- Supabase (database & auth)
+- Vercel (hosting)
+- Next.js (framework)
+- Open source community
+
+**Inspired by:** Island neighbors who deserve better tools to stay connected.
+
+---
+
+## 📧 **CONTACT & FEEDBACK**
+
+**Email:** gabriolaconnects@gmail.com  
+**GitHub:** https://github.com/bitcoincashalex/gabriola-connects-live  
+**Website:** https://gabriolaconnects.ca
+
+**Have ideas? Found bugs?** We're listening! Join the Discussion forum or email us directly.
+
+---
+
+## 🏝️ **OUR BIGGER VISION**
+
+If Gabriola Connects succeeds here, we hope other Gulf Islands will launch their own community hubs:
+- Mayne Connects
+- Pender Connects
+- Salt Spring Connects
+- Denman Connects
+- Hornby Connects
+
+**Together, we can strengthen island communities across the Salish Sea.** 🌊
+
+---
+
+**Open Source • Free Forever • Built for Community**
+
+*Last updated: December 8, 2025 - Active Beta Testing*
