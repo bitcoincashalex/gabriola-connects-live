@@ -21,9 +21,7 @@ export default function Footer() {
             About
           </Link>
         </p>
-        <p className="opacity-60 text-xs mt-2">
-          Built with ❤️ by the Strachan Family for Gabriola Island
-        </p>
+        
       </div>
     </footer>
   );

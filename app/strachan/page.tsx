@@ -17,11 +17,12 @@ export default function StrachanPage() {
           <h1 className="text-4xl font-display font-bold mb-2 text-center">
             The Strachan Family
           </h1>
-          <p className="text-gabriola-sand/90 text-lg text-center">
-            Building Community Connections on Gabriola Island
-          </p>
-          <p className="text-gabriola-sand/80 text-sm text-center mt-1">
+          
+          <p className="text-gabriola-sand/90 text-lg text-center mt-1">
             Three decades on Gabriola Island
+          </p>
+		  <p className="text-gabriola-sand/90 text-lg text-center">
+            Building Community Connections on Gabriola Island
           </p>
         </div>
       </header>
