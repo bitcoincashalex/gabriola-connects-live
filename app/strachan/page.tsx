@@ -21,7 +21,7 @@ export default function StrachanPage() {
             Building Community Connections on Gabriola Island
           </p>
           <p className="text-gabriola-sand/80 text-sm text-center mt-1">
-            Property owners since 1990
+            Three decades on Gabriola Island
           </p>
         </div>
       </header>
@@ -35,7 +35,7 @@ export default function StrachanPage() {
             About Us
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            We're a family passionate about building open source tools that bring communities together. 
+            We're a family passionate about building and using tools that bring communities together. 
             Gabriola Connects was born from our love for this island and our desire to help 
             neighbors stay connected, informed, and engaged.
           </p>

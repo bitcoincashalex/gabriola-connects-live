@@ -2,14 +2,69 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Search, Menu, X } from 'lucide-react';
+import { Search, Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown } from 'lucide-react';
 
 export default function Header() {
   const { user } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch unread message count
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      
+      // Subscribe to new messages
+      const subscription = supabase
+        .channel('unread_messages_header')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'private_messages',
+            filter: `receiver_id=eq.${user.id}`,
+          },
+          () => fetchUnreadCount()
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+
+    const { count } = await supabase
+      .from('private_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('receiver_id', user.id)
+      .eq('read', false)
+      .eq('is_deleted', false);
+
+    setUnreadCount(count || 0);
+  };
 
   const goHome = () => {
     window.location.href = '/';
@@ -67,27 +122,110 @@ export default function Header() {
             )}
           </nav>
 
-          {/* Right side — user + mobile menu */}
+          {/* Right side — user menu or sign in */}
           <div className="flex items-center gap-4">
             {user ? (
-              <div className="flex items-center gap-4">
-                <span className="hidden md:block text-sm">
-                  {user.full_name || user.username || user.email || 'Logged in'}
-                  {user.is_super_admin && ' (Super Admin)'}
-                  {!user.is_super_admin && user.role === 'admin' && ' (Admin)'}
-                </span>
+              <div className="relative" ref={menuRef}>
+                {/* User Menu Button */}
                 <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    window.location.href = '/';
-                  }}
-                  className="bg-white text-gabriola-green px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition"
                 >
-                  Sign Out
+                  <User className="w-5 h-5" />
+                  <span className="hidden md:block">
+                    {(user as any).full_name || user.email?.split('@')[0] || 'User'}
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl py-2 text-gray-800">
+                    {/* User info */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="font-bold text-gray-900">
+                        {(user as any).full_name || 'User'}
+                      </p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {(user as any).user_role || 'member'}
+                      </p>
+                    </div>
+
+                    {/* Menu items */}
+                    <Link
+                      href={`/profile/${user.id}`}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
+                    >
+                      <User className="w-5 h-5 text-gray-600" />
+                      <span>My Profile</span>
+                    </Link>
+
+                    <Link
+                      href="/messages"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
+                    >
+                      <Mail className="w-5 h-5 text-gray-600" />
+                      <span>Messages</span>
+                      {unreadCount > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </Link>
+
+                    <Link
+                      href="/profile/edit"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
+                    >
+                      <Settings className="w-5 h-5 text-gray-600" />
+                      <span>Settings</span>
+                    </Link>
+
+                    {/* Admin section */}
+                    {isAdmin && (
+                      <>
+                        <div className="border-t border-gray-200 my-2"></div>
+                        <Link
+                          href="/admin/users"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                        >
+                          <Shield className="w-5 h-5" />
+                          <span className="font-bold">Admin Panel</span>
+                        </Link>
+                      </>
+                    )}
+
+                    <div className="border-t border-gray-200 my-2"></div>
+
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signOut();
+                        setUserMenuOpen(false);
+                        window.location.href = '/';
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition w-full text-left text-red-600"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <Link href="/signin" className="hidden md:block hover:underline text-sm">
+              <Link
+                href="/signin"
+                className="bg-white text-gabriola-green px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition"
+              >
                 Sign In
               </Link>
             )}
@@ -128,6 +266,41 @@ export default function Header() {
                     {item.label}
                   </Link>
                 )
+              )}
+
+              {user && (
+                <>
+                  <Link
+                    href={`/profile/${user.id}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block w-full py-3 hover:bg-white/10"
+                  >
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/messages"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block w-full py-3 hover:bg-white/10 relative"
+                  >
+                    Messages {unreadCount > 0 && `(${unreadCount})`}
+                  </Link>
+                  <Link
+                    href="/profile/edit"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block w-full py-3 hover:bg-white/10"
+                  >
+                    Settings
+                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin/users"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full py-3 hover:bg-white/10 text-red-300 font-bold"
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
+                </>
               )}
 
               {user ? (
