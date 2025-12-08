@@ -55,23 +55,21 @@ export default async function RoadmapPage() {
         </Link>
 
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          <ReactMarkdown
-            className="prose prose-lg max-w-none
-              prose-headings:text-gabriola-green-dark
-              prose-h1:text-4xl prose-h1:font-bold prose-h1:mb-4 prose-h1:text-center
-              prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4
-              prose-h3:text-xl prose-h3:font-bold prose-h3:mt-6 prose-h3:mb-3
-              prose-p:text-gray-700 prose-p:leading-relaxed
-              prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6
-              prose-li:text-gray-700 prose-li:my-2
-              prose-strong:text-gray-900 prose-strong:font-bold
-              prose-a:text-gabriola-green prose-a:no-underline hover:prose-a:underline
-              prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded
-              prose-blockquote:border-l-4 prose-blockquote:border-gabriola-green prose-blockquote:pl-4 prose-blockquote:italic
-            "
-          >
-            {readme}
-          </ReactMarkdown>
+          <div className="prose prose-lg max-w-none
+            prose-headings:text-gabriola-green-dark
+            prose-h1:text-4xl prose-h1:font-bold prose-h1:mb-4 prose-h1:text-center
+            prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4
+            prose-h3:text-xl prose-h3:font-bold prose-h3:mt-6 prose-h3:mb-3
+            prose-p:text-gray-700 prose-p:leading-relaxed
+            prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6
+            prose-li:text-gray-700 prose-li:my-2
+            prose-strong:text-gray-900 prose-strong:font-bold
+            prose-a:text-gabriola-green prose-a:no-underline hover:prose-a:underline
+            prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded
+            prose-blockquote:border-l-4 prose-blockquote:border-gabriola-green prose-blockquote:pl-4 prose-blockquote:italic
+          ">
+            <ReactMarkdown>{readme}</ReactMarkdown>
+          </div>
         </div>
 
         <div className="text-center mt-8">
