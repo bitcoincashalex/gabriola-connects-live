@@ -12,12 +12,13 @@ interface Alert {
   severity: 'info' | 'advisory' | 'warning' | 'emergency';
   title: string;
   message: string;
-  issuer_name: string;
-  issuer_organization?: string;
+  on_behalf_of_name?: string;
+  on_behalf_of_organization?: string;
   affected_areas?: string[];
   action_required?: string;
   contact_info?: string;
   created_at: string;
+  creator_name?: string;  // From JOIN with users table
 }
 
 export default function EmergencyAlertBanner() {
@@ -41,14 +42,22 @@ export default function EmergencyAlertBanner() {
   const fetchCriticalAlerts = async () => {
     const { data, error } = await supabase
       .from('alerts')
-      .select('*')
-      .eq('active', true)
+      .select(`
+        *,
+        creator:users!issued_by(full_name)
+      `)
+      .eq('active', true)  // Changed from is_active
       .in('severity', ['emergency', 'warning']) // ONLY red and orange
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      // Sort by severity priority (emergency first, then warning)
-      const sorted = data.sort((a, b) => {
+      // Flatten creator data and sort by severity priority
+      const formattedAlerts = data.map(alert => ({
+        ...alert,
+        creator_name: alert.creator?.full_name,
+      }));
+      
+      const sorted = formattedAlerts.sort((a, b) => {
         const priority = { emergency: 1, warning: 2 };
         return priority[a.severity as 'emergency' | 'warning'] - priority[b.severity as 'emergency' | 'warning'];
       });
@@ -148,10 +157,15 @@ export default function EmergencyAlertBanner() {
                       )}
                     </div>
 
-                    {/* Issuer */}
+                    {/* Issuer - show who created it */}
                     <div className="mt-2 text-xs opacity-75">
-                      Issued by {alert.issuer_name}
-                      {alert.issuer_organization && ` (${alert.issuer_organization})`}
+                      Created by {alert.creator_name || 'Unknown'}
+                      {(alert.on_behalf_of_name || alert.on_behalf_of_organization) && (
+                        <span>
+                          {' '}on behalf of {alert.on_behalf_of_name}
+                          {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

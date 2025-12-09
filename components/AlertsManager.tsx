@@ -13,16 +13,19 @@ interface Alert {
   severity: AlertSeverity;
   title: string;
   message: string;
-  issued_by?: string | null;
-  issuer_name: string;
-  issuer_organization?: string | null;
+  issued_by?: string | null;  // UUID of actual creator
+  on_behalf_of_name?: string | null;  // Optional "on behalf of"
+  on_behalf_of_organization?: string | null;  // Optional organization
   created_at: string;
   expires_at?: string | null;
-  active: boolean;
+  active: boolean;  // Match SQL column name
   affected_areas?: string[] | null;
   category?: string | null;
   contact_info?: string | null;
   action_required?: string | null;
+  // Join data from users table
+  creator_name?: string;  // From users.full_name
+  creator_email?: string;  // From users.email
 }
 
 export default function AlertsManager() {
@@ -38,8 +41,8 @@ export default function AlertsManager() {
     title: '',
     message: '',
     severity: 'info' as AlertSeverity,
-    issuer_name: user?.full_name || '',
-    issuer_organization: '',
+    on_behalf_of_name: '',  // Optional "on behalf of"
+    on_behalf_of_organization: '',  // Optional organization
     affected_areas: '',
     category: '',
     contact_info: '',
@@ -54,31 +57,49 @@ export default function AlertsManager() {
   const fetchAlerts = async () => {
     setLoading(true);
 
-    // Fetch active alerts
+    // Fetch active alerts with creator info
     const { data: activeData, error: activeError } = await supabase
       .from('alerts')
-      .select('*')
+      .select(`
+        *,
+        creator:users!issued_by(full_name, email)
+      `)
       .eq('active', true)
       .order('created_at', { ascending: false });
 
     if (!activeError && activeData) {
-      const sorted = activeData.sort((a, b) => {
+      // Flatten creator data into alert object
+      const formattedActive = activeData.map(alert => ({
+        ...alert,
+        creator_name: alert.creator?.full_name,
+        creator_email: alert.creator?.email,
+      }));
+      
+      const sorted = formattedActive.sort((a, b) => {
         const priority = { emergency: 1, warning: 2, advisory: 3, info: 4 };
         return priority[a.severity as AlertSeverity] - priority[b.severity as AlertSeverity];
       });
       setAlerts(sorted);
     }
 
-    // Fetch archived alerts
+    // Fetch archived alerts with creator info
     const { data: archivedData, error: archivedError } = await supabase
       .from('alerts')
-      .select('*')
+      .select(`
+        *,
+        creator:users!issued_by(full_name, email)
+      `)
       .eq('active', false)
       .order('created_at', { ascending: false })
-      .limit(50); // Last 50 archived alerts
+      .limit(50);
 
     if (!archivedError && archivedData) {
-      setArchivedAlerts(archivedData);
+      const formattedArchived = archivedData.map(alert => ({
+        ...alert,
+        creator_name: alert.creator?.full_name,
+        creator_email: alert.creator?.email,
+      }));
+      setArchivedAlerts(formattedArchived);
     }
 
     setLoading(false);
@@ -98,8 +119,8 @@ export default function AlertsManager() {
       title: alert.title,
       message: alert.message,
       severity: alert.severity,
-      issuer_name: alert.issuer_name,
-      issuer_organization: alert.issuer_organization || '',
+      on_behalf_of_name: alert.on_behalf_of_name || '',
+      on_behalf_of_organization: alert.on_behalf_of_organization || '',
       affected_areas: alert.affected_areas?.join(', ') || '',
       category: alert.category || '',
       contact_info: alert.contact_info || '',
@@ -115,8 +136,8 @@ export default function AlertsManager() {
       title: '',
       message: '',
       severity: 'info' as AlertSeverity,
-      issuer_name: user?.full_name || '',
-      issuer_organization: '',
+      on_behalf_of_name: '',
+      on_behalf_of_organization: '',
       affected_areas: '',
       category: '',
       contact_info: '',
@@ -142,8 +163,8 @@ export default function AlertsManager() {
       title: form.title.trim(),
       message: form.message.trim(),
       severity: form.severity,
-      issuer_name: form.issuer_name.trim() || user?.full_name || 'Anonymous',
-      issuer_organization: form.issuer_organization.trim() || null,
+      on_behalf_of_name: form.on_behalf_of_name.trim() || null,
+      on_behalf_of_organization: form.on_behalf_of_organization.trim() || null,
       affected_areas: areasArray.length > 0 ? areasArray : null,
       category: form.category.trim() || null,
       contact_info: form.contact_info.trim() || null,
@@ -168,12 +189,12 @@ export default function AlertsManager() {
         fetchAlerts();
       }
     } else {
-      // CREATE new alert
+      // CREATE new alert - automatically set issued_by to current user
       const { error } = await supabase
         .from('alerts')
         .insert({
           ...payload,
-          issued_by: user?.id,
+          issued_by: user?.id,  // Automatically set to current user
         });
 
       if (error) {
@@ -263,7 +284,7 @@ export default function AlertsManager() {
             <p className="text-sm mb-3 whitespace-pre-wrap">{alert.message}</p>
 
             {/* Details */}
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1 text-sm mb-3">
               {alert.affected_areas && alert.affected_areas.length > 0 && (
                 <div>
                   <strong>Affected Areas:</strong> {alert.affected_areas.join(', ')}
@@ -279,10 +300,27 @@ export default function AlertsManager() {
                   <strong>Contact:</strong> {alert.contact_info}
                 </div>
               )}
-              <div className="text-xs opacity-75 mt-2">
-                Issued by {alert.issuer_name}
-                {alert.issuer_organization && ` (${alert.issuer_organization})`} on{' '}
-                {new Date(alert.created_at).toLocaleDateString()}
+            </div>
+
+            {/* Attribution - WHO ACTUALLY CREATED IT */}
+            <div className="text-xs opacity-75 space-y-1 border-t pt-2">
+              <div>
+                <strong>Created by:</strong> {alert.creator_name || 'Unknown'} 
+                {alert.creator_email && ` (${alert.creator_email})`}
+              </div>
+              
+              {/* ON BEHALF OF (if specified) */}
+              {(alert.on_behalf_of_name || alert.on_behalf_of_organization) && (
+                <div>
+                  <strong>On behalf of:</strong>{' '}
+                  {alert.on_behalf_of_name}
+                  {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
+                </div>
+              )}
+              
+              {/* TIMESTAMP */}
+              <div>
+                <strong>Issued:</strong> {new Date(alert.created_at).toLocaleString()}
               </div>
             </div>
           </div>
@@ -467,30 +505,48 @@ export default function AlertsManager() {
                   </select>
                 </div>
 
-                {/* Two column layout */}
+                {/* Attribution Notice */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900">
+                    <strong>📝 Attribution:</strong> This alert will be automatically attributed to you ({user?.full_name || user?.email}).
+                    {' '}If you're issuing this on behalf of someone else or an organization, fill in the fields below.
+                  </p>
+                </div>
+
+                {/* Two column layout - "On behalf of" fields */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Issuer name */}
+                  {/* On behalf of name */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Your Name</label>
+                    <label className="block text-sm font-medium mb-2">
+                      On Behalf Of - Name (Optional)
+                    </label>
                     <input
                       type="text"
-                      value={form.issuer_name}
-                      onChange={(e) => setForm({ ...form, issuer_name: e.target.value })}
+                      value={form.on_behalf_of_name}
+                      onChange={(e) => setForm({ ...form, on_behalf_of_name: e.target.value })}
                       className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                      placeholder="Your name"
+                      placeholder="e.g., Chief Mike Stevens"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Only fill if issuing for someone else
+                    </p>
                   </div>
 
-                  {/* Organization */}
+                  {/* On behalf of organization */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Organization (Optional)</label>
+                    <label className="block text-sm font-medium mb-2">
+                      On Behalf Of - Organization (Optional)
+                    </label>
                     <input
                       type="text"
-                      value={form.issuer_organization}
-                      onChange={(e) => setForm({ ...form, issuer_organization: e.target.value })}
+                      value={form.on_behalf_of_organization}
+                      onChange={(e) => setForm({ ...form, on_behalf_of_organization: e.target.value })}
                       className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
                       placeholder="e.g., Fire Department"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Organization you're representing
+                    </p>
                   </div>
                 </div>
 
