@@ -1,5 +1,5 @@
 // components/EmergencyAlertBanner.tsx
-// v1.0 - Dec 8, 2025 - Display active alerts on main page
+// v2.0 - Dec 9, 2025 - Only show EMERGENCY (red) and WARNING (orange) alerts
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,7 +25,7 @@ export default function EmergencyAlertBanner() {
   const [dismissed, setDismissed] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchActiveAlerts();
+    fetchCriticalAlerts();
     
     // Check for dismissed alerts in localStorage
     const stored = localStorage.getItem('dismissed_alerts');
@@ -38,136 +38,148 @@ export default function EmergencyAlertBanner() {
     }
   }, []);
 
-  const fetchActiveAlerts = async () => {
+  const fetchCriticalAlerts = async () => {
     const { data, error } = await supabase
       .from('alerts')
       .select('*')
       .eq('active', true)
+      .in('severity', ['emergency', 'warning']) // ONLY red and orange
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      // Sort by severity priority
+      // Sort by severity priority (emergency first, then warning)
       const sorted = data.sort((a, b) => {
-        const priority = { emergency: 1, warning: 2, advisory: 3, info: 4 };
-        return priority[a.severity as Alert['severity']] - priority[b.severity as Alert['severity']];
+        const priority = { emergency: 1, warning: 2 };
+        return priority[a.severity as 'emergency' | 'warning'] - priority[b.severity as 'emergency' | 'warning'];
       });
       setAlerts(sorted);
     }
   };
 
   const dismissAlert = (alertId: string, severity: string) => {
-    // Emergency alerts can't be dismissed
+    // Emergency alerts CANNOT be dismissed
     if (severity === 'emergency') return;
-
+    
+    // Only warning alerts can be dismissed
     const newDismissed = [...dismissed, alertId];
     setDismissed(newDismissed);
     localStorage.setItem('dismissed_alerts', JSON.stringify(newDismissed));
   };
 
-  const getSeverityStyle = (severity: Alert['severity']) => {
-    const styles = {
-      emergency: {
-        bg: 'bg-red-600',
-        text: 'text-white',
-        border: 'border-red-700',
-        icon: '🆘',
-      },
-      warning: {
-        bg: 'bg-orange-500',
-        text: 'text-white',
-        border: 'border-orange-600',
-        icon: '🚨',
-      },
-      advisory: {
-        bg: 'bg-yellow-400',
-        text: 'text-gray-900',
-        border: 'border-yellow-500',
-        icon: '⚠️',
-      },
-      info: {
-        bg: 'bg-blue-500',
-        text: 'text-white',
-        border: 'border-blue-600',
-        icon: '📢',
-      },
-    };
-    return styles[severity];
+  const getSeverityStyles = (severity: string) => {
+    switch (severity) {
+      case 'emergency':
+        return {
+          bg: 'bg-red-600',
+          border: 'border-red-700',
+          text: 'text-white',
+          icon: '🆘',
+        };
+      case 'warning':
+        return {
+          bg: 'bg-orange-500',
+          border: 'border-orange-600',
+          text: 'text-white',
+          icon: '⚠️',
+        };
+      default:
+        return {
+          bg: 'bg-gray-500',
+          border: 'border-gray-600',
+          text: 'text-white',
+          icon: 'ℹ️',
+        };
+    }
   };
 
-  // Filter out dismissed alerts (but always show emergency)
+  // Filter out dismissed alerts (but ALWAYS show emergency)
   const visibleAlerts = alerts.filter(alert => 
     alert.severity === 'emergency' || !dismissed.includes(alert.id)
   );
 
-  if (visibleAlerts.length === 0) return null;
+  if (visibleAlerts.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="space-y-2">
-      {visibleAlerts.map(alert => {
-        const style = getSeverityStyle(alert.severity);
+    <div className="w-full">
+      {visibleAlerts.map((alert) => {
+        const styles = getSeverityStyles(alert.severity);
         const canDismiss = alert.severity !== 'emergency';
 
         return (
           <div
             key={alert.id}
-            className={`${style.bg} ${style.text} ${style.border} border-l-4 p-4 shadow-lg`}
+            className={`${styles.bg} ${styles.border} border-b-2 ${styles.text} shadow-lg`}
           >
-            <div className="max-w-7xl mx-auto">
-              <div className="flex items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-2xl">{style.icon}</span>
-                    <span className="font-bold uppercase text-sm tracking-wide">
-                      {alert.severity}
-                    </span>
-                    {alert.affected_areas && alert.affected_areas.length > 0 && (
-                      <span className="text-sm opacity-90">
-                        • {alert.affected_areas.join(', ')}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1">
+                  <span className="text-2xl flex-shrink-0 mt-1">{styles.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg sm:text-xl font-bold">
+                        {alert.title}
+                      </h3>
+                      <span className="text-xs bg-white/20 px-2 py-1 rounded uppercase font-bold">
+                        {alert.severity}
                       </span>
-                    )}
-                  </div>
-                  
-                  <h3 className="text-xl font-bold mb-1">
-                    {alert.title}
-                  </h3>
-                  
-                  <p className="text-sm opacity-95 mb-2">
-                    {alert.message}
-                  </p>
-
-                  {alert.action_required && (
-                    <div className="bg-black/10 rounded-lg p-3 mb-2">
-                      <p className="font-semibold text-sm">⚡ Action Required:</p>
-                      <p className="text-sm mt-1">{alert.action_required}</p>
                     </div>
-                  )}
+                    <p className="text-sm sm:text-base opacity-95 mb-2">
+                      {alert.message}
+                    </p>
 
-                  <div className="flex items-center gap-4 text-xs opacity-75 mt-2">
-                    <span>
-                      {alert.issuer_name}
+                    {/* Additional info */}
+                    <div className="flex flex-wrap gap-4 text-xs sm:text-sm opacity-90">
+                      {alert.affected_areas && alert.affected_areas.length > 0 && (
+                        <div>
+                          <strong>Areas:</strong> {alert.affected_areas.join(', ')}
+                        </div>
+                      )}
+                      {alert.action_required && (
+                        <div>
+                          <strong>Action:</strong> {alert.action_required}
+                        </div>
+                      )}
+                      {alert.contact_info && (
+                        <div>
+                          <strong>Contact:</strong> {alert.contact_info}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Issuer */}
+                    <div className="mt-2 text-xs opacity-75">
+                      Issued by {alert.issuer_name}
                       {alert.issuer_organization && ` (${alert.issuer_organization})`}
-                    </span>
-                    {alert.contact_info && (
-                      <span>• {alert.contact_info}</span>
-                    )}
-                    <Link 
-                      href="/alerts" 
-                      className="underline hover:no-underline ml-auto"
-                    >
-                      View all alerts →
-                    </Link>
+                    </div>
                   </div>
                 </div>
 
-                {canDismiss && (
-                  <button
-                    onClick={() => dismissAlert(alert.id, alert.severity)}
-                    className="p-1 hover:bg-black/10 rounded-full transition-colors"
-                    title="Dismiss alert"
+                <div className="flex items-start gap-2 flex-shrink-0">
+                  <Link
+                    href="/alerts"
+                    className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold transition whitespace-nowrap"
                   >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
+                    View All Alerts →
+                  </Link>
+                  
+                  {canDismiss && (
+                    <button
+                      onClick={() => dismissAlert(alert.id, alert.severity)}
+                      className="p-2 hover:bg-white/20 rounded-lg transition"
+                      title="Dismiss this warning"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+
+                  {!canDismiss && (
+                    <div className="text-xs opacity-75 px-2 py-2 whitespace-nowrap">
+                      Cannot dismiss
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

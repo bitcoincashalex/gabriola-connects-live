@@ -1,10 +1,11 @@
-// components/LandingPage.tsx — FINAL, "Forum" EVERYWHERE
+// components/LandingPage.tsx
+// v2.0 - Dec 9, 2025 - Show active alert count
 'use client';
 
 import Link from 'next/link';
 import { Calendar, MessageSquare, Book, Anchor, Bell, AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
-import EmergencyBanner from './EmergencyBanner';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -12,6 +13,23 @@ interface LandingPageProps {
 
 export default function LandingPage({ onNavigate }: LandingPageProps) {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [activeAlertCount, setActiveAlertCount] = useState<number>(0);
+
+  // Fetch active alert count
+  useEffect(() => {
+    fetchActiveAlertCount();
+  }, []);
+
+  const fetchActiveAlertCount = async () => {
+    const { count, error } = await supabase
+      .from('alerts')
+      .select('*', { count: 'exact', head: true })
+      .eq('active', true);
+
+    if (!error && count !== null) {
+      setActiveAlertCount(count);
+    }
+  };
 
   const cards = [
     {
@@ -23,9 +41,9 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       textColor: 'text-white',
     },
     {
-      id: 'forum',                                   // ← CHANGED from 'bbs'
-      title: 'Forum',                                // ← CHANGED from 'BBS'
-      description: 'Real conversations. Real neighbours.', // ← Updated
+      id: 'forum',
+      title: 'Forum',
+      description: 'Real conversations. Real neighbours.',
       icon: MessageSquare,
       color: 'from-gabriola-ocean to-blue-700',
       textColor: 'text-white',
@@ -74,7 +92,6 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           }}>
             Your Island Community Hub
           </p>
-<EmergencyBanner />          
         </div>
       </div>
 
@@ -136,33 +153,44 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           })}
         </div>
 
-        {/* Community Alerts Banner */}
-     
-	 {/* Community Alerts Banner — place this wherever you want it on the landing page */}
-<button
-  onClick={() => window.location.href = '/alerts'}   // or router.push('/alerts') if using Next.js router
-  className="w-full max-w-5xl mx-auto bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
->
-  <div className="flex items-center justify-between p-8">
-    <div className="flex items-center gap-6">
-      {/* Bell Icon */}
-      <div className="p-4 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
-        <Bell className="w-10 h-10" />
-      </div>
+        {/* Community Alerts Banner with Count */}
+        <button
+          onClick={() => window.location.href = '/alerts'}
+          className="w-full max-w-5xl mx-auto bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
+        >
+          <div className="flex items-center justify-between p-8">
+            <div className="flex items-center gap-6">
+              {/* Bell Icon with Badge */}
+              <div className="relative">
+                <div className="p-4 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
+                  <Bell className="w-10 h-10" />
+                </div>
+                {/* Alert Count Badge */}
+                {activeAlertCount > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-600 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center animate-pulse">
+                    {activeAlertCount}
+                  </div>
+                )}
+              </div>
 
-      {/* Text */}
-      <div className="text-left">
-        <h3 className="text-3xl font-bold mb-2">Community Alerts</h3>
-        <p className="text-lg opacity-90">Stay informed about important island updates</p>
-      </div>
-    </div>
+              {/* Text */}
+              <div className="text-left">
+                <h3 className="text-3xl font-bold mb-2">Community Alerts</h3>
+                <p className="text-lg opacity-90">
+                  {activeAlertCount === 0
+                    ? 'No active alerts - Stay informed about important island updates'
+                    : `${activeAlertCount} active alert${activeAlertCount === 1 ? '' : 's'} - Click to view`
+                  }
+                </p>
+              </div>
+            </div>
 
-    {/* Arrow */}
-    <div className="text-5xl group-hover:translate-x-4 transition-transform">
-      →
-    </div>
-  </div>
-</button>
+            {/* Arrow */}
+            <div className="text-5xl group-hover:translate-x-4 transition-transform">
+              →
+            </div>
+          </div>
+        </button>
 
         {/* Footer Info */}
         <div className="mt-12 text-center">
@@ -218,7 +246,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
               </svg>
               <div className="text-left">
                 <div className="font-semibold">Share this website with your Gabriola friends and family</div>
-                <div className="text-sm text-white!80">Mobile app coming soon</div>
+                <div className="text-sm text-white/80">Mobile app coming soon</div>
               </div>
             </div>
           </button>
