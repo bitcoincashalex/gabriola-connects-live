@@ -1,32 +1,13 @@
-// components/EventsManager.tsx — FULL, FINAL, 300+ LINES — EVERYTHING YOU WANTED
+// components/EventsManager.tsx
+// v2.0 - Dec 8, 2025 - Updated to new database schema
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
+import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
 import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload } from 'lucide-react';
-
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  end_date?: string;
-  time?: string;
-  end_time?: string;
-  all_day: boolean;
-  location?: string;
-  location_url?: string;
-  poster_image?: string;
-  organizer_name?: string;
-  organizer_email?: string;
-  organizer_phone?: string;
-  fees?: string;
-  source?: string;
-  is_featured: boolean;
-  created_by?: string;
-}
 
 export default function EventsManager() {
   const { user } = useUser();
@@ -41,18 +22,24 @@ export default function EventsManager() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    date: '',
+    start_date: '',
     end_date: '',
-    time: '',
+    start_time: '',
     end_time: '',
-    all_day: false,
+    is_all_day: false,
     location: '',
-    location_url: '',
-    poster_image: '',
+    venue_name: '',
+    venue_address: '',
+    image_url: '',
     organizer_name: '',
     organizer_email: '',
-    organizer_phone: '',
+    contact_email: '',
+    contact_phone: '',
     fees: '',
+    registration_url: '',
+    additional_info: '',
+    age_restrictions: '',
+    accessibility_info: '',
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -63,11 +50,25 @@ export default function EventsManager() {
   }, []);
 
   const fetchEvents = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('events')
       .select('*')
-      .order('date', { ascending: true });
-    setEvents(data || []);
+      .eq('is_approved', true)
+      .order('start_date', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching events:', error);
+      setEvents([]);
+    } else {
+      // Convert database rows to Event objects
+      const formattedEvents: Event[] = (data || []).map(event => ({
+        ...event,
+        start_date: new Date(event.start_date),
+        end_date: event.end_date ? new Date(event.end_date) : undefined,
+        postponed_from_date: event.postponed_from_date ? new Date(event.postponed_from_date) : undefined,
+      }));
+      setEvents(formattedEvents);
+    }
     setLoading(false);
   };
 
@@ -92,7 +93,7 @@ export default function EventsManager() {
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        setForm({ ...form, poster_image: result });
+        setForm({ ...form, image_url: result });
         setImagePreview(result);
       };
       reader.readAsDataURL(file);
@@ -102,7 +103,28 @@ export default function EventsManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
-      ...form,
+      title: form.title,
+      description: form.description,
+      start_date: form.start_date,
+      end_date: form.end_date || form.start_date,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+      is_all_day: form.is_all_day,
+      location: form.location,
+      venue_name: form.venue_name || null,
+      venue_address: form.venue_address || null,
+      image_url: form.image_url || null,
+      organizer_name: form.organizer_name || null,
+      contact_email: form.contact_email || null,
+      contact_phone: form.contact_phone || null,
+      fees: form.fees || null,
+      registration_url: form.registration_url || null,
+      additional_info: form.additional_info || null,
+      age_restrictions: form.age_restrictions || null,
+      accessibility_info: form.accessibility_info || null,
+      source_name: 'User Submitted',
+      source_type: 'user_submitted',
+      is_approved: true,
       created_by: user?.id,
     };
 
@@ -117,18 +139,24 @@ export default function EventsManager() {
       setForm({
         title: '',
         description: '',
-        date: '',
+        start_date: '',
         end_date: '',
-        time: '',
+        start_time: '',
         end_time: '',
-        all_day: false,
+        is_all_day: false,
         location: '',
-        location_url: '',
-        poster_image: '',
+        venue_name: '',
+        venue_address: '',
+        image_url: '',
         organizer_name: '',
         organizer_email: '',
-        organizer_phone: '',
+        contact_email: '',
+        contact_phone: '',
         fees: '',
+        registration_url: '',
+        additional_info: '',
+        age_restrictions: '',
+        accessibility_info: '',
       });
       setImagePreview(null);
       fetchEvents();
@@ -170,9 +198,9 @@ export default function EventsManager() {
 
   const today = new Date();
   const upcoming = events.filter(e => 
-    isAfter(new Date(e.date), today) || isSameDay(new Date(e.date), today)
+    isAfter(e.start_date, today) || isSameDay(e.start_date, today)
   );
-  const past = events.filter(e => isBefore(new Date(e.date), today));
+  const past = events.filter(e => isBefore(e.start_date, today));
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -219,7 +247,7 @@ export default function EventsManager() {
             {past.map(event => (
               <div key={event.id} className="bg-gray-50 rounded-xl p-6 opacity-75">
                 <h3 className="text-xl font-bold">{event.title}</h3>
-                <p className="text-sm text-gray-600 mt-2">{format(new Date(event.date), 'PPP')}</p>
+                <p className="text-sm text-gray-600 mt-2">{format(event.start_date, 'PPP')}</p>
               </div>
             ))}
           </div>
@@ -247,25 +275,30 @@ export default function EventsManager() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                  <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required className="w-full p-4 border rounded-lg" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} required className="w-full p-4 border rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-                  <input type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="w-full p-4 border rounded-lg" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} disabled={form.is_all_day} className="w-full p-4 border rounded-lg" />
                 </div>
               </div>
 
               <div>
                 <label className="flex items-center gap-3">
-                  <input type="checkbox" checked={form.all_day} onChange={e => setForm({ ...form, all_day: e.target.checked })} className="w-5 h-5" />
+                  <input type="checkbox" checked={form.is_all_day} onChange={e => setForm({ ...form, is_all_day: e.target.checked })} className="w-5 h-5" />
                   <span>All Day Event</span>
                 </label>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                <input type="text" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full p-4 border rounded-lg" />
+                <input type="text" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="General location (e.g., Gabriola Island)" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
+                <input type="text" value={form.venue_name} onChange={e => setForm({ ...form, venue_name: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="e.g., Rollo Centre" />
               </div>
 
               <div>
@@ -274,11 +307,21 @@ export default function EventsManager() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fees</label>
+                <input type="text" value={form.fees} onChange={e => setForm({ ...form, fees: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="e.g., Free, $10, By Donation" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} className="w-full p-4 border rounded-lg" />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Poster Image</label>
                 {imagePreview ? (
                   <div className="relative">
                     <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-                    <button type="button" onClick={() => { setImagePreview(null); setForm({ ...form, poster_image: '' }); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full">
+                    <button type="button" onClick={() => { setImagePreview(null); setForm({ ...form, image_url: '' }); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -330,8 +373,8 @@ export default function EventsManager() {
 function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, isAdmin }: any) {
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
-      {event.poster_image && (
-        <img src={event.poster_image} alt={event.title} className="w-full h-48 object-cover" />
+      {event.image_url && (
+        <img src={event.image_url} alt={event.title} className="w-full h-48 object-cover" />
       )}
       <div className="p-6">
         <h3 className="text-2xl font-bold text-gabriola-green-dark mb-3">{event.title}</h3>
@@ -339,13 +382,13 @@ function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, isAdmin }: any)
         <div className="space-y-2 text-gray-700 mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-gabriola-green" />
-            <span>{format(new Date(event.date), 'PPP')}</span>
-            {event.time && <span className="text-sm">• {event.time}</span>}
+            <span>{format(event.start_date, 'PPP')}</span>
+            {event.start_time && <span className="text-sm">• {event.start_time}</span>}
           </div>
           {event.location && (
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-gabriola-green" />
-              <span>{event.location}</span>
+              <span>{event.venue_name || event.location}</span>
             </div>
           )}
           {event.fees && (
