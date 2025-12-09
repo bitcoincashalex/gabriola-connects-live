@@ -79,12 +79,12 @@ export default function SignInPage() {
           // Show success message
           setMessage('Account created! Setting up your profile...');
           
-          // Wait for user record to be created (optimized timing)
+          // Wait for user record to be created
           let attempts = 0;
           let userFound = false;
           
-          while (attempts < 8 && !userFound) {
-            await new Promise(resolve => setTimeout(resolve, 300));
+          while (attempts < 10 && !userFound) {
+            await new Promise(resolve => setTimeout(resolve, 500));
             
             const { data: userRecord } = await supabase
               .from('users')
@@ -135,10 +135,10 @@ export default function SignInPage() {
           // Wait for user profile to be loaded before redirecting
           setMessage('Loading your profile...');
           
-          // Poll for user session to be fully established (optimized timing)
+          // Poll for user session to be fully established
           let attempts = 0;
-          while (attempts < 12) {
-            await new Promise(resolve => setTimeout(resolve, 150));
+          while (attempts < 20) {
+            await new Promise(resolve => setTimeout(resolve, 200));
             
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {

@@ -277,7 +277,7 @@ export default function Ferry() {
               rel="noopener noreferrer"
               className="block text-center text-gabriola-ocean hover:text-gabriola-ocean/80 font-medium text-sm py-2"
             >
-              BC Ferries Current Conditions - Descanso Bay to Nanaimo Harbour →
+              View Official BC Ferries Website →
             </a>
           </div>
         </div>
