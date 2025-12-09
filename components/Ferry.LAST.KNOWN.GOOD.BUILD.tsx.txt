@@ -96,28 +96,26 @@ export default function Ferry() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gabriola-ocean/5 pb-20">
-      {/* Page Title — clean and beautiful, not a duplicate header */}
-      <div className="bg-gradient-to-b from-gabriola-ocean/10 via-white to-white pt-8 pb-6 border-b-4 border-gabriola-ocean/20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Anchor className="w-12 h-12 text-gabriola-ocean" />
-              <div>
-                <h1 className="text-4xl font-bold text-gabriola-ocean">Ferry Status</h1>
-                <p className="text-xl text-gabriola-ocean/80">Nanaimo to Gabriola Route</p>
-              </div>
+      {/* Clean, beautiful page title — NOT a duplicate header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b-4 border-gabriola-ocean/30 py-6">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Anchor className="w-12 h-12 text-gabriola-ocean" />
+            <div>
+              <h1 className="text-4xl font-bold text-gabriola-ocean">Ferry Status</h1>
+              <p className="text-lg text-gabriola-ocean/80">Nanaimo to Gabriola Route</p>
             </div>
-
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className={`p-4 rounded-full bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 transition-all shadow-lg ${
-                isRefreshing ? 'animate-spin' : ''
-              }`}
-            >
-              <RefreshCw className="w-7 h-7" />
-            </button>
           </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`p-4 rounded-full bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 transition-all shadow-lg ${
+              isRefreshing ? 'animate-spin' : ''
+            }`}
+          >
+            <RefreshCw className="w-7 h-7" />
+          </button>
         </div>
       </div>
 

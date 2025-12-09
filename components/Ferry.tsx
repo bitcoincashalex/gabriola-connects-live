@@ -261,14 +261,23 @@ export default function Ferry() {
             </div>
           </div>
 
-          <div className="p-4 bg-gray-50 border-t border-gray-200">
+          <div className="p-4 bg-gray-50 border-t border-gray-200 space-y-3">
+            <a
+              href="https://ferrycam.clayrose.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 font-semibold text-sm py-3 rounded-lg transition-all shadow-md"
+            >
+              📹 View Live Ferry Cam - Current Traffic Conditions
+            </a>
+            
             <a
               href="https://www.bcferries.com/current-conditions/GAB-NAH"
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-center text-gabriola-ocean hover:text-gabriola-ocean/80 font-medium text-sm"
+              className="block text-center text-gabriola-ocean hover:text-gabriola-ocean/80 font-medium text-sm py-2"
             >
-              View on BC Ferries Website
+              View Official BC Ferries Website →
             </a>
           </div>
         </div>
