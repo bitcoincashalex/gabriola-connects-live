@@ -1,7 +1,4 @@
-// Path: app/signin/page.tsx
-// Version: 2.0.0 - Fully optimized (no polling, trusts AuthProvider)
-// Date: 2024-12-09
-
+// app/signin/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,7 +54,7 @@ export default function SignInPage() {
         setLoading(false);
         
       } else if (isSignup) {
-        // Sign up - NO POLLING, trust AuthProvider
+        // Sign up
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -79,14 +76,42 @@ export default function SignInPage() {
           }
           setLoading(false);
         } else if (data.user) {
-          // Set welcome flags and redirect immediately
-          sessionStorage.setItem('justSignedUp', 'true');
-          sessionStorage.setItem('newUserName', fullName);
-          window.location.href = '/';
+          // Show success message
+          setMessage('Account created! Setting up your profile...');
+          
+          // Wait for user record to be created (optimized timing)
+          let attempts = 0;
+          let userFound = false;
+          
+          while (attempts < 8 && !userFound) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const { data: userRecord } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', data.user.id)
+              .single();
+            
+            if (userRecord) {
+              userFound = true;
+              // Set flag in sessionStorage so home page can show welcome message
+              sessionStorage.setItem('justSignedUp', 'true');
+              sessionStorage.setItem('newUserName', fullName);
+              window.location.href = '/';
+            } else {
+              attempts++;
+            }
+          }
+          
+          if (!userFound) {
+            sessionStorage.setItem('justSignedUp', 'true');
+            sessionStorage.setItem('newUserName', fullName);
+            window.location.href = '/';
+          }
         }
         
       } else {
-        // Sign in - NO POLLING, trust AuthProvider
+        // Sign in - wait for auth to fully complete
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
@@ -107,7 +132,33 @@ export default function SignInPage() {
           }
           setLoading(false);
         } else {
-          // Redirect immediately - AuthProvider will handle the rest
+          // Wait for user profile to be loaded before redirecting
+          setMessage('Loading your profile...');
+          
+          // Poll for user session to be fully established (optimized timing)
+          let attempts = 0;
+          while (attempts < 12) {
+            await new Promise(resolve => setTimeout(resolve, 150));
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+              // Check if profile exists
+              const { data: profile } = await supabase
+                .from('users')
+                .select('id')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (profile) {
+                // Profile found, safe to redirect
+                window.location.href = '/';
+                return;
+              }
+            }
+            attempts++;
+          }
+          
+          // Fallback: redirect anyway after timeout
           window.location.href = '/';
         }
       }
@@ -156,32 +207,50 @@ export default function SignInPage() {
                   />
                 </div>
 
+                {error && (
+                  <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+
                 <button 
                   type="submit" 
                   disabled={loading} 
-                  className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Sending...' : 'Send Reset Link'}
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
+              <div className="text-center mt-6">
                 <button 
                   onClick={() => setIsForgot(false)}
-                  className="text-sm text-gabriola-green hover:underline font-medium"
+                  className="text-gabriola-green font-semibold underline hover:no-underline"
                 >
                   Back to Sign In
                 </button>
               </div>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
 
-          {error && (
-            <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm font-medium">{error}</p>
-            </div>
-          )}
+  // Show success message with animation
+  if (message && isSignup) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <Loader2 className="w-16 h-16 text-gabriola-green mx-auto mb-4 animate-spin" />
+          <h2 className="text-2xl font-bold text-gabriola-green mb-2">{message}</h2>
+          <p className="text-gray-600">Please wait, this may take a few seconds...</p>
+          <div className="mt-6 flex justify-center gap-2">
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -200,17 +269,9 @@ export default function SignInPage() {
             {isSignup ? 'Join Gabriola Connects' : 'Welcome Back'}
           </h1>
           <p className="text-gray-600">
-            {isSignup ? 'Create your account to get started' : 'Sign in to your account'}
+            {isSignup ? 'Connect with your island community' : 'Sign in to your account'}
           </p>
         </div>
-
-        {/* Success Message */}
-        {message && (
-          <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <p className="text-green-700 text-sm font-medium">{message}</p>
-          </div>
-        )}
 
         {/* Error Messages */}
         {error && (

@@ -1,4 +1,7 @@
-// components/AuthProvider.tsx
+// Path: components/AuthProvider.tsx
+// Version: 2.0.0 - Optimized with smart polling on SIGNED_IN only
+// Date: 2024-12-09
+
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
@@ -20,6 +23,30 @@ async function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promi
       setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
     )
   ]);
+}
+
+// Helper to poll for profile after signin/signup
+async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200): Promise<any> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (data) {
+      console.log(`✅ Profile found on attempt ${attempt + 1}`);
+      return { data, error: null };
+    }
+    
+    console.log(`⏳ Profile not ready, attempt ${attempt + 1}/${maxAttempts}`);
+  }
+  
+  return { data: null, error: new Error('Profile not found after retries') };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -56,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   .eq('id', session.user.id)
                   .single()
               ),
-              5000 // 5 second timeout
+              5000
             );
             
             if (!mounted) return;
@@ -82,7 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (err.message === 'Request timeout') {
               console.error('⏱️ TIMEOUT fetching profile - retrying once...');
               
-              // Retry once
               try {
                 const result = await fetchWithTimeout(
                   Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
@@ -139,32 +165,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           console.log('🔵 Fetching profile for:', session.user.id);
           
-          try {
+          // For SIGNED_IN events, use retry logic since profile might not be ready
+          if (event === 'SIGNED_IN') {
+            console.log('🔄 SIGNED_IN detected - using smart retry...');
             const startTime = Date.now();
-            const result = await fetchWithTimeout(
-              Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
-              5000
-            );
+            const result = await fetchProfileWithRetry(session.user.id, 5, 200);
             
             if (!mounted) return;
-            
-            const userProfile = result.data;
-            const error = result.error;
             
             const elapsed = Date.now() - startTime;
             console.log(`🔵 Profile fetch took ${elapsed}ms`);
-            console.log('🔵 Profile result:', userProfile ? 'FOUND' : 'NULL', error);
             
-            setUser(userProfile);
-          } catch (err: any) {
-            if (!mounted) return;
-            
-            if (err.message === 'Request timeout') {
-              console.error('⏱️ TIMEOUT in listener - ignoring');
+            if (result.data) {
+              console.log('🔵 Profile result: FOUND');
+              setUser(result.data);
             } else {
-              console.error('💥 Exception in listener:', err);
+              console.log('🔵 Profile result: NOT FOUND after retries');
+              setUser(null);
             }
-            // Don't clear user on timeout - keep existing state
+          } else {
+            // For other events (INITIAL_SESSION, etc), profile should exist
+            try {
+              const startTime = Date.now();
+              const result = await fetchWithTimeout(
+                Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
+                5000
+              );
+              
+              if (!mounted) return;
+              
+              const userProfile = result.data;
+              const error = result.error;
+              
+              const elapsed = Date.now() - startTime;
+              console.log(`🔵 Profile fetch took ${elapsed}ms`);
+              console.log('🔵 Profile result:', userProfile ? 'FOUND' : 'NULL', error);
+              
+              setUser(userProfile);
+            } catch (err: any) {
+              if (!mounted) return;
+              
+              if (err.message === 'Request timeout') {
+                console.error('⏱️ TIMEOUT in listener - ignoring');
+              } else {
+                console.error('💥 Exception in listener:', err);
+              }
+            }
           }
         } else {
           console.log('🔵 Clearing user');
