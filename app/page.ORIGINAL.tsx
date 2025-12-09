@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.0 - Dec 8, 2025 - Add emergency alerts + hide forum for banned users
+// v2.0 - Dec 8, 2025 - Fetch events from database with new schema
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,7 +8,6 @@ import Calendar from '@/components/Calendar';
 import BBS from '@/components/BBS';
 import Directory from '@/components/Directory';
 import Ferry from '@/components/Ferry';
-import EmergencyAlertBanner from '@/components/EmergencyAlertBanner';
 import { useUser } from '@/components/AuthProvider';
 import { Search, CalendarDays, MessageSquare, BookOpen, Anchor } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -137,28 +136,20 @@ export default function HomePage() {
     setActiveTab(tab as Tab);
   };
 
-  // Build tabs array - hide forum for banned users
   const tabs = [
     { id: 'calendar' as Tab, label: 'Calendar', icon: CalendarDays },
-    // Only show forum if user is not banned
-    ...(user?.is_banned ? [] : [{ id: 'forum' as Tab, label: 'Forum', icon: MessageSquare }]),
+    { id: 'forum' as Tab, label: 'Forum', icon: MessageSquare },
     { id: 'directory' as Tab, label: 'Directory', icon: BookOpen },
     { id: 'search' as Tab, label: 'Search', icon: Search },
     { id: 'ferry' as Tab, label: 'Ferry', icon: Anchor },
   ];
 
   if (activeTab === 'landing') {
-    return (
-      <>
-        <EmergencyAlertBanner />
-        <LandingPage onNavigate={handleNavigateFromLanding} />
-      </>
-    );
+    return <LandingPage onNavigate={handleNavigateFromLanding} />;
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-gabriola-sand/10">
-      <EmergencyAlertBanner />
       <main className="flex-1 overflow-auto">
         {activeTab === 'calendar' && <Calendar events={events} loading={eventsLoading} />}
         {activeTab === 'forum' && <BBS />}

@@ -379,7 +379,7 @@ export default function AdminUsersPage() {
 
               {/* Ban */}
               <div className="border-t pt-4">
-                <h3 className="font-bold mb-3 text-red-600">Account Status</h3>
+                <h3 className="font-bold mb-3 text-red-600">Forum Access</h3>
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -388,8 +388,11 @@ export default function AdminUsersPage() {
                     onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)}
                     className="w-5 h-5 cursor-pointer"
                   />
-                  <label htmlFor="is-banned" className="font-medium text-red-600 cursor-pointer">Ban this user (blocks all access)</label>
+                  <label htmlFor="is-banned" className="font-medium text-red-600 cursor-pointer">Ban from Forum (COMPLETE lockout - cannot access at all)</label>
                 </div>
+                <p className="text-xs text-gray-500 mt-2 ml-8">
+                  Banned users cannot view, read, or post in the forum. Other site features remain accessible.
+                </p>
               </div>
             </div>
 

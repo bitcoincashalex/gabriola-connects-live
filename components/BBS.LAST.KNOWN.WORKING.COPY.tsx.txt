@@ -5,8 +5,7 @@ import { useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import CreateThread from './CreateThread';
 import ThreadList from './ThreadList';
-import { Plus, AlertCircle, Ban } from 'lucide-react';
-import Link from 'next/link';
+import { Plus, AlertCircle } from 'lucide-react';
 
 const categories = [
   { id: 'all', name: 'All Posts' },
@@ -37,40 +36,29 @@ export default function BBS() {
     );
   }
 
-  // COMPLETE BAN CHECK - Block entire forum access
-  // Using is_banned from admin panel (set via /admin/users)
-  if (user.is_banned) {
+  // Check if user is banned from forum
+  if ((user as any).forum_banned) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Ban className="w-12 h-12 text-red-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
-            Forum Access Restricted
-          </h1>
-          <p className="text-gray-600 mb-6 text-lg">
-            You have been banned from the Gabriola Connects community forum.
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Forum Access Restricted</h2>
+          <p className="text-gray-600 mb-4">
+            Your access to the community forum has been temporarily restricted.
           </p>
-          {(user as any).banned_reason && (
+          {(user as any).forum_banned_reason && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-red-800">
-                <strong>Reason:</strong> {(user as any).banned_reason}
+                <strong>Reason:</strong> {(user as any).forum_banned_reason}
               </p>
             </div>
           )}
-          <p className="text-gray-500 text-sm mb-2">
+          <p className="text-sm text-gray-500">
             You can still access Events, Directory, Alerts, and other parts of Gabriola Connects.
           </p>
-          <p className="text-gray-500 text-sm mb-8">
-            If you believe this is an error, please contact a site administrator.
+          <p className="text-sm text-gray-500 mt-2">
+            If you believe this is an error, please contact the site administrators.
           </p>
-          <Link
-            href="/"
-            className="inline-block bg-gabriola-green text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-gabriola-green-dark transition"
-          >
-            Return to Home
-          </Link>
         </div>
       </div>
     );
@@ -110,7 +98,7 @@ export default function BBS() {
   }
 
   // Can user create posts?
-  const canCreatePost = !u.is_banned && !u.forum_read_only && u.can_post;
+  const canCreatePost = !u.forum_banned && !u.forum_read_only && u.can_post;
 
   const handlePostCreated = () => {
     setShowCreateModal(false);
