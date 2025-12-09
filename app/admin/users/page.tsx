@@ -1,28 +1,21 @@
 // app/admin/users/page.tsx
+// v1.0 - Dec 8, 2025 - Admin user management with permission controls
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  ArrowLeft, Search, Shield, MessageSquare, Eye, Ban, 
-  CheckCircle, AlertTriangle, Loader2, User 
-} from 'lucide-react';
-import { format } from 'date-fns';
+import { User } from '@/lib/types';
+import { Shield, Calendar, Edit, AlertTriangle, X } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const { user, loading: authLoading } = useUser();
   const router = useRouter();
-  const [users, setUsers] = useState<any[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [showBanModal, setShowBanModal] = useState(false);
-  const [banType, setBanType] = useState<'forum' | 'messaging'>('forum');
-  const [banReason, setBanReason] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -32,333 +25,275 @@ export default function AdminUsersPage() {
         fetchUsers();
       }
     }
-  }, [user, authLoading]);
-
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = users.filter(u => 
-        u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.postal_code?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [searchQuery, users]);
+  }, [user, authLoading, router]);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('*')
       .order('created_at', { ascending: false });
-
-    setUsers(data || []);
-    setFilteredUsers(data || []);
+    
+    if (!error && data) {
+      setUsers(data as User[]);
+    }
     setLoading(false);
   };
 
-  const handleBanAction = async (userId: string, type: 'forum' | 'messaging', action: 'ban' | 'unban' | 'readonly') => {
-    if (action === 'ban') {
-      setSelectedUser(users.find(u => u.id === userId));
-      setBanType(type);
-      setShowBanModal(true);
-      return;
-    }
+  const updatePermission = async (userId: string, field: string, value: any) => {
+    const { error } = await supabase
+      .from('users')
+      .update({ [field]: value })
+      .eq('id', userId);
 
-    // Unban or set read-only
-    const updates: any = {};
-    if (type === 'forum') {
-      if (action === 'unban') {
-        updates.forum_banned = false;
-        updates.forum_read_only = false;
-        updates.forum_banned_at = null;
-        updates.forum_banned_by = null;
-        updates.forum_banned_reason = null;
-      } else if (action === 'readonly') {
-        updates.forum_read_only = true;
-        updates.forum_banned = false;
-      }
+    if (!error) {
+      fetchUsers();
     } else {
-      updates.messaging_banned = false;
-      updates.messaging_banned_at = null;
-      updates.messaging_banned_by = null;
-      updates.messaging_banned_reason = null;
+      alert('Error updating permission: ' + error.message);
     }
-
-    await supabase.from('users').update(updates).eq('id', userId);
-    fetchUsers();
   };
 
-  const confirmBan = async () => {
-    if (!selectedUser || !banReason.trim()) {
-      alert('Please provide a reason for the ban');
-      return;
-    }
-
-    const updates: any = {};
-    if (banType === 'forum') {
-      updates.forum_banned = true;
-      updates.forum_read_only = false;
-      updates.forum_banned_at = new Date().toISOString();
-      updates.forum_banned_by = user!.id;
-      updates.forum_banned_reason = banReason.trim();
-    } else {
-      updates.messaging_banned = true;
-      updates.messaging_banned_at = new Date().toISOString();
-      updates.messaging_banned_by = user!.id;
-      updates.messaging_banned_reason = banReason.trim();
-    }
-
-    await supabase.from('users').update(updates).eq('id', selectedUser.id);
-    
-    setShowBanModal(false);
-    setSelectedUser(null);
-    setBanReason('');
-    fetchUsers();
-  };
-
-  const updateTrustLevel = async (userId: string, newLevel: string) => {
-    await supabase.from('users').update({ trust_level: newLevel }).eq('id', userId);
-    fetchUsers();
-  };
+  const filteredUsers = users.filter(u => 
+    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase()) ||
+    u.username?.toLowerCase().includes(search.toLowerCase()) ||
+    u.postal_code?.toLowerCase().includes(search.toLowerCase())
+  );
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-gabriola-green animate-spin" />
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-2xl text-gray-600">Loading...</div>
+    </div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8 text-lg font-medium"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back to Home
-        </Link>
-
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-red-600" />
-              <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            </div>
-            <div className="text-gray-600">
-              {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, or postal code..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-            />
-          </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold text-gabriola-green flex items-center gap-3">
+            <Shield className="w-10 h-10" />
+            User Management
+          </h1>
+          <p className="text-gray-600 mt-2">{users.length} total users</p>
         </div>
+        <button
+          onClick={() => router.push('/')}
+          className="text-blue-600 hover:underline"
+        >
+          ← Back to Home
+        </button>
+      </div>
 
-        {/* Users List */}
-        <div className="space-y-4">
-          {filteredUsers.map(u => {
-            const isBanned = u.forum_banned || u.messaging_banned;
-            const isReadOnly = u.forum_read_only;
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search by name, email, or postal code..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:outline-none"
+        />
+      </div>
 
-            return (
-              <div key={u.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-start justify-between gap-4">
-                  {/* User Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {u.full_name || 'No name'}
-                      </h3>
-                      {u.is_super_admin && (
-                        <span className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                          SUPER ADMIN
-                        </span>
-                      )}
-                      {u.admin_forum && (
-                        <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
-                          FORUM ADMIN
-                        </span>
-                      )}
-                      {isBanned && (
-                        <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
-                          BANNED
-                        </span>
-                      )}
-                      {isReadOnly && (
-                        <span className="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-bold">
-                          READ-ONLY
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>📧 {u.email || 'No email'}</p>
-                      {u.postal_code && <p>📍 {u.postal_code}</p>}
-                      <p>👤 Role: <span className="font-bold">{u.user_role}</span></p>
-                      <p>⭐ Trust: <span className="font-bold">{u.trust_level}</span> ({u.trust_score} points)</p>
-                      <p>📅 Joined {format(new Date(u.created_at), 'MMM d, yyyy')}</p>
-                    </div>
-
-                    {/* Ban Reasons */}
-                    {u.forum_banned && u.forum_banned_reason && (
-                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm font-bold text-red-900">Forum Ban Reason:</p>
-                        <p className="text-sm text-red-700">{u.forum_banned_reason}</p>
-                      </div>
+      <div className="space-y-4">
+        {filteredUsers.map(u => (
+          <div key={u.id} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-800">{u.full_name}</h3>
+                <div className="mt-2 space-y-1 text-sm text-gray-600">
+                  <div>📧 {u.email}</div>
+                  <div>👤 @{u.username}</div>
+                  <div>📍 {u.postal_code}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      u.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      u.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {u.role.toUpperCase()}
+                    </span>
+                    {u.is_super_admin && (
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                        SUPER ADMIN
+                      </span>
                     )}
-                    {u.messaging_banned && u.messaging_banned_reason && (
-                      <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
-                        <p className="text-sm font-bold text-orange-900">Messaging Ban Reason:</p>
-                        <p className="text-sm text-orange-700">{u.messaging_banned_reason}</p>
-                      </div>
+                    {u.is_banned && (
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-red-600 text-white">
+                        BANNED
+                      </span>
                     )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-2">
-                    {/* Trust Level */}
-                    <select
-                      value={u.trust_level}
-                      onChange={e => updateTrustLevel(u.id, e.target.value)}
-                      className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-bold"
-                    >
-                      <option value="new">New</option>
-                      <option value="verified">Verified</option>
-                      <option value="trusted">Trusted</option>
-                      <option value="leader">Leader</option>
-                    </select>
-
-                    {/* Forum Controls */}
-                    <div className="flex gap-2">
-                      {u.forum_banned ? (
-                        <button
-                          onClick={() => handleBanAction(u.id, 'forum', 'unban')}
-                          className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Unban Forum
-                        </button>
-                      ) : u.forum_read_only ? (
-                        <>
-                          <button
-                            onClick={() => handleBanAction(u.id, 'forum', 'unban')}
-                            className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Full Access
-                          </button>
-                          <button
-                            onClick={() => handleBanAction(u.id, 'forum', 'ban')}
-                            className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700"
-                          >
-                            <Ban className="w-4 h-4" />
-                            Ban
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleBanAction(u.id, 'forum', 'readonly')}
-                            className="flex items-center gap-1 px-3 py-2 bg-yellow-600 text-white rounded-lg text-sm font-bold hover:bg-yellow-700"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Read-Only
-                          </button>
-                          <button
-                            onClick={() => handleBanAction(u.id, 'forum', 'ban')}
-                            className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700"
-                          >
-                            <Ban className="w-4 h-4" />
-                            Ban Forum
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Messaging Controls */}
-                    {u.messaging_banned ? (
-                      <button
-                        onClick={() => handleBanAction(u.id, 'messaging', 'unban')}
-                        className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Unban Messaging
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleBanAction(u.id, 'messaging', 'ban')}
-                        className="flex items-center gap-1 px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-bold hover:bg-orange-700"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        Ban Messaging
-                      </button>
-                    )}
-
-                    {/* View Profile */}
-                    <Link
-                      href={`/profile/${u.id}`}
-                      className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 text-center"
-                    >
-                      <User className="w-4 h-4" />
-                      View Profile
-                    </Link>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Ban Modal */}
-      {showBanModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Ban {selectedUser.full_name} from {banType === 'forum' ? 'Forum' : 'Messaging'}?
-            </h2>
-            <p className="text-gray-600 mb-4">
-              This will prevent them from {banType === 'forum' ? 'posting or replying in the forum' : 'sending private messages'}.
-            </p>
-            <textarea
-              placeholder="Reason for ban (required)..."
-              value={banReason}
-              onChange={e => setBanReason(e.target.value)}
-              rows={4}
-              className="w-full p-4 border-2 border-gray-200 rounded-lg mb-4 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-            <div className="flex gap-3">
+              <div className="ml-6 space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Calendar className={`w-4 h-4 ${u.can_create_events ? 'text-green-600' : 'text-gray-300'}`} />
+                  <button
+                    onClick={() => updatePermission(u.id, 'can_create_events', !u.can_create_events)}
+                    className={`px-3 py-1 rounded text-xs font-medium ${
+                      u.can_create_events 
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {u.can_create_events ? 'Can Create Events' : 'Cannot Create Events'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Edit className={`w-4 h-4 ${u.can_moderate_events ? 'text-green-600' : 'text-gray-300'}`} />
+                  <button
+                    onClick={() => updatePermission(u.id, 'can_moderate_events', !u.can_moderate_events)}
+                    className={`px-3 py-1 rounded text-xs font-medium ${
+                      u.can_moderate_events 
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {u.can_moderate_events ? 'Can Moderate Events' : 'Cannot Moderate Events'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`w-4 h-4 ${u.can_issue_alerts ? 'text-orange-600' : 'text-gray-300'}`} />
+                  <button
+                    onClick={() => updatePermission(u.id, 'can_issue_alerts', !u.can_issue_alerts)}
+                    className={`px-3 py-1 rounded text-xs font-medium ${
+                      u.can_issue_alerts 
+                        ? 'bg-orange-100 text-orange-800 hover:bg-orange-200' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {u.can_issue_alerts ? 'Can Issue Alerts' : 'Cannot Issue Alerts'}
+                  </button>
+                </div>
+
+                {u.can_issue_alerts && (
+                  <div className="ml-6">
+                    <select
+                      value={u.alert_level_permission}
+                      onChange={(e) => updatePermission(u.id, 'alert_level_permission', e.target.value)}
+                      className="px-2 py-1 text-xs border rounded"
+                    >
+                      <option value="none">No alerts</option>
+                      <option value="minor">Minor</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="major">Major</option>
+                      <option value="emergency">Emergency</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
               <button
-                onClick={() => {
-                  setShowBanModal(false);
-                  setSelectedUser(null);
-                  setBanReason('');
-                }}
-                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg font-bold hover:bg-gray-50"
+                onClick={() => setSelectedUser(u)}
+                className="ml-4 px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark"
               >
-                Cancel
-              </button>
-              <button
-                onClick={confirmBan}
-                disabled={!banReason.trim()}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
-              >
-                Confirm Ban
+                Edit All
               </button>
             </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Edit: {selectedUser.full_name}</h2>
+              <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Role</label>
+                <select
+                  value={selectedUser.role}
+                  onChange={(e) => updatePermission(selectedUser.id, 'role', e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option value="user">User</option>
+                  <option value="moderator">Moderator</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={selectedUser.is_super_admin} onChange={(e) => updatePermission(selectedUser.id, 'is_super_admin', e.target.checked)} className="w-5 h-5" />
+                <label className="font-medium">Super Admin</label>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Event Permissions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_create_events} onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)} className="w-5 h-5" />
+                    <label>Can create events</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_moderate_events} onChange={(e) => updatePermission(selectedUser.id, 'can_moderate_events', e.target.checked)} className="w-5 h-5" />
+                    <label>Can moderate events</label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Alert Permissions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_issue_alerts} onChange={(e) => updatePermission(selectedUser.id, 'can_issue_alerts', e.target.checked)} className="w-5 h-5" />
+                    <label>Can issue alerts</label>
+                  </div>
+                  {selectedUser.can_issue_alerts && (
+                    <div className="ml-8">
+                      <label className="block text-sm mb-1">Max level</label>
+                      <select value={selectedUser.alert_level_permission} onChange={(e) => updatePermission(selectedUser.id, 'alert_level_permission', e.target.value)} className="px-4 py-2 border rounded-lg">
+                        <option value="none">None</option>
+                        <option value="minor">Minor</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="major">Major</option>
+                        <option value="emergency">Emergency</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Other</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_post} onChange={(e) => updatePermission(selectedUser.id, 'can_post', e.target.checked)} className="w-5 h-5" />
+                    <label>Can post</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_comment} onChange={(e) => updatePermission(selectedUser.id, 'can_comment', e.target.checked)} className="w-5 h-5" />
+                    <label>Can comment</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_rsvp} onChange={(e) => updatePermission(selectedUser.id, 'can_rsvp', e.target.checked)} className="w-5 h-5" />
+                    <label>Can RSVP</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selectedUser.can_edit_directory} onChange={(e) => updatePermission(selectedUser.id, 'can_edit_directory', e.target.checked)} className="w-5 h-5" />
+                    <label>Can edit directory</label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" checked={selectedUser.is_banned} onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)} className="w-5 h-5" />
+                  <label className="font-medium text-red-600">Ban user</label>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setSelectedUser(null)} className="mt-6 w-full bg-gabriola-green text-white py-3 rounded-lg font-bold">
+              Done
+            </button>
           </div>
         </div>
       )}
