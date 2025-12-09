@@ -109,7 +109,7 @@ export default function StrachanPage() {
         {/* Other Projects Section */}
         <section className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <h2 className="text-2xl font-bold text-gabriola-green-dark mb-4">
-            Our Other Projects
+            Other Projects
           </h2>
           <div className="space-y-4">
             <a 
