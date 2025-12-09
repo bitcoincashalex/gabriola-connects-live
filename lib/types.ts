@@ -156,7 +156,7 @@ export interface EmergencyAlert {
 }
 
 // Alert System Types
-export type AlertSeverity = 'info' | 'minor' | 'moderate' | 'major' | 'emergency';
+export type AlertSeverity = 'info' | 'advisory' | 'warning' | 'emergency';
 
 export type AlertCategory = 
   | 'general'
@@ -255,7 +255,7 @@ export interface User {
   can_moderate_events: boolean;
   can_edit_directory: boolean;
   can_issue_alerts: boolean;
-  alert_level_permission: 'none' | 'minor' | 'moderate' | 'major' | 'emergency';
+  alert_level_permission: 'none' | 'info' | 'advisory' | 'warning' | 'emergency';
   is_banned: boolean;
   banned_at?: string;
   banned_reason?: string;

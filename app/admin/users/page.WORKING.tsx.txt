@@ -1,5 +1,5 @@
 // app/admin/users/page.tsx
-// v1.1 - Dec 8, 2025 - FIXED: Working toggles, alert levels, profile viewing
+// v1.0 - Dec 8, 2025 - Admin user management with permission controls
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { User } from '@/lib/types';
-import { Shield, Calendar, Edit, AlertTriangle, X, Eye } from 'lucide-react';
+import { Shield, Calendar, Edit, AlertTriangle, X } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const { user, loading: authLoading } = useUser();
@@ -15,7 +15,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -46,8 +46,7 @@ export default function AdminUsersPage() {
       .eq('id', userId);
 
     if (!error) {
-      // Refresh users list to update UI
-      await fetchUsers();
+      fetchUsers();
     } else {
       alert('Error updating permission: ' + error.message);
     }
@@ -59,9 +58,6 @@ export default function AdminUsersPage() {
     u.username?.toLowerCase().includes(search.toLowerCase()) ||
     u.postal_code?.toLowerCase().includes(search.toLowerCase())
   );
-
-  // Get selected user from current users state (always fresh)
-  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null;
 
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen">
@@ -134,13 +130,13 @@ export default function AdminUsersPage() {
                   <Calendar className={`w-4 h-4 ${u.can_create_events ? 'text-green-600' : 'text-gray-300'}`} />
                   <button
                     onClick={() => updatePermission(u.id, 'can_create_events', !u.can_create_events)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-3 py-1 rounded text-xs font-medium ${
                       u.can_create_events 
                         ? 'bg-green-100 text-green-800 hover:bg-green-200' 
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    {u.can_create_events ? '✓ Create Events' : 'Create Events'}
+                    {u.can_create_events ? 'Can Create Events' : 'Cannot Create Events'}
                   </button>
                 </div>
 
@@ -148,13 +144,13 @@ export default function AdminUsersPage() {
                   <Edit className={`w-4 h-4 ${u.can_moderate_events ? 'text-green-600' : 'text-gray-300'}`} />
                   <button
                     onClick={() => updatePermission(u.id, 'can_moderate_events', !u.can_moderate_events)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-3 py-1 rounded text-xs font-medium ${
                       u.can_moderate_events 
                         ? 'bg-green-100 text-green-800 hover:bg-green-200' 
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    {u.can_moderate_events ? '✓ Moderate Events' : 'Moderate Events'}
+                    {u.can_moderate_events ? 'Can Moderate Events' : 'Cannot Moderate Events'}
                   </button>
                 </div>
 
@@ -162,67 +158,55 @@ export default function AdminUsersPage() {
                   <AlertTriangle className={`w-4 h-4 ${u.can_issue_alerts ? 'text-orange-600' : 'text-gray-300'}`} />
                   <button
                     onClick={() => updatePermission(u.id, 'can_issue_alerts', !u.can_issue_alerts)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-3 py-1 rounded text-xs font-medium ${
                       u.can_issue_alerts 
                         ? 'bg-orange-100 text-orange-800 hover:bg-orange-200' 
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    {u.can_issue_alerts ? '✓ Issue Alerts' : 'Issue Alerts'}
+                    {u.can_issue_alerts ? 'Can Issue Alerts' : 'Cannot Issue Alerts'}
                   </button>
                 </div>
 
                 {u.can_issue_alerts && (
                   <div className="ml-6">
-                    <label className="text-xs text-gray-600 block mb-1">Max Alert Level:</label>
                     <select
                       value={u.alert_level_permission}
                       onChange={(e) => updatePermission(u.id, 'alert_level_permission', e.target.value)}
-                      className="px-2 py-1 text-xs border rounded w-full"
+                      className="px-2 py-1 text-xs border rounded"
                     >
-                      <option value="none">None</option>
-                      <option value="info">Info (blue)</option>
-                      <option value="advisory">Advisory (yellow)</option>
-                      <option value="warning">Warning (orange)</option>
-                      <option value="emergency">Emergency (red)</option>
+                      <option value="none">No alerts</option>
+                      <option value="minor">Minor</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="major">Major</option>
+                      <option value="emergency">Emergency</option>
                     </select>
                   </div>
                 )}
               </div>
 
-              <div className="ml-4 flex flex-col gap-2">
-                <button
-                  onClick={() => router.push(`/profile/${u.username}`)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Eye className="w-4 h-4" />
-                  View Profile
-                </button>
-                <button
-                  onClick={() => setSelectedUserId(u.id)}
-                  className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark"
-                >
-                  Edit All
-                </button>
-              </div>
+              <button
+                onClick={() => setSelectedUser(u)}
+                className="ml-4 px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark"
+              >
+                Edit All
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Full Edit Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Edit: {selectedUser.full_name}</h2>
-              <button onClick={() => setSelectedUserId(null)} className="p-2 hover:bg-gray-100 rounded-full">
+              <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             <div className="space-y-6">
-              {/* Role */}
               <div>
                 <label className="block text-sm font-medium mb-2">Role</label>
                 <select
@@ -234,149 +218,80 @@ export default function AdminUsersPage() {
                   <option value="moderator">Moderator</option>
                   <option value="admin">Admin</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Note: Permissions below work independently of role</p>
               </div>
 
-              {/* Super Admin */}
               <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="super-admin"
-                  checked={selectedUser.is_super_admin || false}
-                  onChange={(e) => updatePermission(selectedUser.id, 'is_super_admin', e.target.checked)}
-                  className="w-5 h-5 cursor-pointer"
-                />
-                <label htmlFor="super-admin" className="font-medium cursor-pointer">Super Admin (full system access)</label>
+                <input type="checkbox" checked={selectedUser.is_super_admin} onChange={(e) => updatePermission(selectedUser.id, 'is_super_admin', e.target.checked)} className="w-5 h-5" />
+                <label className="font-medium">Super Admin</label>
               </div>
 
-              {/* Event Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Event Permissions</h3>
-                <p className="text-sm text-gray-600 mb-3">✓ Users can manage events without being Admin/Moderator</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="create-events"
-                      checked={selectedUser.can_create_events || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="create-events" className="cursor-pointer">Can create events</label>
+                    <input type="checkbox" checked={selectedUser.can_create_events} onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)} className="w-5 h-5" />
+                    <label>Can create events</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="moderate-events"
-                      checked={selectedUser.can_moderate_events || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_moderate_events', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="moderate-events" className="cursor-pointer">Can moderate events (edit/delete ANY event)</label>
+                    <input type="checkbox" checked={selectedUser.can_moderate_events} onChange={(e) => updatePermission(selectedUser.id, 'can_moderate_events', e.target.checked)} className="w-5 h-5" />
+                    <label>Can moderate events</label>
                   </div>
                 </div>
               </div>
 
-              {/* Alert Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Alert Permissions</h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="issue-alerts"
-                      checked={selectedUser.can_issue_alerts || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_issue_alerts', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="issue-alerts" className="cursor-pointer">Can issue alerts</label>
+                    <input type="checkbox" checked={selectedUser.can_issue_alerts} onChange={(e) => updatePermission(selectedUser.id, 'can_issue_alerts', e.target.checked)} className="w-5 h-5" />
+                    <label>Can issue alerts</label>
                   </div>
                   {selectedUser.can_issue_alerts && (
                     <div className="ml-8">
-                      <label className="block text-sm mb-1">Maximum alert level:</label>
-                      <select
-                        value={selectedUser.alert_level_permission}
-                        onChange={(e) => updatePermission(selectedUser.id, 'alert_level_permission', e.target.value)}
-                        className="px-4 py-2 border rounded-lg"
-                      >
+                      <label className="block text-sm mb-1">Max level</label>
+                      <select value={selectedUser.alert_level_permission} onChange={(e) => updatePermission(selectedUser.id, 'alert_level_permission', e.target.value)} className="px-4 py-2 border rounded-lg">
                         <option value="none">None</option>
-                        <option value="info">Info (community notices, blue)</option>
-                        <option value="advisory">Advisory (awareness, yellow)</option>
-                        <option value="warning">Warning (take action, orange)</option>
-                        <option value="emergency">Emergency (life safety, red)</option>
+                        <option value="minor">Minor</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="major">Major</option>
+                        <option value="emergency">Emergency</option>
                       </select>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Other Permissions */}
               <div className="border-t pt-4">
-                <h3 className="font-bold mb-3">Other Permissions</h3>
+                <h3 className="font-bold mb-3">Other</h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-post"
-                      checked={selectedUser.can_post || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_post', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-post" className="cursor-pointer">Can post to forums</label>
+                    <input type="checkbox" checked={selectedUser.can_post} onChange={(e) => updatePermission(selectedUser.id, 'can_post', e.target.checked)} className="w-5 h-5" />
+                    <label>Can post</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-comment"
-                      checked={selectedUser.can_comment || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_comment', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-comment" className="cursor-pointer">Can comment/reply</label>
+                    <input type="checkbox" checked={selectedUser.can_comment} onChange={(e) => updatePermission(selectedUser.id, 'can_comment', e.target.checked)} className="w-5 h-5" />
+                    <label>Can comment</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-rsvp"
-                      checked={selectedUser.can_rsvp || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_rsvp', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-rsvp" className="cursor-pointer">Can RSVP to events</label>
+                    <input type="checkbox" checked={selectedUser.can_rsvp} onChange={(e) => updatePermission(selectedUser.id, 'can_rsvp', e.target.checked)} className="w-5 h-5" />
+                    <label>Can RSVP</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-edit-dir"
-                      checked={selectedUser.can_edit_directory || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_edit_directory', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-edit-dir" className="cursor-pointer">Can edit directory</label>
+                    <input type="checkbox" checked={selectedUser.can_edit_directory} onChange={(e) => updatePermission(selectedUser.id, 'can_edit_directory', e.target.checked)} className="w-5 h-5" />
+                    <label>Can edit directory</label>
                   </div>
                 </div>
               </div>
 
-              {/* Ban */}
               <div className="border-t pt-4">
-                <h3 className="font-bold mb-3 text-red-600">Account Status</h3>
                 <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="is-banned"
-                    checked={selectedUser.is_banned || false}
-                    onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)}
-                    className="w-5 h-5 cursor-pointer"
-                  />
-                  <label htmlFor="is-banned" className="font-medium text-red-600 cursor-pointer">Ban this user (blocks all access)</label>
+                  <input type="checkbox" checked={selectedUser.is_banned} onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)} className="w-5 h-5" />
+                  <label className="font-medium text-red-600">Ban user</label>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedUserId(null)}
-              className="mt-6 w-full bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-            >
+            <button onClick={() => setSelectedUser(null)} className="mt-6 w-full bg-gabriola-green text-white py-3 rounded-lg font-bold">
               Done
             </button>
           </div>

@@ -150,12 +150,11 @@ export function canIssueAlerts(user: User | null): boolean {
 
 export function canIssueAlertSeverity(
   user: User | null,
-  severity: 'info' | 'minor' | 'moderate' | 'major' | 'emergency'
+  severity: 'info' | 'advisory' | 'warning' | 'emergency'
 ): boolean {
   if (!user || user.is_banned || !(user.can_issue_alerts ?? false)) return false;
-  const levels = { none: 0, minor: 1, moderate: 2, major: 3, emergency: 4 };
-  const sev = { info: 1, minor: 1, moderate: 2, major: 3, emergency: 4 };
-  return levels[user.alert_level_permission ?? 'none'] >= sev[severity];
+  const levels = { none: 0, info: 1, advisory: 2, warning: 3, emergency: 4 };
+  return levels[user.alert_level_permission ?? 'none'] >= levels[severity];
 }
 
 export function isModerator(user: User | null): boolean {
