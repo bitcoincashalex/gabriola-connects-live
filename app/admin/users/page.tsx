@@ -354,6 +354,26 @@ export default function AdminUsersPage() {
                     />
                     <label htmlFor="can-edit-dir" className="cursor-pointer">Can edit directory</label>
                   </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="can-send-msgs"
+                      checked={selectedUser.can_send_messages || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'can_send_messages', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="can-send-msgs" className="cursor-pointer">Can send private messages</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="can-receive-msgs"
+                      checked={selectedUser.can_receive_messages || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'can_receive_messages', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="can-receive-msgs" className="cursor-pointer">Can receive private messages</label>
+                  </div>
                 </div>
               </div>
 

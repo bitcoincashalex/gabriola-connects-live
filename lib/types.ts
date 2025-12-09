@@ -254,6 +254,8 @@ export interface User {
   can_create_events: boolean;
   can_moderate_events: boolean;
   can_edit_directory: boolean;
+  can_send_messages: boolean;
+  can_receive_messages: boolean;
   can_issue_alerts: boolean;
   alert_level_permission: 'none' | 'info' | 'advisory' | 'warning' | 'emergency';
   is_banned: boolean;
