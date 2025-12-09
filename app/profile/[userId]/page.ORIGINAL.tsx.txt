@@ -1,5 +1,4 @@
 // app/profile/[userId]/page.tsx
-// v2.0 - Dec 8, 2025 - Merged: All original features + super admin override
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -25,8 +24,6 @@ export default function UserProfilePage() {
 
   const userId = params.userId as string;
   const isOwnProfile = currentUser?.id === userId;
-  // NEW: Super admin override
-  const isSuperAdmin = currentUser?.is_super_admin;
 
   useEffect(() => {
     fetchProfile();
@@ -42,13 +39,13 @@ export default function UserProfilePage() {
       .single();
 
     if (data) {
-      // Check visibility - UPDATED: Super admin override
-      if (data.profile_visibility === 'private' && !isOwnProfile && !isSuperAdmin) {
+      // Check visibility
+      if (data.profile_visibility === 'private' && !isOwnProfile) {
         setCanView(false);
         setLoading(false);
         return;
       }
-      if (data.profile_visibility === 'members' && !currentUser && !isSuperAdmin) {
+      if (data.profile_visibility === 'members' && !currentUser) {
         setCanView(false);
         setLoading(false);
         return;
@@ -151,15 +148,6 @@ export default function UserProfilePage() {
   if (profile.rcmp) badges.push({ text: '👮 RCMP', color: 'bg-indigo-600' });
   if (profile.medic) badges.push({ text: '⚕️ Medic', color: 'bg-green-600' });
   if (profile.coast_guard) badges.push({ text: '⚓ Coast Guard', color: 'bg-teal-600' });
-  
-  // NEW: Add event/alert permission badges for super admins
-  if (isSuperAdmin) {
-    if (profile.can_create_events) badges.push({ text: '📅 Event Admin', color: 'bg-emerald-600' });
-    if (profile.can_issue_alerts) badges.push({ text: '⚠️ Alert Admin', color: 'bg-amber-600' });
-  }
-
-  // NEW: Super admin viewing private profile indicator
-  const isViewingPrivateProfile = profile.profile_visibility === 'private' && isSuperAdmin && !isOwnProfile;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -171,21 +159,6 @@ export default function UserProfilePage() {
           <ArrowLeft className="w-5 h-5" />
           Back to Forum
         </Link>
-
-        {/* NEW: Super Admin Override Notice */}
-        {isViewingPrivateProfile && (
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Shield className="w-6 h-6 text-purple-600" />
-              <div>
-                <div className="font-bold text-purple-900">Super Admin View</div>
-                <div className="text-sm text-purple-700">
-                  You're viewing a private profile. This user has restricted visibility to members only.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
@@ -229,27 +202,15 @@ export default function UserProfilePage() {
                     Edit Profile
                   </Link>
                 ) : (
-                  <>
-                    {currentUser && (
-                      <Link
-                        href={`/messages/${userId}`}
-                        className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-                      >
-                        <Mail className="w-5 h-5" />
-                        Send Message
-                      </Link>
-                    )}
-                    {/* NEW: Admin panel link for super admins */}
-                    {isSuperAdmin && (
-                      <Link
-                        href="/admin/users"
-                        className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700"
-                      >
-                        <Shield className="w-5 h-5" />
-                        Admin Panel
-                      </Link>
-                    )}
-                  </>
+                  currentUser && (
+                    <Link
+                      href={`/messages/${userId}`}
+                      className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
+                    >
+                      <Mail className="w-5 h-5" />
+                      Send Message
+                    </Link>
+                  )
                 )}
               </div>
             </div>
@@ -298,26 +259,6 @@ export default function UserProfilePage() {
                 </div>
               )}
             </div>
-
-            {/* NEW: Admin-only permission details */}
-            {isSuperAdmin && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Admin View: Permissions
-                </h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {profile.can_create_events && <span className="text-green-600">✓ Can create events</span>}
-                  {profile.can_moderate_events && <span className="text-green-600">✓ Can moderate events</span>}
-                  {profile.can_issue_alerts && <span className="text-orange-600">✓ Can issue alerts ({profile.alert_level_permission})</span>}
-                  {profile.can_post && <span className="text-green-600">✓ Can post</span>}
-                  {profile.can_comment && <span className="text-green-600">✓ Can comment</span>}
-                  {profile.can_rsvp && <span className="text-green-600">✓ Can RSVP</span>}
-                  {profile.can_edit_directory && <span className="text-green-600">✓ Can edit directory</span>}
-                  {profile.is_banned && <span className="text-red-600">⚠️ BANNED</span>}
-                </div>
-              </div>
-            )}
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 py-6 border-t border-b">

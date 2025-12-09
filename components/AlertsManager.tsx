@@ -1,40 +1,47 @@
-// components/AlertsManager.tsx — FINAL, FULLY WORKING VERSION
+// components/AlertsManager.tsx
+// v2.0 - Dec 8, 2025 - Updated for new alert schema
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { AlertTriangle, Plus, Clock, Edit3, Archive, Bell } from 'lucide-react';
+import { AlertTriangle, Plus, X, Bell, AlertCircle, Info } from 'lucide-react';
+import { AlertSeverity } from '@/lib/types';
 
 interface Alert {
   id: string;
+  severity: AlertSeverity;
   title: string;
   message: string;
-  severity: 'critical' | 'important' | 'advisory' | 'info';
-  issuer: string;
-  organization: string;
+  issued_by?: string | null;
+  issuer_name: string;
+  issuer_organization?: string | null;
   created_at: string;
   expires_at?: string | null;
   active: boolean;
-  user_id?: string | null;
-  archived_at?: string | null;
+  affected_areas?: string[] | null;
+  category?: string | null;
+  contact_info?: string | null;
+  action_required?: string | null;
 }
 
 export default function AlertsManager() {
-  const { user } = useUser() as any;
+  const { user } = useUser();
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [archived, setArchived] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
     message: '',
-    severity: 'important' as Alert['severity'],
-    issuer: user?.full_name || '',
-    organization: '',
+    severity: 'info' as AlertSeverity,
+    issuer_name: user?.full_name || '',
+    issuer_organization: '',
+    affected_areas: '',
+    category: '',
+    contact_info: '',
+    action_required: '',
     expiresInHours: 24,
   });
 
@@ -45,224 +52,369 @@ export default function AlertsManager() {
   const fetchAlerts = async () => {
     setLoading(true);
 
-    const { data: active } = await supabase
+    const { data, error } = await supabase
       .from('alerts')
       .select('*')
       .eq('active', true)
-      .is('archived_at', null)
-      .order('severity_order', { ascending: true })
       .order('created_at', { ascending: false });
 
-    // Auto-expire
-    const now = new Date().toISOString();
-    if (active) {
-      const expired = active.filter(a => a.expires_at && a.expires_at < now);
-      if (expired.length) {
-        await supabase.from('alerts').update({ active: false }).in('id', expired.map(a => a.id));
-      }
+    if (!error && data) {
+      // Sort by severity priority
+      const sorted = data.sort((a, b) => {
+        const priority = { emergency: 1, warning: 2, advisory: 3, info: 4 };
+        return priority[a.severity as AlertSeverity] - priority[b.severity as AlertSeverity];
+      });
+      setAlerts(sorted);
     }
-
-    const { data: arch } = await supabase.from('alerts_archive').select('*').order('archived_at', { ascending: false });
-
-    setAlerts(active || []);
-    setArchived(arch || []);
     setLoading(false);
   };
 
-  const canManage = (alert: Alert) => {
+  const canManageAlerts = user?.can_issue_alerts || user?.is_super_admin || false;
+
+  const canEditAlert = (alert: Alert) => {
     if (!user) return false;
-    const owns = user.id === alert.user_id;
-    const orgAuthorized = user.authorized_orgs?.includes(alert.organization);
-    return owns || orgAuthorized;
+    return user.is_super_admin || alert.issued_by === user.id;
   };
 
-  const createOrUpdate = async () => {
-    if (!form.title.trim() || !form.message.trim()) return alert('Title and message required');
+  const createOrUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.message.trim()) {
+      alert('Title and message required');
+      return;
+    }
 
-    const payload: Partial<Alert> = {
+    const areasArray = form.affected_areas
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const payload = {
       title: form.title.trim(),
       message: form.message.trim(),
       severity: form.severity,
-      issuer: form.issuer.trim() || 'Anonymous',
-      organization: form.organization.trim() || 'Gabriola Connects',
-      expires_at: form.expiresInHours > 0 ? new Date(Date.now() + form.expiresInHours * 3600000).toISOString() : null,
+      issuer_name: form.issuer_name.trim() || user?.full_name || 'Anonymous',
+      issuer_organization: form.issuer_organization.trim() || null,
+      affected_areas: areasArray.length > 0 ? areasArray : null,
+      category: form.category.trim() || null,
+      contact_info: form.contact_info.trim() || null,
+      action_required: form.action_required.trim() || null,
+      expires_at: form.expiresInHours > 0 
+        ? new Date(Date.now() + form.expiresInHours * 3600000).toISOString() 
+        : null,
       active: true,
-      user_id: user?.id || null,
+      issued_by: user?.id || null,
     };
 
-    if (editingId) {
-      await supabase.from('alerts').update(payload).eq('id', editingId);
+    const { error } = editingId
+      ? await supabase.from('alerts').update(payload).eq('id', editingId)
+      : await supabase.from('alerts').insert(payload);
+
+    if (error) {
+      alert('Error: ' + error.message);
     } else {
-      await supabase.from('alerts').insert(payload);
+      setForm({
+        title: '',
+        message: '',
+        severity: 'info',
+        issuer_name: user?.full_name || '',
+        issuer_organization: '',
+        affected_areas: '',
+        category: '',
+        contact_info: '',
+        action_required: '',
+        expiresInHours: 24,
+      });
+      setEditingId(null);
+      setShowForm(false);
+      fetchAlerts();
     }
+  };
 
-    setForm({ ...form, title: '', message: '' });
-    setEditingId(null);
-    setShowForm(false);
+  const deactivateAlert = async (id: string) => {
+    if (!confirm('Deactivate this alert?')) return;
+    await supabase.from('alerts').update({ active: false }).eq('id', id);
     fetchAlerts();
   };
 
-  const archiveAlert = async (id: string) => {
-    if (!confirm('Archive this alert? It will be hidden from public view.')) return;
-    await supabase.rpc('soft_delete_alert', { alert_id: id });
-    fetchAlerts();
-  };
-
-  const startEdit = (a: Alert) => {
-    if (!canManage(a)) return alert('Not authorized');
-    setEditingId(a.id);
-    setForm({
-      title: a.title,
-      message: a.message,
-      severity: a.severity,
-      issuer: a.issuer,
-      organization: a.organization,
-      expiresInHours: a.expires_at ? Math.max(1, Math.round((new Date(a.expires_at).getTime() - Date.now()) / 3600000)) : 24,
-    });
-    setShowForm(true);
-  };
-
-  const severityColor = (s: Alert['severity']) => {
-    const map = {
-      critical: 'from-red-600 to-red-700 border-red-800',
-      important: 'from-orange-500 to-orange-600 border-orange-700',
-      advisory: 'from-yellow-500 to-yellow-600 border-yellow-700',
-      info: 'from-blue-600 to-blue-700 border-blue-800',
+  const getSeverityStyle = (severity: AlertSeverity) => {
+    const styles = {
+      emergency: {
+        bg: 'bg-red-50',
+        border: 'border-red-600',
+        text: 'text-red-900',
+        badge: 'bg-red-600 text-white',
+        icon: '🆘',
+      },
+      warning: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-500',
+        text: 'text-orange-900',
+        badge: 'bg-orange-500 text-white',
+        icon: '🚨',
+      },
+      advisory: {
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-500',
+        text: 'text-yellow-900',
+        badge: 'bg-yellow-500 text-white',
+        icon: '⚠️',
+      },
+      info: {
+        bg: 'bg-blue-50',
+        border: 'border-blue-500',
+        text: 'text-blue-900',
+        badge: 'bg-blue-500 text-white',
+        icon: '📢',
+      },
     };
-    return map[s];
+    return styles[severity];
   };
 
-  if (loading) return <div className="text-center py-32 text-2xl">Loading alerts...</div>;
-
-  const list = showArchived ? archived : alerts;
-  const hasCritical = alerts.some(a => a.severity === 'critical');
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-2xl text-gray-600">Loading alerts...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b-4 border-red-600 shadow-xl">
-        <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              {hasCritical ? (
-                <AlertTriangle className="w-14 h-14 text-red-600" />
-              ) : (
-                <Bell className="w-14 h-14 text-green-700" />
-              )}
-              <div>
-                <h1 className="text-5xl font-bold text-red-600">Community Alerts</h1>
-                {list.length > 0 && (
-                  <p className="text-2xl text-gray-700 mt-2">
-                    {list.length} {showArchived ? 'archived' : 'active'} alert{list.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              {user && (
-                <button
-                  onClick={() => setShowArchived(!showArchived)}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold flex items-center gap-2 transition"
-                >
-                  <Archive className="w-5 h-5" />
-                  {showArchived ? 'Active' : 'Archive'}
-                </button>
-              )}
-
-              {user?.can_post_alerts && (
-                <button
-                  onClick={() => setShowForm(!showForm)}
-                  className="px-8 py-4 bg-red-600 text-white rounded-xl font-bold flex items-center gap-3 shadow-lg hover:bg-red-700 transition text-xl"
-                >
-                  <Plus className="w-7 h-7" />
-                  {showForm ? 'Cancel' : editingId ? 'Editing…' : 'New Alert'}
-                </button>
-              )}
-            </div>
-          </div>
+    <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-5xl font-bold text-gabriola-green flex items-center gap-3">
+            <Bell className="w-12 h-12" />
+            Community Alerts
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {alerts.length} active alert{alerts.length !== 1 ? 's' : ''}
+          </p>
         </div>
+        {canManageAlerts && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-gabriola-green text-white px-6 py-3 rounded-full font-bold hover:bg-gabriola-green-dark flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Issue Alert
+          </button>
+        )}
       </div>
 
-      {/* Form */}
-      {showForm && user?.can_post_alerts && (
-        <div className="max-w-4xl mx-auto p-10 bg-white shadow-2xl -mt-8 relative z-10 border-b-8 border-red-600">
-          <h2 className="text-4xl font-bold text-red-600 mb-8">
-            {editingId ? 'Edit Alert' : 'Create New Alert'}
-          </h2>
-          <div className="space-y-6">
-            <input placeholder="Title (required)" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full p-5 border-2 rounded-xl text-xl" />
-            <textarea placeholder="Message (required)" rows={6} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} className="w-full p-5 border-2 rounded-xl text-lg resize-none" />
-            <div className="grid md:grid-cols-3 gap-6">
-              <select value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value as any })} className="p-5 border-2 rounded-xl">
-                {(['critical','important','advisory','info'] as const).map(s => (
-                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                ))}
-              </select>
-              <input placeholder="Your Name" value={form.issuer} onChange={e => setForm({ ...form, issuer: e.target.value })} className="p-5 border-2 rounded-xl" />
-              <input type="number" placeholder="Expires in hours (0 = never)" value={form.expiresInHours} onChange={e => setForm({ ...form, expiresInHours: +e.target.value || 0 })} className="p-5 border-2 rounded-xl" />
+      {/* Active Alerts */}
+      <div className="space-y-4 mb-12">
+        {alerts.length === 0 ? (
+          <div className="text-center py-20 text-gray-600">
+            <Bell className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+            <p className="text-2xl">Nothing to report...all is calm on Gabriola Island</p>
+          </div>
+        ) : (
+          alerts.map(alert => {
+            const style = getSeverityStyle(alert.severity);
+            return (
+              <div
+                key={alert.id}
+                className={`${style.bg} ${style.border} border-l-4 rounded-lg p-6 shadow-md`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`${style.badge} px-3 py-1 rounded-full text-sm font-bold uppercase flex items-center gap-2`}>
+                        <span>{style.icon}</span>
+                        {alert.severity}
+                      </span>
+                      {alert.affected_areas && alert.affected_areas.length > 0 && (
+                        <span className="text-sm text-gray-600">
+                          📍 {alert.affected_areas.join(', ')}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className={`text-2xl font-bold ${style.text} mb-2`}>
+                      {alert.title}
+                    </h3>
+                    <p className={`${style.text} text-lg mb-4 whitespace-pre-wrap`}>
+                      {alert.message}
+                    </p>
+
+                    {alert.action_required && (
+                      <div className="bg-white/50 rounded-lg p-4 mb-4">
+                        <p className="font-semibold mb-1">⚡ Action Required:</p>
+                        <p className="text-sm">{alert.action_required}</p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-4 text-sm text-gray-700 mt-4">
+                      <span>
+                        <strong>Issued by:</strong> {alert.issuer_name}
+                        {alert.issuer_organization && ` (${alert.issuer_organization})`}
+                      </span>
+                      {alert.contact_info && (
+                        <span>
+                          <strong>Contact:</strong> {alert.contact_info}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-gray-500 mt-2">
+                      Posted: {new Date(alert.created_at).toLocaleString()}
+                      {alert.expires_at && (
+                        <> • Expires: {new Date(alert.expires_at).toLocaleString()}</>
+                      )}
+                    </div>
+                  </div>
+
+                  {canEditAlert(alert) && (
+                    <button
+                      onClick={() => deactivateAlert(alert.id)}
+                      className="ml-4 p-2 text-red-600 hover:bg-red-100 rounded-full"
+                      title="Deactivate alert"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Create/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">
+                {editingId ? 'Edit Alert' : 'Issue New Alert'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingId(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
-            <input placeholder="Organization (optional)" value={form.organization} onChange={e => setForm({ ...form, organization: e.target.value })} className="w-full p-5 border-2 rounded-xl" />
-            <button onClick={createOrUpdate} className="w-full py-6 bg-red-600 hover:bg-red-700 text-white text-2xl font-bold rounded-xl transition shadow-xl">
-              {editingId ? 'Update Alert' : 'Publish Alert'}
-            </button>
+
+            <form onSubmit={createOrUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Severity *</label>
+                <select
+                  value={form.severity}
+                  onChange={(e) => setForm({ ...form, severity: e.target.value as AlertSeverity })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  required
+                >
+                  <option value="info">Info (community notices)</option>
+                  <option value="advisory">Advisory (awareness)</option>
+                  <option value="warning">Warning (take action)</option>
+                  <option value="emergency">Emergency (life safety)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Title *</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Message *</label>
+                <textarea
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
+                  rows={5}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Issuer Name</label>
+                  <input
+                    type="text"
+                    value={form.issuer_name}
+                    onChange={(e) => setForm({ ...form, issuer_name: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Organization</label>
+                  <input
+                    type="text"
+                    value={form.issuer_organization}
+                    onChange={(e) => setForm({ ...form, issuer_organization: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Affected Areas (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={form.affected_areas}
+                  onChange={(e) => setForm({ ...form, affected_areas: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="e.g., South End, North End, All Island"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Action Required (if any)</label>
+                <textarea
+                  value={form.action_required}
+                  onChange={(e) => setForm({ ...form, action_required: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="What should people do?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Contact Info</label>
+                <input
+                  type="text"
+                  value={form.contact_info}
+                  onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="Email or phone"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Expires In (hours)</label>
+                <input
+                  type="number"
+                  value={form.expiresInHours}
+                  onChange={(e) => setForm({ ...form, expiresInHours: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  min="0"
+                />
+                <p className="text-xs text-gray-500 mt-1">0 = never expires</p>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
+              >
+                {editingId ? 'Update Alert' : 'Issue Alert'}
+              </button>
+            </form>
           </div>
         </div>
       )}
-
-      {/* Alerts List */}
-      <div className="max-w-4xl mx-auto p-10 space-y-10">
-        {list.length === 0 ? (
-          <div className="text-center py-32">
-            {hasCritical || showArchived ? null : <Bell className="w-32 h-32 text-gray-300 mx-auto mb-8" />}
-            <p className="text-4xl font-bold text-gray-500">
-              {showArchived ? 'No archived alerts' : 'Nothing to report right now'}
-            </p>
-            <p className="text-2xl text-gray-400 mt-4">All is calm on Gabriola Island</p>
-          </div>
-        ) : (
-          list.map(alert => (
-            <div key={alert.id} className={`bg-gradient-to-br ${severityColor(alert.severity)} border-4 rounded-2xl shadow-2xl text-white overflow-hidden ${showArchived ? 'opacity-75' : ''}`}>
-              <div className="p-10">
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <div className="flex items-center gap-6 mb-6">
-                      <span className="px-8 py-3 bg-white/30 rounded-full font-bold text-2xl uppercase">{alert.severity}</span>
-                      {alert.organization && <span className="text-xl opacity-90">{alert.organization}</span>}
-                    </div>
-                    <h3 className="text-5xl font-bold mb-4">{alert.title}</h3>
-                    <p className="text-2xl opacity-95">Issued by: {alert.issuer}</p>
-                  </div>
-
-                  {!showArchived && canManage(alert) && (
-                    <div className="flex gap-3">
-                      <button onClick={() => startEdit(alert)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition" title="Edit">
-                        <Edit3 className="w-6 h-6" />
-                      </button>
-
-                      {user?.role === 'admin' && (
-                        <button onClick={() => archiveAlert(alert.id)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition" title="Archive">
-                          <Archive className="w-6 h-6" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-2xl leading-relaxed mb-10 whitespace-pre-wrap">{alert.message}</p>
-
-                <div className="flex justify-between text-lg opacity-90 pt-6 border-t border-white/30">
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-6 h-6" />
-                    <span>Posted {new Date(alert.created_at).toLocaleString()}</span>
-                  </div>
-                  {alert.expires_at && <span>Expires {new Date(alert.expires_at).toLocaleString()}</span>}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
     </div>
   );
 }
