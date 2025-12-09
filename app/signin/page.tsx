@@ -1,5 +1,5 @@
 // Path: app/signin/page.tsx
-// Version: 2.0.0 - Fully optimized (no polling, trusts AuthProvider)
+// Version: 2.1.0 - Added weak password detection
 // Date: 2024-12-09
 
 'use client';
@@ -22,6 +22,29 @@ export default function SignInPage() {
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Weak passwords list
+  const weakPasswords = [
+    'password', '12345678', 'password123', 'qwerty123', 'abc12345',
+    'password1', 'welcome1', 'admin123', 'letmein1', '11111111'
+  ];
+
+  const isWeakPassword = (pwd: string): boolean => {
+    return weakPasswords.includes(pwd.toLowerCase());
+  };
+
+  const getPasswordStrength = (pwd: string): { text: string; color: string; icon: any } => {
+    if (pwd.length < 8) {
+      return { text: 'Too short - minimum 8 characters', color: 'orange', icon: AlertCircle };
+    }
+    if (isWeakPassword(pwd)) {
+      return { text: 'Too weak - please choose a stronger password', color: 'red', icon: AlertCircle };
+    }
+    if (pwd.length >= 12) {
+      return { text: 'Strong password', color: 'green', icon: CheckCircle };
+    }
+    return { text: 'Good password', color: 'green', icon: CheckCircle };
+  };
+
   const handlePostalChange = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const formatted = cleaned.length > 3 ? `${cleaned.slice(0,3)} ${cleaned.slice(3,6)}` : cleaned;
@@ -35,11 +58,18 @@ export default function SignInPage() {
     setError('');
     setMessage('');
 
-    // Validate password length for signup
-    if (isSignup && password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setLoading(false);
-      return;
+    // Validate password for signup
+    if (isSignup) {
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long');
+        setLoading(false);
+        return;
+      }
+      if (isWeakPassword(password)) {
+        setError('Password is too weak. Please avoid common passwords like "password" or "12345678".');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -57,7 +87,7 @@ export default function SignInPage() {
         setLoading(false);
         
       } else if (isSignup) {
-        // Sign up - NO POLLING, trust AuthProvider
+        // Sign up
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -86,7 +116,7 @@ export default function SignInPage() {
         }
         
       } else {
-        // Sign in - NO POLLING, trust AuthProvider
+        // Sign in
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
@@ -116,6 +146,9 @@ export default function SignInPage() {
       setLoading(false);
     }
   };
+
+  // Password strength indicator
+  const passwordStrength = isSignup && password.length > 0 ? getPasswordStrength(password) : null;
 
   // Forgot password view
   if (isForgot) {
@@ -152,6 +185,7 @@ export default function SignInPage() {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     required 
+                    autoComplete="email"
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
                   />
                 </div>
@@ -231,6 +265,7 @@ export default function SignInPage() {
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               required 
+              autoComplete="email"
               className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
             />
           </div>
@@ -246,6 +281,7 @@ export default function SignInPage() {
                 onChange={e => setPassword(e.target.value)} 
                 required 
                 minLength={isSignup ? 8 : undefined}
+                autoComplete={isSignup ? "new-password" : "current-password"}
                 className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
               />
               <button
@@ -258,19 +294,10 @@ export default function SignInPage() {
             </div>
             
             {/* Password strength indicator */}
-            {isSignup && password.length > 0 && (
+            {passwordStrength && (
               <div className="mt-2 flex items-center gap-2 text-sm">
-                {password.length < 8 ? (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-orange-500" />
-                    <span className="text-orange-600">Password must be at least 8 characters</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-green-600">Password strength: Good</span>
-                  </>
-                )}
+                <passwordStrength.icon className={`w-4 h-4 text-${passwordStrength.color}-500`} />
+                <span className={`text-${passwordStrength.color}-600`}>{passwordStrength.text}</span>
               </div>
             )}
           </div>
@@ -287,6 +314,7 @@ export default function SignInPage() {
                   value={fullName} 
                   onChange={e => setFullName(e.target.value)} 
                   required 
+                  autoComplete="name"
                   className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
                 />
               </div>
@@ -300,6 +328,7 @@ export default function SignInPage() {
                   value={username} 
                   onChange={e => setUsername(e.target.value.replace(/\s/g,'').toLowerCase())} 
                   required 
+                  autoComplete="username"
                   className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
                 />
               </div>
@@ -313,6 +342,7 @@ export default function SignInPage() {
                     placeholder="Postal Code (optional)" 
                     value={postalCode} 
                     onChange={e => handlePostalChange(e.target.value)} 
+                    autoComplete="postal-code"
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
                   />
                 </div>
@@ -364,7 +394,7 @@ export default function SignInPage() {
           {/* Submit Button */}
           <button 
             type="submit" 
-            disabled={loading || (isSignup && password.length < 8)} 
+            disabled={loading || (isSignup && (password.length < 8 || isWeakPassword(password)))} 
             className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading 
