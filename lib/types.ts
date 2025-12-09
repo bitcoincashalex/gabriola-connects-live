@@ -1,20 +1,85 @@
 export interface Event {
+  // Core identification
   id: string;
   title: string;
-  date: Date;
-  endDate?: Date;
-  endTime?: string;
-  time: string;
-  location: string;
   description: string;
-  posterImage?: string;
-  source: string;
-  organizerEmail?: string;
-  organizerPhone?: string;
-  allDay?: boolean;
+  category?: string;
+  
+  // Date & Time
+  start_date: Date;
+  end_date?: Date;
+  start_time?: string;
+  end_time?: string;
+  is_all_day?: boolean;
+  
+  // Recurrence
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  
+  // Location
+  location: string;
+  venue_name?: string;
+  venue_address?: string;
+  venue_city?: string;
+  venue_postal_code?: string;
+  venue_map_url?: string;
+  parking_info?: string;
+  
+  // Cost & Registration
   fees?: string;
-  recurring?: string;
-  contactInfo?: string;
+  registration_url?: string;
+  registration_required?: boolean;
+  registration_deadline?: string;
+  
+  // Capacity
+  max_attendees?: number;
+  min_attendees?: number;
+  rsvp_count?: number;
+  waitlist_enabled?: boolean;
+  waitlist_count?: number;
+  
+  // Organizer Contact
+  organizer_name?: string;
+  organizer_organization?: string;
+  organizer_website?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  
+  // Additional Info
+  additional_info?: string;
+  age_restrictions?: string;
+  accessibility_info?: string;
+  what_to_bring?: string;
+  dress_code?: string;
+  
+  // Media
+  image_url?: string;
+  
+  // Status & Lifecycle
+  status?: 'scheduled' | 'cancelled' | 'postponed' | 'completed' | 'in_progress';
+  is_approved?: boolean;
+  is_featured?: boolean;
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  postponed_from_date?: Date;
+  weather_dependent?: boolean;
+  
+  // Source Tracking
+  source_name?: string;
+  source_url?: string;
+  source_type?: string;
+  external_event_id?: string;
+  external_calendar_url?: string;
+  last_synced_at?: string;
+  
+  // Search & Discovery
+  tags?: string[];
+  keywords?: string;
+  
+  // Metadata
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface BBSPost {
@@ -154,31 +219,35 @@ export interface CreateAlertData {
 // User types
 export type UserRole = 'user' | 'moderator' | 'admin';
 
-// COMPLETE USER INTERFACE - Merges old fields + new permission system
 export interface User {
-  // Core identity fields
+  // Core fields
   id: string;
-  email?: string;
   full_name: string;
-  username?: string;
-  postal_code?: string;
+
+  // These three lines have been REMOVED — they were duplicates
+  // real_name?: string;
+  // can_post?: boolean;
+  // is_moderator?: boolean;
+
+  username: string;
+  email?: string;
+  postal_code: string;
   
   // Profile fields
   avatar_url?: string;
   bio?: string;
+  facebook_url?: string;
   phone?: string;
   website?: string;
-  facebook_url?: string;
   
   // Residency
   is_resident: boolean;
   residency_verified_at?: string;
   resident_since?: string;
   
-  // Legacy role field (kept for compatibility)
-  role: string;
-  
-  // General permissions
+  // Permissions
+  role: UserRole;
+  is_super_admin: boolean;
   can_post: boolean;
   can_comment: boolean;
   can_rsvp: boolean;
@@ -186,67 +255,27 @@ export interface User {
   can_moderate_events: boolean;
   can_edit_directory: boolean;
   can_issue_alerts: boolean;
-  
-  // NEW: Super admin & module admins
-  is_super_admin: boolean;
-  admin_events: boolean;
-  admin_forum: boolean;
-  admin_alerts: boolean;
-  admin_directory: boolean;
-  admin_ferry: boolean;
-  
-  // NEW: Forum-specific roles
-  forum_moderator: boolean;
-  forum_banned: boolean;
-  forum_read_only: boolean;
-  forum_banned_reason?: string;
-  forum_banned_at?: string;
-  forum_banned_by?: string;
-  
-  // NEW: Special role badges
-  is_fire: boolean;
-  is_police: boolean;
-  is_medic: boolean;
-  is_coast_guard: boolean;
-  
-  // NEW: Events-specific permissions
-  events_moderator: boolean;
-  events_featured_creator: boolean;
-  
-  // NEW: Alerts-specific permissions
-  alerts_max_severity: string; // 'none', 'info', 'advisory', 'important', 'critical'
-  
-  // NEW: Directory-specific permissions
-  directory_verified: boolean;
-  
-  // Legacy alert permission (kept for compatibility)
   alert_level_permission: 'none' | 'minor' | 'moderate' | 'major' | 'emergency';
-  
-  // Ban status
   is_banned: boolean;
-  banned_reason?: string;
   banned_at?: string;
+  banned_reason?: string;
   banned_by?: string;
   
-  // Engagement metrics
+  // Engagement
   posts_count: number;
   events_created_count: number;
-  
-  // Notifications
+  last_active_at?: string;
   email_notifications: boolean;
-  notification_preferences?: any;
   
-  // Privacy
-  privacy_settings?: any;
-  
-  // Business integration
-  business_id?: string;
+  // Future fields
   stripe_customer_id?: string;
+  notification_preferences?: any;
+  privacy_settings?: any;
+  business_id?: string;
   
   // Timestamps
   created_at: string;
   updated_at?: string;
-  last_active_at?: string;
 }
 
 export interface UserProfile {

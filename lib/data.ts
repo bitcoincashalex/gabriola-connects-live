@@ -35,17 +35,18 @@ export function getMockEvents(): Event[] {
       events.push({
         id: `event-${day}-${i}`,
         title: template.title,
-        date: eventDate,
-        time: template.time,
+        start_date: eventDate,
+        start_time: template.time,
         location: template.location,
         description: template.description,
-        source: template.source,
-        posterImage: Math.random() > 0.7 ? `https://picsum.photos/seed/${day}${i}/600/400` : undefined,
+        source_name: template.source,
+        image_url: Math.random() > 0.7 ? `https://picsum.photos/seed/${day}${i}/600/400` : undefined,
+        created_at: new Date().toISOString(),
       });
     }
   }
 
-  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+  return events.sort((a, b) => a.start_date.getTime() - b.start_date.getTime());
 }
 
 export function getMockDirectory(): DirectoryListing[] {
