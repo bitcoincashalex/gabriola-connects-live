@@ -1,3 +1,6 @@
+// Path: components/Calendar.tsx
+// Version: 2.1.0 - Fixed React Hooks rules violation (moved useState before early return)
+// Date: 2024-12-09
 // components/Calendar.tsx — FULLY RESTORED, FULLY WORKING, NO GAPS
 'use client';
 
@@ -29,15 +32,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Only show loading while auth is loading
-  if (authLoading) {
-    return (
-      <div className="max-w-4xl mx-auto p-8 text-center py-32">
-        <p className="text-2xl text-gray-600">Loading calendar...</p>
-      </div>
-    );
-  }
-
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -59,6 +53,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [customLocation, setCustomLocation] = useState<string>('');
+  // Only show loading while auth is loading
+  if (authLoading) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 text-center py-32">
+        <p className="text-2xl text-gray-600">Loading calendar...</p>
+      </div>
+    );
+  }
+
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
