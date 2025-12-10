@@ -24,6 +24,9 @@ html, body {
   -ms-user-select: auto !important;
   user-select: auto !important;
   -webkit-touch-callout: default !important;
+  overflow-x: hidden !important; /* Prevent horizontal scrolling on mobile */
+  width: 100%;
+  position: relative;
 }
 
 .rbc-calendar {
