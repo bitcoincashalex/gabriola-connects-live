@@ -1,5 +1,5 @@
 // Path: components/AuthProvider.tsx
-// Version: 2.0.0 - Optimized with smart polling on SIGNED_IN only
+// Version: 2.0.1 - Better logging to diagnose profile fetch issues
 // Date: 2024-12-09
 
 'use client';
@@ -27,10 +27,15 @@ async function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promi
 
 // Helper to poll for profile after signin/signup
 async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200): Promise<any> {
+  console.log(`🔄 Starting profile fetch for ${userId}, max ${maxAttempts} attempts`);
+  
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0) {
+      console.log(`⏳ Waiting ${delayMs}ms before attempt ${attempt + 1}...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
+    
+    console.log(`🔍 Profile fetch attempt ${attempt + 1}/${maxAttempts}`);
     
     const { data, error } = await supabase
       .from('users')
@@ -38,14 +43,19 @@ async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 
       .eq('id', userId)
       .single();
     
-    if (data) {
-      console.log(`✅ Profile found on attempt ${attempt + 1}`);
-      return { data, error: null };
+    if (error) {
+      console.log(`⚠️ Attempt ${attempt + 1} error:`, error.message, error.code);
     }
     
-    console.log(`⏳ Profile not ready, attempt ${attempt + 1}/${maxAttempts}`);
+    if (data) {
+      console.log(`✅ Profile found on attempt ${attempt + 1}:`, data.full_name);
+      return { data, error: null };
+    } else {
+      console.log(`❌ Attempt ${attempt + 1}: Profile not found yet`);
+    }
   }
   
+  console.log(`💥 Profile NOT found after ${maxAttempts} attempts`);
   return { data: null, error: new Error('Profile not found after retries') };
 }
 
@@ -181,6 +191,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(result.data);
             } else {
               console.log('🔵 Profile result: NOT FOUND after retries');
+              console.error('💥 CRITICAL: User signed in but no profile exists!');
+              console.error('💥 User ID:', session.user.id);
+              console.error('💥 This means the database trigger did not fire or failed');
               setUser(null);
             }
           } else {
