@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.1.0 - Added community stats counters (residents, members, events, businesses)
+// v2.2.0 - Added community stats ONLY (kept original design with flag)
 // Date: 2024-12-10
 'use client';
 
@@ -103,50 +103,51 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       title: 'Directory',
       description: 'Local businesses & services',
       icon: Book,
-      color: 'from-gabriola-sage to-green-700',
+      color: 'from-purple-500 to-purple-700',
       textColor: 'text-white',
     },
     {
       id: 'ferry',
       title: 'Ferry',
-      description: 'BC Ferries schedules & info',
+      description: 'Schedule & real-time status',
       icon: Anchor,
-      color: 'from-gabriola-ocean to-blue-800',
+      color: 'from-teal-500 to-teal-700',
       textColor: 'text-white',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-6 pt-20 pb-16">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-3 bg-gabriola-green/10 px-6 py-3 rounded-full mb-6 border border-gabriola-green/20">
-            <span className="text-2xl">🏝️</span>
-            <span className="font-semibold text-gabriola-green-dark">Serving Gabriola Island, BC</span>
-          </div>
-          
-          <h1 className="text-6xl md:text-7xl font-extrabold mb-6 bg-gradient-to-r from-gabriola-green via-gabriola-ocean to-gabriola-green bg-clip-text text-transparent leading-tight">
+    <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10">
+      {/* Header with Flag as Main Background */}
+      <div className="relative py-12 px-6 shadow-lg overflow-hidden">
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'url(/gabriola-flag.gif)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        <div className="absolute inset-0 bg-black/30" />
+
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h1 className="text-5xl font-display font-bold mb-3 text-white" style={{
+            textShadow: '2px 2px 8px rgba(0,0,0,0.8), -1px -1px 4px rgba(0,0,0,0.6)'
+          }}>
             Gabriola Connects
           </h1>
-          
-          <p className="text-2xl text-gray-700 max-w-3xl mx-auto font-light leading-relaxed">
-            Your hub for island events, community discussions, local businesses, and ferry schedules
+          <p className="text-xl text-white mb-2" style={{
+            textShadow: '1px 1px 6px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.6)'
+          }}>
+            Your Island Community Hub
           </p>
-
-          {/* Active Alerts Badge */}
-          {activeAlertCount > 0 && (
-            <div className="mt-8 inline-flex items-center gap-3 bg-orange-100 border-2 border-orange-400 px-6 py-3 rounded-xl shadow-lg animate-pulse">
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
-              <span className="font-bold text-orange-800">
-                {activeAlertCount} Active Community {activeAlertCount === 1 ? 'Alert' : 'Alerts'}
-              </span>
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Feature Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {cards.map((card) => {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
@@ -158,71 +159,118 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
-                  relative overflow-hidden rounded-2xl shadow-xl 
-                  transition-all duration-300 transform
+                  relative overflow-hidden rounded-2xl shadow-lg
+                  transform transition-all duration-300 ease-out
                   ${isHovered ? 'scale-105 shadow-2xl' : 'scale-100'}
+                  bg-gradient-to-br ${card.color}
+                  p-8 text-left
+                  hover:ring-4 hover:ring-white/50
                 `}
               >
-                <div className={`bg-gradient-to-br ${card.color} p-8 h-full`}>
-                  <div className={`${card.textColor} transition-transform duration-300 ${isHovered ? 'translate-y-[-4px]' : ''}`}>
-                    <Icon className="w-12 h-12 mb-4" strokeWidth={2} />
-                    <h3 className="text-2xl font-bold mb-2">{card.title}</h3>
-                    <p className="text-white/90 text-sm">{card.description}</p>
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`
+                      p-4 rounded-xl bg-white/20 backdrop-blur-sm
+                      transform transition-transform duration-300
+                      ${isHovered ? 'scale-110 rotate-3' : 'scale-100'}
+                    `}>
+                      <Icon className={`w-8 h-8 ${card.textColor}`} />
+                    </div>
+                    <div className={`
+                      text-3xl transition-transform duration-300
+                      ${isHovered ? 'translate-x-1' : 'translate-x-0'}
+                    `}>
+                      →
+                    </div>
                   </div>
                   
-                  {/* Hover overlay */}
-                  <div className={`
-                    absolute inset-0 bg-white/10 backdrop-blur-sm
-                    transition-opacity duration-300
-                    ${isHovered ? 'opacity-100' : 'opacity-0'}
-                  `} />
+                  <h3 className={`text-3xl font-bold ${card.textColor} mb-2`}>
+                    {card.title}
+                  </h3>
+                  <p className={`${card.textColor} opacity-90 text-lg`}>
+                    {card.description}
+                  </p>
                 </div>
+
+                <div className={`
+                  absolute -bottom-12 -right-12 w-48 h-48 
+                  rounded-full bg-white/10
+                  transform transition-transform duration-500
+                  ${isHovered ? 'scale-150' : 'scale-100'}
+                `} />
               </button>
             );
           })}
         </div>
 
-        {/* About Section */}
-        <div className="max-w-4xl mx-auto text-center mb-12 bg-white/60 backdrop-blur rounded-2xl p-10 shadow-lg border border-white/80">
-          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-6">Welcome to Our Island Community</h2>
-          <p className="text-lg text-gray-700 leading-relaxed mb-6">
-            Gabriola Connects brings together our island's 4,500 residents with tools to stay informed, 
-            discover events, support local businesses, and connect with neighbours. Built by islanders, 
-            for islanders.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gabriola-green" />
-              <span>Community Calendar</span>
+        {/* Community Alerts Banner with Count */}
+        <button
+          onClick={() => window.location.href = '/alerts'}
+          className="w-full max-w-5xl mx-auto bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
+        >
+          <div className="flex items-center justify-between p-8">
+            <div className="flex items-center gap-6">
+              {/* Bell Icon with Badge */}
+              <div className="relative">
+                <div className="p-4 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
+                  <Bell className="w-10 h-10" />
+                </div>
+                {/* Alert Count Badge */}
+                {activeAlertCount > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-600 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center animate-pulse">
+                    {activeAlertCount}
+                  </div>
+                )}
+              </div>
+
+              {/* Text */}
+              <div className="text-left">
+                <h3 className="text-3xl font-bold mb-2">Community Alerts</h3>
+                <p className="text-lg opacity-90">
+                  {activeAlertCount === 0
+                    ? 'No active alerts — all clear!'
+                    : `${activeAlertCount} active ${activeAlertCount === 1 ? 'alert' : 'alerts'} — stay informed`
+                  }
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-gabriola-ocean" />
-              <span>Discussion Forum</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Book className="w-4 h-4 text-gabriola-sage" />
-              <span>Business Directory</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Anchor className="w-4 h-4 text-gabriola-ocean" />
-              <span>Ferry Schedules</span>
+
+            {/* Arrow */}
+            <div className="text-4xl group-hover:translate-x-2 transition-transform">
+              →
             </div>
           </div>
+        </button>
+
+        {/* About Section */}
+        <div className="mt-12 bg-white/80 backdrop-blur rounded-2xl p-10 shadow-lg border border-white/60">
+          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-6 text-center">
+            Welcome to Your Island Community
+          </h2>
+          <p className="text-lg text-gray-700 mb-6 text-center leading-relaxed max-w-3xl mx-auto">
+            Gabriola Connects is built by islanders, for islanders. Discover events, join discussions, 
+            support local businesses, and stay connected with our community of 4,500 residents.
+          </p>
         </div>
 
-        {/* Share Button */}
-        <div className="text-center mb-8">
+        {/* Share Section */}
+        <div className="text-center mt-12">
           <button
             onClick={() => {
               if (navigator.share) {
                 navigator.share({
                   title: 'Gabriola Connects',
-                  text: 'Check out Gabriola Connects - our island community hub!',
-                  url: window.location.href
+                  text: 'Check out Gabriola Connects — our island community hub!',
+                  url: 'https://gabriolaconnects.ca',
+                }).catch((error) => {
+                  if (error.name !== 'AbortError') {
+                    console.error('Error sharing:', error);
+                  }
                 });
               } else {
-                navigator.clipboard.writeText(window.location.href);
-                alert('Link copied to clipboard!');
+                navigator.clipboard.writeText('https://gabriolaconnects.ca').then(() => {
+                  alert('Link copied to clipboard! Share it with your friends and family.');
+                });
               }
             }}
             className="inline-block bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white rounded-xl px-8 py-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer"
@@ -241,7 +289,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
 
         {/* Community Stats - NEW! */}
         {!statsLoading && (
-          <div className="max-w-4xl mx-auto">
+          <div className="mt-8">
             <div className="bg-gradient-to-r from-gray-50 to-green-50/30 rounded-xl p-6 border border-gray-200/50 shadow-sm">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {/* Verified Residents */}
