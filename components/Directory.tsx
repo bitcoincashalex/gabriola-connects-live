@@ -1,4 +1,7 @@
-// components/Directory.tsx — FINAL, TIGHT & CLEAN
+// components/Directory.tsx
+// Version: 2.0.0 - With Chamber of Commerce Thank You Banner
+// Date: 2024-12-10
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -109,6 +112,31 @@ export default function Directory() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gabriola-sand/20 via-white to-gabriola-sand/10">
+      {/* ===== CHAMBER OF COMMERCE THANK YOU BANNER ===== */}
+      <div className="bg-gradient-to-r from-gabriola-green to-green-700 text-white py-6 border-b-4 border-gabriola-green-dark shadow-lg">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <p className="text-2xl md:text-3xl font-bold mb-2">
+                🙏 Thank You Gabriola Chamber of Commerce!
+              </p>
+              <p className="text-lg text-green-50">
+                Supporting local businesses and our island community
+              </p>
+            </div>
+            <a
+              href="https://business.gabriolachamber.ca/directory"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white text-gabriola-green px-8 py-4 rounded-full font-bold hover:bg-green-50 shadow-lg transition flex items-center gap-2 whitespace-nowrap"
+            >
+              Visit Chamber Directory →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== SEARCH & HEADER SECTION ===== */}
       <div className="bg-white border-b border-gabriola-green/20 py-8">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
@@ -145,13 +173,6 @@ export default function Directory() {
               ))}
             </select>
           </div>
-
-          <button
-            onClick={() => window.open('https://business.gabriolachamber.ca/directory', '_blank')}
-            className="mt-6 text-gabriola-green underline hover:no-underline font-medium text-center w-full"
-          >
-            View Full Chamber Directory →
-          </button>
         </div>
       </div>
 

@@ -386,6 +386,24 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              {/* Directory Permissions */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Directory Permissions</h3>
+                <p className="text-sm text-gray-600 mb-3">For Chamber of Commerce and business directory management</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-directory"
+                      checked={(selectedUser as any).admin_directory || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_directory', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-directory" className="cursor-pointer">Directory Admin (manage business listings)</label>
+                  </div>
+                </div>
+              </div>
+
               {/* Alert Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Alert Permissions</h3>
