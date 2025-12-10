@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.4.0 - Moved navigation to Footer component (shows on all pages)
+// v3.3.1 - Reordered navigation: Calendar, Forum, Directory, Ferry, Search
 // Date: 2024-12-10
 'use client';
 
@@ -11,8 +11,8 @@ import BBS from '@/components/BBS';
 import Directory from '@/components/Directory';
 import Ferry from '@/components/Ferry';
 import EmergencyAlertBanner from '@/components/EmergencyAlertBanner';
-import Footer from '@/components/Footer';
 import { useUser } from '@/components/AuthProvider';
+import { Search, CalendarDays, MessageSquare, BookOpen, Anchor } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/lib/types';
 
@@ -154,6 +154,16 @@ export default function HomePage() {
     }
   };
 
+  // Build tabs array - hide forum for banned users
+  const tabs = [
+    { id: 'calendar' as Tab, label: 'Calendar', icon: CalendarDays },
+    // Only show forum if user is not banned
+    ...(user?.is_banned ? [] : [{ id: 'forum' as Tab, label: 'Forum', icon: MessageSquare }]),
+    { id: 'directory' as Tab, label: 'Directory', icon: BookOpen },
+    { id: 'ferry' as Tab, label: 'Ferry', icon: Anchor },
+    { id: 'search' as Tab, label: 'Search', icon: Search },
+  ];
+
   if (activeTab === 'landing') {
     return (
       <div className="flex flex-col min-h-screen bg-gabriola-sand/10">
@@ -161,7 +171,32 @@ export default function HomePage() {
         <main className="flex-1 overflow-auto">
           <LandingPage onNavigate={handleNavigateFromLanding} />
         </main>
-        <Footer activeTab="landing" onNavigate={handleNavigateFromLanding} />
+
+        {/* Bottom Navigation */}
+        <nav className="bg-white border-t-2 border-gabriola-green/20 shadow-lg">
+          <div className="flex justify-around items-center h-20 max-w-screen-xl mx-auto px-4">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = false; // Landing page, no tab is active
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab.id)}
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     );
   }
@@ -180,7 +215,30 @@ export default function HomePage() {
         )}
       </main>
 
-      <Footer activeTab={activeTab} onNavigate={(tab) => handleTabClick(tab as Tab)} />
+      <nav className="bg-white border-t-2 border-gabriola-green/20 shadow-lg">
+        <div className="flex justify-around items-center h-20 max-w-screen-xl mx-auto px-4">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                  isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                }`}
+              >
+                <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                  <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                </div>
+                <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
