@@ -144,7 +144,7 @@ export default function Ferry() {
               {nextFromGabriola ? (
                 <>
                   <div className="text-3xl font-bold text-gray-800">{nextFromGabriola.time}</div>
-                  <div className="text-sm text-gray-600">Arrives: {nextFromGabriola.arrivalTime}</div>
+                  <div className="text-sm text-gray-600">Arrives {nextFromGabriola.arrivalTime} in Nanaimo</div>
                 </>
               ) : (
                 <div className="text-lg font-semibold text-gray-500">No more sailings today</div>
@@ -159,7 +159,7 @@ export default function Ferry() {
               {nextFromNanaimo ? (
                 <>
                   <div className="text-3xl font-bold text-gray-800">{nextFromNanaimo.time}</div>
-                  <div className="text-sm text-gray-600">Arrives: {nextFromNanaimo.arrivalTime}</div>
+                  <div className="text-sm text-gray-600">Arrives {nextFromNanaimo.arrivalTime} in Gabriola</div>
                 </>
               ) : (
                 <div className="text-lg font-semibold text-gray-500">No more sailings today</div>
