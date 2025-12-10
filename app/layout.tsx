@@ -1,6 +1,7 @@
-// app/layout.tsx — FINAL, WORKING 100%
+// app/layout.tsx
+// FIXED - Removed Footer (now controlled by page.tsx)
+// Date: 2024-12-10
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
 
@@ -20,7 +21,6 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           <main className="flex-1">{children}</main>
-          <Footer />
         </AuthProvider>
       </body>
     </html>

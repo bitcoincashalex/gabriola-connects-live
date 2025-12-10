@@ -1,10 +1,11 @@
 // components/Footer.tsx
-// v2.1 - Fixed navigation from standalone pages (redirects to home with hash)
+// v2.2 - Optimized with useMemo to prevent re-render errors
 // Date: 2024-12-10
 
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import { CalendarDays, MessageSquare, BookOpen, Anchor, Search } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 
@@ -26,15 +27,15 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     }
   };
 
-  // Build tabs array - hide forum for banned users
-  const tabs = [
+  // Build tabs array - hide forum for banned users - memoized to prevent re-renders
+  const tabs = useMemo(() => [
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
     // Only show forum if user is not banned
     ...(user?.is_banned ? [] : [{ id: 'forum', label: 'Forum', icon: MessageSquare }]),
     { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'ferry', label: 'Ferry', icon: Anchor },
     { id: 'search', label: 'Search', icon: Search },
-  ];
+  ], [user?.is_banned]);
 
   return (
     <footer>
