@@ -1,5 +1,5 @@
 // Path: components/BBS.tsx
-// Version: 3.1.0 - Expandable hierarchical categories
+// Version: 3.0.0 - Fetch categories from database, support hierarchy
 // Date: 2024-12-09
 
 'use client';
@@ -9,7 +9,7 @@ import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import CreateThread from './CreateThread';
 import ThreadList from './ThreadList';
-import { Plus, AlertCircle, Ban, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, AlertCircle, Ban } from 'lucide-react';
 import Link from 'next/link';
 
 export default function BBS() {
@@ -18,7 +18,6 @@ export default function BBS() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['politics'])); // Politics expanded by default
 
   // Fetch categories from database
   useEffect(() => {
@@ -38,7 +37,11 @@ export default function BBS() {
       return;
     }
 
-    setCategories(data || []);
+    // Add "All Posts" pseudo-category at the beginning
+    setCategories([
+      { id: 'all', slug: 'all', name: 'All Posts', parent_id: null },
+      ...(data || [])
+    ]);
   };
 
   if (!user) {
@@ -50,6 +53,7 @@ export default function BBS() {
   }
 
   // COMPLETE BAN CHECK - Block entire forum access
+  // Using is_banned from admin panel (set via /admin/users)
   if (user.is_banned) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -89,64 +93,43 @@ export default function BBS() {
 
   // Build role badges in priority order
   const roles = [];
-  const u = user as any;
+  const u = user as any; // Cast to access badge fields
   
+  // Priority 1: Super Admin
   if (u.is_super_admin) {
     roles.push({ label: 'Super Admin', color: 'bg-red-700' });
   }
   
+  // Priority 2: Forum Admin
   if (u.admin_forum && !u.is_super_admin) {
     roles.push({ label: 'Forum Admin', color: 'bg-red-600' });
   }
   
+  // Priority 3: Moderator
   if (u.forum_moderator && !u.admin_forum && !u.is_super_admin) {
     roles.push({ label: 'Moderator', color: 'bg-purple-600' });
   }
   
+  // Priority 4: Special badges (all at same level)
   if (u.is_fire) roles.push({ label: 'Fire Dept', color: 'bg-orange-600' });
   if (u.is_police) roles.push({ label: 'RCMP', color: 'bg-blue-700' });
   if (u.is_medic) roles.push({ label: 'Medic', color: 'bg-red-700' });
   if (u.is_coast_guard) roles.push({ label: 'Coast Guard', color: 'bg-blue-800' });
   
+  // Priority 5: Resident
   if (u.is_resident) roles.push({ label: 'Resident', color: 'bg-green-600' });
   
+  // Priority 6: Read-only indicator (yellow warning)
   if (u.forum_read_only) {
     roles.push({ label: 'Read Only', color: 'bg-yellow-500' });
   }
 
+  // Can user create posts?
   const canCreatePost = !u.is_banned && !u.forum_read_only && u.can_post;
 
   const handlePostCreated = () => {
     setShowCreateModal(false);
-    setRefreshKey(prev => prev + 1);
-  };
-
-  // Group categories by parent
-  const topLevelCategories = categories.filter(cat => !cat.parent_id);
-  const getChildren = (parentId: string) => categories.filter(cat => cat.parent_id === parentId);
-
-  // Toggle category expansion
-  const toggleCategory = (slug: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(slug)) {
-      newExpanded.delete(slug);
-    } else {
-      newExpanded.add(slug);
-    }
-    setExpandedCategories(newExpanded);
-  };
-
-  // Handle category click
-  const handleCategoryClick = (category: any) => {
-    const children = getChildren(category.id);
-    
-    if (children.length > 0) {
-      // Has children - toggle expansion
-      toggleCategory(category.slug);
-    } else {
-      // No children - select category
-      setActiveCategory(category.slug);
-    }
+    setRefreshKey(prev => prev + 1); // Trigger refresh without full page reload
   };
 
   return (
@@ -164,6 +147,7 @@ export default function BBS() {
                   {user.full_name || user.email}
                 </span>
 
+                {/* All roles – automatically shows any you have */}
                 {roles.map(role => (
                   <span
                     key={role.label}
@@ -174,6 +158,7 @@ export default function BBS() {
                 ))}
               </div>
 
+              {/* Read-only notice */}
               {u.forum_read_only && (
                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
@@ -183,6 +168,7 @@ export default function BBS() {
               )}
             </div>
 
+            {/* Only show create button if user can post */}
             {canCreatePost && (
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -193,66 +179,21 @@ export default function BBS() {
             )}
           </div>
 
-          {/* Category Tabs with Hierarchy */}
+          {/* Category Tabs */}
           <div className="flex flex-wrap gap-3">
-            {/* All Posts - Special category */}
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`px-6 py-3 rounded-full font-medium transition ${
-                activeCategory === 'all'
-                  ? 'bg-gabriola-green text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              All Posts
-            </button>
-
-            {/* Top-level categories */}
-            {topLevelCategories.map(category => {
-              const children = getChildren(category.id);
-              const hasChildren = children.length > 0;
-              const isExpanded = expandedCategories.has(category.slug);
-
-              return (
-                <div key={category.slug} className="flex flex-col gap-2">
-                  {/* Parent Category */}
-                  <button
-                    onClick={() => handleCategoryClick(category)}
-                    className={`px-6 py-3 rounded-full font-medium transition flex items-center gap-2 ${
-                      activeCategory === category.slug
-                        ? 'bg-gabriola-green text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {category.name}
-                    {hasChildren && (
-                      isExpanded ? 
-                        <ChevronDown className="w-4 h-4" /> : 
-                        <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
-
-                  {/* Child Categories (shown when expanded) */}
-                  {hasChildren && isExpanded && (
-                    <div className="flex flex-wrap gap-2 ml-4">
-                      {children.map(child => (
-                        <button
-                          key={child.slug}
-                          onClick={() => setActiveCategory(child.slug)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                            activeCategory === child.slug
-                              ? 'bg-gabriola-green text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                          }`}
-                        >
-                          {child.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {categories.map(cat => (
+              <button
+                key={cat.slug}
+                onClick={() => setActiveCategory(cat.slug)}
+                className={`px-6 py-3 rounded-full font-medium transition ${
+                  activeCategory === cat.slug
+                    ? 'bg-gabriola-green text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
         </div>
       </div>
