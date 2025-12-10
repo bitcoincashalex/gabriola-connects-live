@@ -1,5 +1,5 @@
 // Path: components/AuthProvider.tsx
-// Version: 2.0.3 - Added timeout to each retry attempt for mobile reliability
+// Version: 2.0.4 - Fixed TypeScript Promise wrapping for mobile timeout fix
 // Date: 2024-12-09
 
 'use client';
@@ -38,17 +38,17 @@ async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 
     console.log(`🔍 Profile fetch attempt ${attempt + 1}/${maxAttempts} (${attemptTimeoutMs}ms timeout)`);
     
     try {
-      // Add timeout to THIS specific attempt
-      const result = await fetchWithTimeout(
-        supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
-          .single(),
+      // Add timeout to THIS specific attempt - wrap in Promise.resolve
+      const { data, error } = await fetchWithTimeout(
+        Promise.resolve(
+          supabase
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single()
+        ),
         attemptTimeoutMs
       );
-      
-      const { data, error } = result;
       
       if (error) {
         console.log(`⚠️ Attempt ${attempt + 1} error:`, error.message, error.code);
@@ -102,11 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const startTime = Date.now();
             const result = await fetchWithTimeout(
-              supabase
-                .from('users')
-                .select('*')
-                .eq('id', session.user.id)
-                .single(),
+              Promise.resolve(
+                supabase
+                  .from('users')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single()
+              ),
               5000
             );
             
@@ -135,7 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               try {
                 const result = await fetchWithTimeout(
-                  supabase.from('users').select('*').eq('id', session.user.id).single(),
+                  Promise.resolve(
+                    supabase.from('users').select('*').eq('id', session.user.id).single()
+                  ),
                   5000
                 );
                 
@@ -230,7 +234,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               const startTime = Date.now();
               const result = await fetchWithTimeout(
-                supabase.from('users').select('*').eq('id', session.user.id).single(),
+                Promise.resolve(
+                  supabase.from('users').select('*').eq('id', session.user.id).single()
+                ),
                 5000
               );
               
