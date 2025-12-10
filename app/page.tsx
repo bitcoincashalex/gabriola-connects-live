@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.3.0 - Bottom navigation on ALL pages (including landing page)
+// v3.3.1 - Reordered navigation: Calendar, Forum, Directory, Ferry, Search
 // Date: 2024-12-10
 'use client';
 
@@ -160,8 +160,8 @@ export default function HomePage() {
     // Only show forum if user is not banned
     ...(user?.is_banned ? [] : [{ id: 'forum' as Tab, label: 'Forum', icon: MessageSquare }]),
     { id: 'directory' as Tab, label: 'Directory', icon: BookOpen },
-    { id: 'search' as Tab, label: 'Search', icon: Search },
     { id: 'ferry' as Tab, label: 'Ferry', icon: Anchor },
+    { id: 'search' as Tab, label: 'Search', icon: Search },
   ];
 
   if (activeTab === 'landing') {
