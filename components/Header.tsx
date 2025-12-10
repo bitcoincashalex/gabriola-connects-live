@@ -1,7 +1,4 @@
-// Path: components/Header.tsx
-// Version: 2.0.0 - Add Moderator Panel link
-// Date: 2024-12-09
-
+// components/Header.tsx
 'use client';
 
 import Link from 'next/link';
@@ -18,7 +15,6 @@ export default function Header() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
-  const isModerator = (user as any)?.forum_moderator || isAdmin; // Admins are also mods
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -194,32 +190,37 @@ export default function Header() {
                       <span>Settings</span>
                     </Link>
 
-                    {/* Moderator/Admin section */}
-                    {(isModerator || isAdmin) && (
+                    {/* Admin section */}
+                    {isAdmin && (
                       <>
                         <div className="border-t border-gray-200 my-2"></div>
-                        
-                        {/* Moderator Panel (for mods and admins) */}
-                        {isModerator && (
+                        <div className="px-4 py-2">
+                          <p className="text-xs font-bold text-gray-500 uppercase">Admin</p>
+                        </div>
+                        <Link
+                          href="/admin/users"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                        >
+                          <Shield className="w-5 h-5" />
+                          <span>User Management</span>
+                        </Link>
+                        <Link
+                          href="/admin/forum"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                        >
+                          <Shield className="w-5 h-5" />
+                          <span>Forum Moderation</span>
+                        </Link>
+                        {((user as any)?.admin_events || user?.is_super_admin) && (
                           <Link
-                            href="/mod"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition text-purple-700"
-                          >
-                            <Shield className="w-5 h-5" />
-                            <span className="font-bold">🛡️ Moderator Panel</span>
-                          </Link>
-                        )}
-
-                        {/* Admin Panel (admins only) */}
-                        {isAdmin && (
-                          <Link
-                            href="/admin/users"
+                            href="/admin/events"
                             onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
                           >
                             <Shield className="w-5 h-5" />
-                            <span className="font-bold">👑 Admin Panel</span>
+                            <span>Event Management</span>
                           </Link>
                         )}
                       </>
@@ -311,22 +312,13 @@ export default function Header() {
                   >
                     Settings
                   </Link>
-                  {isModerator && (
-                    <Link
-                      href="/mod"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block w-full py-3 hover:bg-white/10 text-purple-300 font-bold"
-                    >
-                      🛡️ Moderator Panel
-                    </Link>
-                  )}
                   {isAdmin && (
                     <Link
                       href="/admin/users"
                       onClick={() => setMobileMenuOpen(false)}
                       className="block w-full py-3 hover:bg-white/10 text-red-300 font-bold"
                     >
-                      👑 Admin Panel
+                      Admin Panel
                     </Link>
                   )}
                 </>
