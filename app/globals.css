@@ -17,6 +17,15 @@ body {
   min-height: 100vh;
 }
 
+/* Enable screenshots and text selection on mobile */
+html, body {
+  -webkit-user-select: auto !important;
+  -moz-user-select: auto !important;
+  -ms-user-select: auto !important;
+  user-select: auto !important;
+  -webkit-touch-callout: default !important;
+}
+
 .rbc-calendar {
   font-family: inherit;
 }

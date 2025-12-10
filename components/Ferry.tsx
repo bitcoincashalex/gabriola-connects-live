@@ -1,3 +1,7 @@
+// Path: components/Ferry.tsx
+// Version: 2.0.0 - Fixed single-ferry display and added destination clarification
+// Date: 2024-12-09
+
 'use client';
 
 import { useState } from 'react';
