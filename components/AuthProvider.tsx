@@ -1,10 +1,10 @@
 // Path: components/AuthProvider.tsx
-// Version: 2.0.1 - Better logging to diagnose profile fetch issues
+// Version: 2.0.2 - Added fetch guard to prevent concurrent profile fetches
 // Date: 2024-12-09
 
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
 
@@ -62,6 +62,7 @@ async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchingRef = useRef(false); // Guard against concurrent fetches
 
   useEffect(() => {
     console.log('🟢 AuthProvider: Initializing...');
@@ -168,6 +169,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
       
+      // CRITICAL: Guard against concurrent fetches
+      if (fetchingRef.current) {
+        console.log(`🔒 Already fetching profile, ignoring ${event} event`);
+        return;
+      }
+      
       try {
         console.log('🔵 Auth event:', event);
         console.log('🔵 Session:', session ? 'EXISTS' : 'NULL');
@@ -178,8 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // For SIGNED_IN events, use retry logic since profile might not be ready
           if (event === 'SIGNED_IN') {
             console.log('🔄 SIGNED_IN detected - using smart retry...');
+            fetchingRef.current = true; // Set guard
+            
             const startTime = Date.now();
             const result = await fetchProfileWithRetry(session.user.id, 5, 200);
+            
+            fetchingRef.current = false; // Clear guard
             
             if (!mounted) return;
             
@@ -198,12 +209,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } else {
             // For other events (INITIAL_SESSION, etc), profile should exist
+            fetchingRef.current = true; // Set guard
+            
             try {
               const startTime = Date.now();
               const result = await fetchWithTimeout(
                 Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
                 5000
               );
+              
+              fetchingRef.current = false; // Clear guard
               
               if (!mounted) return;
               
@@ -216,6 +231,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               setUser(userProfile);
             } catch (err: any) {
+              fetchingRef.current = false; // Clear guard on error
+              
               if (!mounted) return;
               
               if (err.message === 'Request timeout') {
@@ -234,6 +251,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
         }
       } catch (err) {
+        fetchingRef.current = false; // Clear guard on error
+        
         if (mounted) {
           console.error('💥 EXCEPTION in listener:', err);
           setLoading(false);
@@ -243,6 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      fetchingRef.current = false; // Clear guard on unmount
       console.log('🟢 Cleaning up listener');
       listener.subscription.unsubscribe();
     };
