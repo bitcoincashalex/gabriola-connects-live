@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.2.0 - Emergency alerts ONLY on landing page (removed from other tabs)
+// v3.1.1 - Fixed TypeScript error (created_at/updated_at as strings)
 // Date: 2024-12-10
 'use client';
 
@@ -175,6 +175,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gabriola-sand/10">
+      <EmergencyAlertBanner />
       <main className="flex-1 overflow-auto">
         {activeTab === 'calendar' && <Calendar events={events} loading={eventsLoading} />}
         {activeTab === 'forum' && <BBS />}
