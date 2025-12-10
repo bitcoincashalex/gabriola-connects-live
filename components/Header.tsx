@@ -12,9 +12,14 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
+  const isSuperAdmin = user?.is_super_admin;
+  const isForumAdmin = (user as any)?.admin_forum;
+  const isEventAdmin = (user as any)?.admin_events;
+  const isDirectoryAdmin = (user as any)?.admin_directory;
+  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -32,6 +37,11 @@ export default function Header() {
     if (user) {
       fetchUnreadCount();
       
+      // Fetch pending users count for super admin
+      if (isSuperAdmin) {
+        fetchPendingUsersCount();
+      }
+      
       // Subscribe to new messages
       const subscription = supabase
         .channel('unread_messages_header')
@@ -47,11 +57,31 @@ export default function Header() {
         )
         .subscribe();
 
+      // Subscribe to new user signups (super admin only)
+      let userSubscription: any = null;
+      if (isSuperAdmin) {
+        userSubscription = supabase
+          .channel('new_users_header')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'users',
+            },
+            () => fetchPendingUsersCount()
+          )
+          .subscribe();
+      }
+
       return () => {
         subscription.unsubscribe();
+        if (userSubscription) {
+          userSubscription.unsubscribe();
+        }
       };
     }
-  }, [user]);
+  }, [user, isSuperAdmin]);
 
   const fetchUnreadCount = async () => {
     if (!user) return;
@@ -64,6 +94,22 @@ export default function Header() {
       .eq('is_deleted', false);
 
     setUnreadCount(count || 0);
+  };
+
+  const fetchPendingUsersCount = async () => {
+    if (!user?.is_super_admin) return;
+
+    // Get users from last 7 days who aren't verified residents
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { count } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .eq('is_resident', false);
+
+    setPendingUsersCount(count || 0);
   };
 
   const goHome = () => {
@@ -190,38 +236,57 @@ export default function Header() {
                       <span>Settings</span>
                     </Link>
 
-                    {/* Admin section */}
-                    {isAdmin && (
+                    {/* Admin section - Only show if user has ANY admin access */}
+                    {hasAnyAdminAccess && (
                       <>
                         <div className="border-t border-gray-200 my-2"></div>
-                        <Link
-                          href="/admin"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
-                        >
-                          <Shield className="w-5 h-5" />
-                          <span className="font-bold">Admin Control Panel</span>
-                        </Link>
                         <div className="px-4 py-2">
-                          <p className="text-xs font-bold text-gray-500 uppercase">Admin Tools</p>
+                          <p className="text-xs font-bold text-gray-500 uppercase">Admin</p>
                         </div>
-                        <Link
-                          href="/admin/users"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
-                        >
-                          <Shield className="w-5 h-5" />
-                          <span>User Management</span>
-                        </Link>
-                        <Link
-                          href="/admin/forum"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
-                        >
-                          <Shield className="w-5 h-5" />
-                          <span>Forum Moderation</span>
-                        </Link>
-                        {((user as any)?.admin_events || user?.is_super_admin) && (
+                        
+                        {/* New User Signups - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/new-users"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition text-orange-700"
+                          >
+                            <Shield className="w-5 h-5" />
+                            <span className="font-bold">New User Signups</span>
+                            {pendingUsersCount > 0 && (
+                              <span className="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-1">
+                                {pendingUsersCount}
+                              </span>
+                            )}
+                          </Link>
+                        )}
+                        
+                        {/* User Management - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/users"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <Shield className="w-5 h-5" />
+                            <span>User Management</span>
+                          </Link>
+                        )}
+                        
+                        {/* Forum Moderation - Forum Admin or Super Admin */}
+                        {(isForumAdmin || isSuperAdmin) && (
+                          <Link
+                            href="/admin/forum"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <Shield className="w-5 h-5" />
+                            <span>Forum Moderation</span>
+                          </Link>
+                        )}
+                        
+                        {/* Event Management - Event Admin or Super Admin */}
+                        {(isEventAdmin || isSuperAdmin) && (
                           <Link
                             href="/admin/events"
                             onClick={() => setUserMenuOpen(false)}
@@ -229,6 +294,18 @@ export default function Header() {
                           >
                             <Shield className="w-5 h-5" />
                             <span>Event Management</span>
+                          </Link>
+                        )}
+                        
+                        {/* Directory Management - Directory Admin or Super Admin */}
+                        {(isDirectoryAdmin || isSuperAdmin) && (
+                          <Link
+                            href="/admin/directory"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <Shield className="w-5 h-5" />
+                            <span>Directory Management</span>
                           </Link>
                         )}
                       </>
@@ -320,7 +397,7 @@ export default function Header() {
                   >
                     Settings
                   </Link>
-                  {isAdmin && (
+                  {hasAnyAdminAccess && (
                     <Link
                       href="/admin/users"
                       onClick={() => setMobileMenuOpen(false)}

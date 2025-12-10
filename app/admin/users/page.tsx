@@ -1,5 +1,7 @@
-// app/admin/users/page.tsx
-// v1.1 - Dec 8, 2025 - FIXED: Working toggles, alert levels, profile viewing
+// Path: app/admin/users/page.tsx
+// Version: 2.0.0 - Enhanced profile view with full date, email, postal code, resident status
+// Date: 2024-12-10
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { User } from '@/lib/types';
-import { Shield, Calendar, Edit, AlertTriangle, X, Eye } from 'lucide-react';
+import { Shield, Calendar, Edit, AlertTriangle, X, Eye, Mail, MapPin, CheckCircle, XCircle } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const { user, loading: authLoading } = useUser();
@@ -19,8 +21,10 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (!authLoading) {
+      // SUPER ADMIN ONLY - no other admins allowed
       if (!user?.is_super_admin) {
         router.push('/');
+        alert('Access denied: Super Admin only');
       } else {
         fetchUsers();
       }
@@ -46,11 +50,22 @@ export default function AdminUsersPage() {
       .eq('id', userId);
 
     if (!error) {
-      // Refresh users list to update UI
       await fetchUsers();
     } else {
       alert('Error updating permission: ' + error.message);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const filteredUsers = users.filter(u => 
@@ -60,7 +75,6 @@ export default function AdminUsersPage() {
     u.postal_code?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Get selected user from current users state (always fresh)
   const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null;
 
   if (authLoading || loading) {
@@ -99,86 +113,99 @@ export default function AdminUsersPage() {
 
       <div className="space-y-4">
         {filteredUsers.map(u => (
-          <div key={u.id} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <div className="flex items-start justify-between">
+          <div key={u.id} className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-800">{u.full_name}</h3>
-                <div className="mt-2 space-y-1 text-sm text-gray-600">
-                  <div>📧 {u.email}</div>
-                  <div>👤 @{u.username}</div>
-                  <div>📍 {u.postal_code}</div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      u.role === 'admin' ? 'bg-red-100 text-red-800' :
-                      u.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {u.role.toUpperCase()}
-                    </span>
-                    {u.is_super_admin && (
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                        SUPER ADMIN
-                      </span>
+                {/* User Header Info */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{u.full_name || 'No name'}</h3>
+                    
+                    {/* Email */}
+                    <div className="flex items-center gap-2 text-gray-600 mt-1">
+                      <Mail className="w-4 h-4" />
+                      <span>{u.email}</span>
+                    </div>
+                    
+                    {/* Postal Code */}
+                    {u.postal_code && (
+                      <div className="flex items-center gap-2 text-gray-600 mt-1">
+                        <MapPin className="w-4 h-4" />
+                        <span>{u.postal_code}</span>
+                      </div>
                     )}
-                    {u.is_banned && (
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-red-600 text-white">
-                        BANNED
-                      </span>
-                    )}
+                    
+                    {/* Joined Date - Full Format */}
+                    <div className="flex items-center gap-2 text-gray-600 mt-1">
+                      <Calendar className="w-4 h-4" />
+                      <span>Joined: {formatDate(u.created_at)}</span>
+                    </div>
+                    
+                    {/* Resident Status */}
+                    <div className="flex items-center gap-2 mt-2">
+                      {u.is_resident ? (
+                        <>
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-green-700">Verified Resident</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-5 h-5 text-gray-400" />
+                          <span className="text-gray-600">Not Resident</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="ml-6 space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar className={`w-4 h-4 ${u.can_create_events ? 'text-green-600' : 'text-gray-300'}`} />
-                  <button
-                    onClick={() => updatePermission(u.id, 'can_create_events', !u.can_create_events)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      u.can_create_events 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {u.can_create_events ? '✓ Create Events' : 'Create Events'}
-                  </button>
+                {/* Badges/Permissions Row */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {u.is_super_admin && (
+                    <span className="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-bold">
+                      Super Admin
+                    </span>
+                  )}
+                  {u.is_banned && (
+                    <span className="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-bold">
+                      ⛔ BANNED
+                    </span>
+                  )}
+                  {(u as any).forum_read_only && (
+                    <span className="px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-bold">
+                      Read Only
+                    </span>
+                  )}
+                  {u.can_issue_alerts && (
+                    <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-sm">
+                      Can Issue Alerts ({(u as any).alert_level_permission})
+                    </span>
+                  )}
+                  {u.can_create_events && (
+                    <span className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm">
+                      Event Creator
+                    </span>
+                  )}
+                  {(u as any).admin_events && (
+                    <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm">
+                      Event Admin
+                    </span>
+                  )}
+                  {(u as any).admin_forum && (
+                    <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-sm">
+                      Forum Admin
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Edit className={`w-4 h-4 ${u.can_moderate_events ? 'text-green-600' : 'text-gray-300'}`} />
-                  <button
-                    onClick={() => updatePermission(u.id, 'can_moderate_events', !u.can_moderate_events)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      u.can_moderate_events 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {u.can_moderate_events ? '✓ Moderate Events' : 'Moderate Events'}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className={`w-4 h-4 ${u.can_issue_alerts ? 'text-orange-600' : 'text-gray-300'}`} />
-                  <button
-                    onClick={() => updatePermission(u.id, 'can_issue_alerts', !u.can_issue_alerts)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      u.can_issue_alerts 
-                        ? 'bg-orange-100 text-orange-800 hover:bg-orange-200' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {u.can_issue_alerts ? '✓ Issue Alerts' : 'Issue Alerts'}
-                  </button>
-                </div>
-
+                {/* Quick Alert Level Toggle (if can issue alerts) */}
                 {u.can_issue_alerts && (
-                  <div className="ml-6">
-                    <label className="text-xs text-gray-600 block mb-1">Max Alert Level:</label>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-medium">Alert Level:</span>
                     <select
-                      value={u.alert_level_permission}
+                      value={(u as any).alert_level_permission || 'none'}
                       onChange={(e) => updatePermission(u.id, 'alert_level_permission', e.target.value)}
-                      className="px-2 py-1 text-xs border rounded w-full"
+                      className="px-3 py-1 border rounded"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <option value="none">None</option>
                       <option value="info">Info (blue)</option>
@@ -190,10 +217,18 @@ export default function AdminUsersPage() {
                 )}
               </div>
 
+              {/* Action Buttons */}
               <div className="ml-4 flex flex-col gap-2">
                 <button
-                  onClick={() => router.push(`/profile/${u.id}`)}
+                  onClick={() => window.location.href = `mailto:${u.email}`}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Email User
+                </button>
+                <button
+                  onClick={() => router.push(`/profile/${u.id}`)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
                 >
                   <Eye className="w-4 h-4" />
                   View Profile
@@ -210,7 +245,7 @@ export default function AdminUsersPage() {
         ))}
       </div>
 
-      {/* Full Edit Modal */}
+      {/* Full Edit Modal - Keep your existing modal code */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8">
@@ -222,6 +257,14 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="space-y-6">
+              {/* User Info Summary */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div><strong>Email:</strong> {selectedUser.email}</div>
+                <div><strong>Postal Code:</strong> {selectedUser.postal_code || 'Not provided'}</div>
+                <div><strong>Joined:</strong> {formatDate(selectedUser.created_at)}</div>
+                <div><strong>Resident:</strong> {selectedUser.is_resident ? '✅ Yes' : '❌ No'}</div>
+              </div>
+
               {/* Role */}
               <div>
                 <label className="block text-sm font-medium mb-2">Role</label>
@@ -249,11 +292,77 @@ export default function AdminUsersPage() {
                 <label htmlFor="super-admin" className="font-medium cursor-pointer">Super Admin (full system access)</label>
               </div>
 
+              {/* Forum Permissions */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Forum Permissions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-forum"
+                      checked={(selectedUser as any).admin_forum || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_forum', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-forum" className="cursor-pointer">Forum Admin (full forum control)</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="forum-moderator"
+                      checked={(selectedUser as any).forum_moderator || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'forum_moderator', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="forum-moderator" className="cursor-pointer">Forum Moderator</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="can-post"
+                      checked={selectedUser.can_post || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'can_post', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="can-post" className="cursor-pointer">Can post to forums</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="forum-read-only"
+                      checked={(selectedUser as any).forum_read_only || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'forum_read_only', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="forum-read-only" className="cursor-pointer text-orange-700">Forum Read-Only (can view but not post)</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="is-banned"
+                      checked={selectedUser.is_banned || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="is-banned" className="cursor-pointer text-red-700 font-bold">BANNED (blocks all forum access)</label>
+                  </div>
+                </div>
+              </div>
+
               {/* Event Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Event Permissions</h3>
-                <p className="text-sm text-gray-600 mb-3">✓ Users can manage events without being Admin/Moderator</p>
                 <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-events"
+                      checked={(selectedUser as any).admin_events || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_events', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-events" className="cursor-pointer">Event Admin (full event control)</label>
+                  </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
@@ -262,7 +371,7 @@ export default function AdminUsersPage() {
                       onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)}
                       className="w-5 h-5 cursor-pointer"
                     />
-                    <label htmlFor="create-events" className="cursor-pointer">Can create events</label>
+                    <label htmlFor="create-events" className="cursor-pointer">Can create events (instant publish)</label>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
@@ -272,7 +381,7 @@ export default function AdminUsersPage() {
                       onChange={(e) => updatePermission(selectedUser.id, 'can_moderate_events', e.target.checked)}
                       className="w-5 h-5 cursor-pointer"
                     />
-                    <label htmlFor="moderate-events" className="cursor-pointer">Can moderate events (edit/delete ANY event)</label>
+                    <label htmlFor="moderate-events" className="cursor-pointer">Can moderate events (edit/delete any)</label>
                   </div>
                 </div>
               </div>
@@ -295,7 +404,7 @@ export default function AdminUsersPage() {
                     <div className="ml-8">
                       <label className="block text-sm mb-1">Maximum alert level:</label>
                       <select
-                        value={selectedUser.alert_level_permission}
+                        value={(selectedUser as any).alert_level_permission || 'none'}
                         onChange={(e) => updatePermission(selectedUser.id, 'alert_level_permission', e.target.value)}
                         className="px-4 py-2 border rounded-lg"
                       >
@@ -309,99 +418,7 @@ export default function AdminUsersPage() {
                   )}
                 </div>
               </div>
-
-              {/* Other Permissions */}
-              <div className="border-t pt-4">
-                <h3 className="font-bold mb-3">Other Permissions</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-post"
-                      checked={selectedUser.can_post || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_post', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-post" className="cursor-pointer">Can post to forums</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-comment"
-                      checked={selectedUser.can_comment || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_comment', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-comment" className="cursor-pointer">Can comment/reply</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-rsvp"
-                      checked={selectedUser.can_rsvp || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_rsvp', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-rsvp" className="cursor-pointer">Can RSVP to events</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-edit-dir"
-                      checked={selectedUser.can_edit_directory || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_edit_directory', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-edit-dir" className="cursor-pointer">Can edit directory</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-send-msgs"
-                      checked={selectedUser.can_send_messages || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_send_messages', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-send-msgs" className="cursor-pointer">Can send private messages</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="can-receive-msgs"
-                      checked={selectedUser.can_receive_messages || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_receive_messages', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="can-receive-msgs" className="cursor-pointer">Can receive private messages</label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ban */}
-              <div className="border-t pt-4">
-                <h3 className="font-bold mb-3 text-red-600">Forum Access</h3>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="is-banned"
-                    checked={selectedUser.is_banned || false}
-                    onChange={(e) => updatePermission(selectedUser.id, 'is_banned', e.target.checked)}
-                    className="w-5 h-5 cursor-pointer"
-                  />
-                  <label htmlFor="is-banned" className="font-medium text-red-600 cursor-pointer">Ban from Forum (COMPLETE lockout - cannot access at all)</label>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 ml-8">
-                  Banned users cannot view, read, or post in the forum. Other site features remain accessible.
-                </p>
-              </div>
             </div>
-
-            <button
-              onClick={() => setSelectedUserId(null)}
-              className="mt-6 w-full bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-            >
-              Done
-            </button>
           </div>
         </div>
       )}
