@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.3.0 - Bottom navigation on ALL pages (including landing page)
+// v3.2.0 - Emergency alerts ONLY on landing page (removed from other tabs)
 // Date: 2024-12-10
 'use client';
 
@@ -166,38 +166,10 @@ export default function HomePage() {
 
   if (activeTab === 'landing') {
     return (
-      <div className="flex flex-col min-h-screen bg-gabriola-sand/10">
+      <>
         <EmergencyAlertBanner />
-        <main className="flex-1 overflow-auto">
-          <LandingPage onNavigate={handleNavigateFromLanding} />
-        </main>
-
-        {/* Bottom Navigation */}
-        <nav className="bg-white border-t-2 border-gabriola-green/20 shadow-lg">
-          <div className="flex justify-around items-center h-20 max-w-screen-xl mx-auto px-4">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = false; // Landing page, no tab is active
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
-                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
-                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
-                  </div>
-                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      </div>
+        <LandingPage onNavigate={handleNavigateFromLanding} />
+      </>
     );
   }
 
