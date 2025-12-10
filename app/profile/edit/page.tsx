@@ -1,4 +1,7 @@
 // app/profile/edit/page.tsx
+// Version: 2.0.0 - Added notification preferences for alerts
+// Date: 2024-12-10
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Camera, Image as ImageIcon, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Save, Camera, Image as ImageIcon, Loader2, X, Bell, Mail, MessageSquare, Smartphone } from 'lucide-react';
 
 export default function ProfileEditPage() {
   const { user, loading: authLoading } = useUser();
@@ -18,6 +21,7 @@ export default function ProfileEditPage() {
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -26,6 +30,12 @@ export default function ProfileEditPage() {
   const [showEmail, setShowEmail] = useState(false);
   const [showLocation, setShowLocation] = useState(true);
   const [showInDirectory, setShowInDirectory] = useState(true);
+  
+  // Notification preferences
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
+  const [notifyPush, setNotifyPush] = useState(true);
+  const [alertSubscriptions, setAlertSubscriptions] = useState<string[]>(['warning', 'emergency']);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +64,7 @@ export default function ProfileEditPage() {
       setUsername(data.username || '');
       setBio(data.bio || '');
       setPostalCode(data.postal_code || '');
+      setPhoneNumber(data.phone_number || '');
       setProfilePhoto(data.profile_photo || '');
       setProfilePhotoPreview(data.profile_photo || null);
       setAvatarUrl(data.avatar_url || '');
@@ -62,6 +73,12 @@ export default function ProfileEditPage() {
       setShowEmail(data.show_email || false);
       setShowLocation(data.show_location !== false);
       setShowInDirectory(data.show_in_directory !== false);
+      
+      // Load notification preferences
+      setNotifyEmail(data.notify_email !== false);
+      setNotifySms(data.notify_sms || false);
+      setNotifyPush(data.notify_push !== false);
+      setAlertSubscriptions(data.alert_subscriptions || ['warning', 'emergency']);
     }
     setLoading(false);
   };
@@ -102,6 +119,14 @@ export default function ProfileEditPage() {
     }
   };
 
+  const toggleAlertLevel = (level: string) => {
+    if (alertSubscriptions.includes(level)) {
+      setAlertSubscriptions(alertSubscriptions.filter(l => l !== level));
+    } else {
+      setAlertSubscriptions([...alertSubscriptions, level]);
+    }
+  };
+
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim()) {
       alert('Please enter your first and last name');
@@ -118,12 +143,18 @@ export default function ProfileEditPage() {
         username: username.trim() || null,
         bio: bio.trim() || null,
         postal_code: postalCode.trim() || null,
+        phone_number: phoneNumber.trim() || null,
         profile_photo: profilePhoto || null,
         avatar_url: avatarUrl || null,
         profile_visibility: profileVisibility,
         show_email: showEmail,
         show_location: showLocation,
         show_in_directory: showInDirectory,
+        // Notification preferences
+        notify_email: notifyEmail,
+        notify_sms: notifySms,
+        notify_push: notifyPush,
+        alert_subscriptions: alertSubscriptions,
       })
       .eq('id', user!.id);
 
@@ -202,10 +233,10 @@ export default function ProfileEditPage() {
             {/* Avatar */}
             <div>
               <label className="block font-bold text-gray-900 mb-3">
-                Avatar (Icon)
+                Avatar
               </label>
               <p className="text-sm text-gray-600 mb-4">
-                Small icon used in forum posts and messages (max 5MB)
+                Small icon shown next to your posts and comments (max 5MB)
               </p>
               <div className="flex items-center gap-6">
                 {avatarPreview ? (
@@ -213,11 +244,11 @@ export default function ProfileEditPage() {
                     <img
                       src={avatarPreview}
                       alt="Avatar"
-                      className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                      className="w-16 h-16 rounded-full object-cover border-4 border-gray-200"
                     />
                     <button
                       onClick={() => { setAvatarUrl(''); setAvatarPreview(null); }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                      className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -227,7 +258,7 @@ export default function ProfileEditPage() {
                     {firstName.charAt(0) || '?'}
                   </div>
                 )}
-                <label className="flex items-center gap-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-bold cursor-pointer hover:bg-gray-200">
+                <label className="flex items-center gap-3 px-6 py-3 bg-gabriola-green text-white rounded-lg font-bold cursor-pointer hover:bg-gabriola-green-dark">
                   <ImageIcon className="w-5 h-5" />
                   Upload Avatar
                   <input
@@ -240,67 +271,63 @@ export default function ProfileEditPage() {
               </div>
             </div>
 
-            <hr />
-
-            {/* First Name */}
-            <div>
-              <label className="block font-bold text-gray-900 mb-2">
-                First Name *
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={e => setFirstName(e.target.value)}
-                placeholder="First name"
-                required
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-              />
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label className="block font-bold text-gray-900 mb-2">
-                Last Name *
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={e => setLastName(e.target.value)}
-                placeholder="Last name"
-                required
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-              />
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold text-gray-900 mb-2">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={e => setFirstName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-900 mb-2">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  required
+                />
+              </div>
             </div>
 
             {/* Username */}
             <div>
               <label className="block font-bold text-gray-900 mb-2">
-                Username (optional)
+                Username
               </label>
+              <p className="text-sm text-gray-600 mb-2">
+                Optional - appears in your profile URL
+              </p>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="username"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                placeholder="your-username"
               />
             </div>
 
             {/* Bio */}
             <div>
               <label className="block font-bold text-gray-900 mb-2">
-                Bio / About Me
+                Bio
               </label>
               <textarea
                 value={bio}
                 onChange={e => setBio(e.target.value)}
-                placeholder="Tell the community about yourself..."
-                rows={5}
+                rows={4}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent resize-none"
+                placeholder="Tell us about yourself..."
               />
-              <p className="text-sm text-gray-500 mt-2">
-                {bio.length} / 500 characters
-              </p>
             </div>
 
             {/* Postal Code */}
@@ -308,25 +335,44 @@ export default function ProfileEditPage() {
               <label className="block font-bold text-gray-900 mb-2">
                 Postal Code
               </label>
+              <p className="text-sm text-gray-600 mb-2">
+                For resident verification (V0R 1X for Gabriola)
+              </p>
               <input
                 type="text"
                 value={postalCode}
                 onChange={e => setPostalCode(e.target.value)}
-                placeholder="V0R 1X0"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                placeholder="V0R 1X0"
+                maxLength={7}
               />
             </div>
 
-            <hr />
+            {/* Phone Number */}
+            <div>
+              <label className="block font-bold text-gray-900 mb-2">
+                Phone Number
+              </label>
+              <p className="text-sm text-gray-600 mb-2">
+                Optional - for SMS notifications
+              </p>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={e => setPhoneNumber(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                placeholder="(250) 555-1234"
+              />
+            </div>
 
             {/* Privacy Settings */}
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Privacy Settings</h3>
+            <div className="border-t-2 pt-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Privacy Settings</h2>
 
               {/* Profile Visibility */}
               <div className="mb-6">
                 <label className="block font-bold text-gray-900 mb-3">
-                  Who can view your profile?
+                  Profile Visibility
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -417,6 +463,168 @@ export default function ProfileEditPage() {
                   </div>
                 </div>
               </label>
+            </div>
+
+            {/* Notification Preferences */}
+            <div className="border-t-2 pt-8">
+              <div className="flex items-center gap-3 mb-6">
+                <Bell className="w-8 h-8 text-gabriola-green" />
+                <h2 className="text-2xl font-bold text-gray-900">Notification Preferences</h2>
+              </div>
+
+              <p className="text-gray-600 mb-6">
+                Choose how you want to receive community alerts and notifications
+              </p>
+
+              {/* Notification Methods */}
+              <div className="space-y-3 mb-6">
+                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={notifyEmail}
+                    onChange={e => setNotifyEmail(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                      Email Notifications
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Receive alerts and updates via email
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={notifySms}
+                    onChange={e => setNotifySms(e.target.checked)}
+                    disabled={!phoneNumber.trim()}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <MessageSquare className="w-5 h-5 text-green-600" />
+                      SMS Notifications
+                      {!phoneNumber.trim() && (
+                        <span className="text-xs text-orange-600 font-normal">(Add phone number above)</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Receive urgent alerts via text message
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={notifyPush}
+                    onChange={e => setNotifyPush(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <Smartphone className="w-5 h-5 text-purple-600" />
+                      Browser Notifications
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Show notifications in your browser
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Alert Level Subscriptions */}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-orange-600" />
+                  Alert Level Subscriptions
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Select which alert levels you want to receive notifications for:
+                </p>
+                
+                <div className="space-y-2">
+                  <label className="flex items-start gap-3 p-3 bg-white border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50">
+                    <input
+                      type="checkbox"
+                      checked={alertSubscriptions.includes('info')}
+                      onChange={() => toggleAlertLevel('info')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-bold text-blue-700">
+                        🔵 Info - Community Notices
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        General community announcements, events, reminders
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 bg-white border-2 border-yellow-200 rounded-lg cursor-pointer hover:bg-yellow-50">
+                    <input
+                      type="checkbox"
+                      checked={alertSubscriptions.includes('advisory')}
+                      onChange={() => toggleAlertLevel('advisory')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-bold text-yellow-700">
+                        🟡 Advisory - Be Aware
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Weather advisories, road conditions, service updates
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 bg-white border-2 border-orange-300 rounded-lg cursor-pointer hover:bg-orange-50">
+                    <input
+                      type="checkbox"
+                      checked={alertSubscriptions.includes('warning')}
+                      onChange={() => toggleAlertLevel('warning')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-bold text-orange-700">
+                        🟠 Warning - Take Action
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Severe weather, power outages, ferry disruptions
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 bg-white border-2 border-red-300 rounded-lg cursor-pointer hover:bg-red-50">
+                    <input
+                      type="checkbox"
+                      checked={alertSubscriptions.includes('emergency')}
+                      onChange={() => toggleAlertLevel('emergency')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-bold text-red-700">
+                        🔴 Emergency - Life Safety
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Evacuations, wildfires, tsunamis, medical emergencies
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {alertSubscriptions.length === 0 && (
+                  <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                    <p className="text-sm text-red-800 font-medium">
+                      ⚠️ You won't receive any alert notifications. We recommend subscribing to at least Warning and Emergency alerts.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Save Button */}
