@@ -1,6 +1,6 @@
 // Path: components/BBS.tsx
-// Version: 3.1.1 - Fixed: Pass defaultCategoryId instead of defaultCategory
-// Date: 2024-12-10
+// Version: 3.1.0 - Expandable hierarchical categories
+// Date: 2024-12-09
 
 'use client';
 
@@ -266,11 +266,7 @@ export default function BBS() {
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
             <CreateThread 
               currentUser={user} 
-              defaultCategoryId={
-                activeCategory === 'all' 
-                  ? undefined 
-                  : categories.find(cat => cat.slug === activeCategory)?.id
-              }
+              defaultCategory={activeCategory === 'all' ? 'general' : activeCategory}
               onSuccess={handlePostCreated} 
             />
             <button 
