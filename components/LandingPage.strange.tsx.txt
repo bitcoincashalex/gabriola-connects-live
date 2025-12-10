@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.4.0 - Prettier navigation icons with glass-morphism backgrounds
+// v2.3.2 - Mobile-optimized navigation (fits on one line)
 // Date: 2024-12-10
 'use client';
 
@@ -144,54 +144,54 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </p>
 
           {/* Quick Navigation Icons */}
-          <div className="flex justify-center items-center gap-3 sm:gap-5 mt-6">
+          <div className="flex justify-center items-center gap-2 sm:gap-4 mt-4">
             <button
               onClick={() => onNavigate('calendar')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all shadow-lg group"
+              className="flex items-center gap-1 text-white hover:text-gabriola-green-light transition-colors group"
             >
               <Calendar className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-sm font-semibold whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.5)'
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
               }}>Events</span>
             </button>
 
             <button
               onClick={() => onNavigate('forum')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all shadow-lg group"
+              className="flex items-center gap-1 text-white hover:text-gabriola-ocean-light transition-colors group"
             >
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-sm font-semibold whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.5)'
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
               }}>Forum</span>
             </button>
 
             <button
               onClick={() => onNavigate('directory')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all shadow-lg group"
+              className="flex items-center gap-1 text-white hover:text-purple-300 transition-colors group"
             >
               <Book className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-sm font-semibold whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.5)'
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
               }}>Directory</span>
             </button>
 
             <button
               onClick={() => onNavigate('ferry')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all shadow-lg group"
+              className="flex items-center gap-1 text-white hover:text-teal-300 transition-colors group"
             >
               <Anchor className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-sm font-semibold whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.5)'
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
               }}>Ferry</span>
             </button>
 
             <button
               onClick={() => window.location.href = '/alerts'}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all shadow-lg group"
+              className="flex items-center gap-1 text-white hover:text-amber-300 transition-colors group"
             >
               <Bell className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-              <span className="text-xs sm:text-sm font-semibold whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.5)'
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 4px rgba(0,0,0,0.8)'
               }}>Alerts</span>
             </button>
           </div>

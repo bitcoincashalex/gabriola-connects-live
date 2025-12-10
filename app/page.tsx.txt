@@ -1,10 +1,8 @@
 // app/page.tsx
-// v3.1.1 - Fixed TypeScript error (created_at/updated_at as strings)
-// Date: 2024-12-10
+// v3.0 - Dec 8, 2025 - Add emergency alerts + hide forum for banned users
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import LandingPage from '@/components/LandingPage';
 import Calendar from '@/components/Calendar';
 import BBS from '@/components/BBS';
@@ -20,32 +18,9 @@ type Tab = 'landing' | 'calendar' | 'forum' | 'directory' | 'ferry' | 'search';
 
 export default function HomePage() {
   const { user } = useUser();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('landing');
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
-
-  // Read URL hash on mount and when hash changes
-  useEffect(() => {
-    const readHashAndSetTab = () => {
-      const hash = window.location.hash.slice(1); // Remove '#'
-      if (hash && ['calendar', 'forum', 'directory', 'ferry', 'search'].includes(hash)) {
-        setActiveTab(hash as Tab);
-      } else {
-        setActiveTab('landing');
-      }
-    };
-
-    // Read initial hash
-    readHashAndSetTab();
-
-    // Listen for hash changes (back/forward button)
-    window.addEventListener('hashchange', readHashAndSetTab);
-    
-    return () => {
-      window.removeEventListener('hashchange', readHashAndSetTab);
-    };
-  }, []);
 
   // Fetch events when calendar tab is active
   useEffect(() => {
@@ -123,35 +98,43 @@ export default function HomePage() {
         // Media
         image_url: event.image_url,
         
-        // Metadata
-        created_at: event.created_at || new Date().toISOString(),
-        updated_at: event.updated_at || new Date().toISOString(),
+        // Status
+        status: event.status,
         is_approved: event.is_approved,
-        is_featured: event.is_featured || false,
-        tags: event.tags || [],
+        is_featured: event.is_featured,
+        cancelled_at: event.cancelled_at,
+        cancellation_reason: event.cancellation_reason,
+        postponed_from_date: event.postponed_from_date ? new Date(event.postponed_from_date) : undefined,
+        weather_dependent: event.weather_dependent,
+        
+        // Source
+        source_name: event.source_name,
+        source_url: event.source_url,
+        source_type: event.source_type,
+        external_event_id: event.external_event_id,
+        external_calendar_url: event.external_calendar_url,
+        last_synced_at: event.last_synced_at,
+        
+        // Search
+        tags: event.tags,
+        keywords: event.keywords,
+        
+        // Metadata
+        created_by: event.created_by,
+        created_at: event.created_at,
+        updated_at: event.updated_at,
       }));
 
       setEvents(formattedEvents);
-    } catch (err) {
-      console.error('Error fetching events:', err);
+    } catch (error) {
+      console.error('Error fetching events:', error);
     } finally {
       setEventsLoading(false);
     }
   };
 
   const handleNavigateFromLanding = (tab: string) => {
-    // Update URL hash (which triggers hashchange event and sets activeTab)
-    window.location.hash = tab;
-  };
-
-  const handleTabClick = (tab: Tab) => {
-    if (tab === 'landing') {
-      // Clear hash for landing page
-      window.location.hash = '';
-    } else {
-      // Set hash for other tabs
-      window.location.hash = tab;
-    }
+    setActiveTab(tab as Tab);
   };
 
   // Build tabs array - hide forum for banned users
@@ -196,7 +179,7 @@ export default function HomePage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
                   isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
                 }`}
