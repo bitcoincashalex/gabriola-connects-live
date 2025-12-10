@@ -1,5 +1,5 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 2.0.0 - Proper like/unlike with tracking, blocks own posts
+// Version: 2.1.0 - Add Send Message button to author
 // Date: 2024-12-09
 
 'use client';
@@ -9,10 +9,11 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, Heart, Flag } from 'lucide-react';
+import { ArrowLeft, Loader2, Heart, Flag, Mail } from 'lucide-react';
 import ReplyForm from '@/components/ReplyForm';
 import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
+import SendMessageModal from '@/components/SendMessageModal';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -24,6 +25,7 @@ export default function ThreadPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [isOwnPost, setIsOwnPost] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   useEffect(() => {
     fetchThread();
@@ -148,6 +150,9 @@ export default function ThreadPage() {
     setRefreshKey(prev => prev + 1);
   };
 
+  // Check if we can message the author
+  const canMessageAuthor = user && !thread?.is_anonymous && !isOwnPost;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -198,9 +203,22 @@ export default function ThreadPage() {
           {/* Title */}
           <h1 className="text-4xl font-bold text-gray-900 mb-4">{thread.title}</h1>
 
-          {/* Meta Info */}
+          {/* Meta Info with Send Message Button */}
           <div className="flex flex-wrap items-center gap-3 text-gray-600 mb-6 text-sm">
             <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
+            
+            {/* Send Message Button */}
+            {canMessageAuthor && (
+              <button
+                onClick={() => setShowMessageModal(true)}
+                className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                title="Send private message"
+              >
+                <Mail className="w-3 h-3" />
+                Message
+              </button>
+            )}
+            
             {thread.is_anonymous && (
               <span className="bg-gray-200 px-2 py-1 rounded text-xs">🕶️ Anonymous</span>
             )}
@@ -301,6 +319,16 @@ export default function ThreadPage() {
         {/* Reply Form */}
         <ReplyForm postId={params.id as string} onSuccess={handleReplySuccess} />
       </div>
+
+      {/* Send Message Modal */}
+      {showMessageModal && canMessageAuthor && (
+        <SendMessageModal
+          recipientId={thread.user_id}
+          recipientName={thread.display_name || 'Anonymous'}
+          currentUserId={user!.id}
+          onClose={() => setShowMessageModal(false)}
+        />
+      )}
     </div>
   );
 }

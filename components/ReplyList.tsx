@@ -1,12 +1,16 @@
-// components/ReplyList.tsx
+// Path: components/ReplyList.tsx
+// Version: 2.0.0 - Add Send Message button to replies
+// Date: 2024-12-09
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, ThumbsUp, Flag, Trash2, Loader2, Reply } from 'lucide-react';
+import { MessageSquare, ThumbsUp, Flag, Trash2, Loader2, Reply, Mail } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 import ReplyForm from '@/components/ReplyForm';
+import SendMessageModal from '@/components/SendMessageModal';
 
 interface Reply {
   id: string;
@@ -35,6 +39,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [messagingUser, setMessagingUser] = useState<{ id: string; name: string } | null>(null);
 
   const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
 
@@ -144,6 +149,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const ReplyItem = ({ reply, depth = 0 }: { reply: Reply; depth?: number }) => {
     const canDelete = isAdmin || reply.user_id === user?.id;
     const isReplying = replyingTo === reply.id;
+    const canMessage = user && !reply.is_anonymous && reply.user_id !== user.id;
 
     return (
       <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200' : ''}`}>
@@ -159,9 +165,22 @@ export default function ReplyList({ postId, onRefresh }: Props) {
             </button>
           )}
 
-          {/* Author & Time */}
-          <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
+          {/* Author & Time with Send Message */}
+          <div className="flex items-center gap-3 text-sm text-gray-600 mb-3 flex-wrap">
             <span className="font-medium text-gabriola-green">{reply.display_name}</span>
+            
+            {/* Send Message Button */}
+            {canMessage && (
+              <button
+                onClick={() => setMessagingUser({ id: reply.user_id, name: reply.display_name })}
+                className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                title="Send private message"
+              >
+                <Mail className="w-3 h-3" />
+                Message
+              </button>
+            )}
+            
             {reply.is_anonymous && (
               <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
             )}
@@ -261,10 +280,22 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      {replies.map(reply => (
-        <ReplyItem key={reply.id} reply={reply} />
-      ))}
-    </div>
+    <>
+      <div className="space-y-4">
+        {replies.map(reply => (
+          <ReplyItem key={reply.id} reply={reply} />
+        ))}
+      </div>
+
+      {/* Send Message Modal */}
+      {messagingUser && user && (
+        <SendMessageModal
+          recipientId={messagingUser.id}
+          recipientName={messagingUser.name}
+          currentUserId={user.id}
+          onClose={() => setMessagingUser(null)}
+        />
+      )}
+    </>
   );
 }
