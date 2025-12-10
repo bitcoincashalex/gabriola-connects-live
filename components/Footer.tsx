@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v2.0 - Bottom navigation + footer links combined
+// v2.1 - Fixed navigation from standalone pages (redirects to home with hash)
 // Date: 2024-12-10
 
 'use client';
@@ -18,14 +18,11 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
 
   const handleTabClick = (tab: string) => {
     if (onNavigate) {
+      // If onNavigate provided (on main page.tsx), use it
       onNavigate(tab);
     } else {
-      // Fallback: use hash navigation
-      if (tab === 'landing') {
-        window.location.hash = '';
-      } else {
-        window.location.hash = tab;
-      }
+      // On standalone pages, navigate to home with hash
+      window.location.href = `/#${tab}`;
     }
   };
 
