@@ -1,5 +1,5 @@
 // Path: components/AuthProvider.tsx
-// Version: 2.0.2 - Added fetch guard to prevent concurrent profile fetches
+// Version: 2.0.3 - Added timeout to each retry attempt for mobile reliability
 // Date: 2024-12-09
 
 'use client';
@@ -25,8 +25,8 @@ async function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promi
   ]);
 }
 
-// Helper to poll for profile after signin/signup
-async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200): Promise<any> {
+// Helper to poll for profile after signin/signup with timeout on EACH attempt
+async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200, attemptTimeoutMs = 3000): Promise<any> {
   console.log(`🔄 Starting profile fetch for ${userId}, max ${maxAttempts} attempts`);
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -35,23 +35,38 @@ async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
     
-    console.log(`🔍 Profile fetch attempt ${attempt + 1}/${maxAttempts}`);
+    console.log(`🔍 Profile fetch attempt ${attempt + 1}/${maxAttempts} (${attemptTimeoutMs}ms timeout)`);
     
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (error) {
-      console.log(`⚠️ Attempt ${attempt + 1} error:`, error.message, error.code);
-    }
-    
-    if (data) {
-      console.log(`✅ Profile found on attempt ${attempt + 1}:`, data.full_name);
-      return { data, error: null };
-    } else {
-      console.log(`❌ Attempt ${attempt + 1}: Profile not found yet`);
+    try {
+      // Add timeout to THIS specific attempt
+      const result = await fetchWithTimeout(
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single(),
+        attemptTimeoutMs
+      );
+      
+      const { data, error } = result;
+      
+      if (error) {
+        console.log(`⚠️ Attempt ${attempt + 1} error:`, error.message, error.code);
+      }
+      
+      if (data) {
+        console.log(`✅ Profile found on attempt ${attempt + 1}:`, data.full_name);
+        return { data, error: null };
+      } else {
+        console.log(`❌ Attempt ${attempt + 1}: Profile not found yet`);
+      }
+    } catch (err: any) {
+      if (err.message === 'Request timeout') {
+        console.log(`⏱️ Attempt ${attempt + 1}: TIMEOUT after ${attemptTimeoutMs}ms`);
+        // Continue to next attempt
+      } else {
+        console.log(`💥 Attempt ${attempt + 1}: Exception:`, err.message);
+      }
     }
   }
   
@@ -87,13 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const startTime = Date.now();
             const result = await fetchWithTimeout(
-              Promise.resolve(
-                supabase
-                  .from('users')
-                  .select('*')
-                  .eq('id', session.user.id)
-                  .single()
-              ),
+              supabase
+                .from('users')
+                .select('*')
+                .eq('id', session.user.id)
+                .single(),
               5000
             );
             
@@ -122,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               try {
                 const result = await fetchWithTimeout(
-                  Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
+                  supabase.from('users').select('*').eq('id', session.user.id).single(),
                   5000
                 );
                 
@@ -187,26 +200,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('🔄 SIGNED_IN detected - using smart retry...');
             fetchingRef.current = true; // Set guard
             
-            const startTime = Date.now();
-            const result = await fetchProfileWithRetry(session.user.id, 5, 200);
-            
-            fetchingRef.current = false; // Clear guard
+            try {
+              const startTime = Date.now();
+              // Use 3 second timeout per attempt for mobile reliability
+              const result = await fetchProfileWithRetry(session.user.id, 5, 200, 3000);
+              
+              const elapsed = Date.now() - startTime;
+              console.log(`🔵 Profile fetch took ${elapsed}ms total`);
+              
+              if (result.data) {
+                console.log('🔵 Profile result: FOUND');
+                setUser(result.data);
+              } else {
+                console.log('🔵 Profile result: NOT FOUND after retries');
+                console.error('💥 CRITICAL: User signed in but no profile exists!');
+                console.error('💥 User ID:', session.user.id);
+                console.error('💥 This means the database trigger did not fire or failed');
+                setUser(null);
+              }
+            } finally {
+              fetchingRef.current = false; // Always clear guard
+            }
             
             if (!mounted) return;
-            
-            const elapsed = Date.now() - startTime;
-            console.log(`🔵 Profile fetch took ${elapsed}ms`);
-            
-            if (result.data) {
-              console.log('🔵 Profile result: FOUND');
-              setUser(result.data);
-            } else {
-              console.log('🔵 Profile result: NOT FOUND after retries');
-              console.error('💥 CRITICAL: User signed in but no profile exists!');
-              console.error('💥 User ID:', session.user.id);
-              console.error('💥 This means the database trigger did not fire or failed');
-              setUser(null);
-            }
           } else {
             // For other events (INITIAL_SESSION, etc), profile should exist
             fetchingRef.current = true; // Set guard
@@ -214,11 +230,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               const startTime = Date.now();
               const result = await fetchWithTimeout(
-                Promise.resolve(supabase.from('users').select('*').eq('id', session.user.id).single()),
+                supabase.from('users').select('*').eq('id', session.user.id).single(),
                 5000
               );
-              
-              fetchingRef.current = false; // Clear guard
               
               if (!mounted) return;
               
@@ -231,8 +245,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               setUser(userProfile);
             } catch (err: any) {
-              fetchingRef.current = false; // Clear guard on error
-              
               if (!mounted) return;
               
               if (err.message === 'Request timeout') {
@@ -240,6 +252,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               } else {
                 console.error('💥 Exception in listener:', err);
               }
+            } finally {
+              fetchingRef.current = false; // Always clear guard
             }
           }
         } else {
