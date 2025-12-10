@@ -1,12 +1,15 @@
 // Path: components/ThreadCard.tsx
-// Version: 2.0.0 - Show like count in summary view
-// Date: 2024-12-09
+// Version: 2.1.0 - Show like count with proper red/gray heart state
+// Date: 2024-12-10
+
+'use client';
 
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, Pin, Trash2, Heart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
+import { useEffect, useState } from 'react';
 
 export default function ThreadCard({ 
   thread, 
@@ -20,6 +23,28 @@ export default function ThreadCard({
   const { user } = useUser();
   const isAdmin = user?.is_super_admin || user?.role === 'admin';
   const isPinned = thread.global_pinned === true;
+  const [hasLiked, setHasLiked] = useState(false);
+
+  // Check if current user has liked this thread
+  useEffect(() => {
+    const checkIfLiked = async () => {
+      if (!user) {
+        setHasLiked(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('bbs_post_likes')
+        .select('id')
+        .eq('post_id', thread.id)
+        .eq('user_id', user.id)
+        .single();
+
+      setHasLiked(!!data);
+    };
+
+    checkIfLiked();
+  }, [user, thread.id]);
 
   const handlePin = async () => {
     const { error } = await supabase
@@ -103,14 +128,14 @@ export default function ThreadCard({
               {thread.reply_count || 0}
             </span>
 
-            {/* Like count - NEW! */}
-            <span className="flex items-center gap-2">
-              <Heart className="w-4 h-4" />
+            {/* Like count with red/gray heart based on liked state */}
+            <span className={`flex items-center gap-2 ${hasLiked ? 'text-red-600' : ''}`}>
+              <Heart className={`w-4 h-4 ${hasLiked ? 'fill-current' : ''}`} />
               {thread.like_count || 0}
             </span>
 
             {/* Category badge */}
-            <span className="px-3 py-1 bg-gray-100 rounded-full">
+            <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-600">
               {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
             </span>
           </div>

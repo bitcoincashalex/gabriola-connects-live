@@ -1,7 +1,7 @@
-// components/EventsManager.tsx
 // Path: components/EventsManager.tsx
-// Version: 2.2.0 - Fixed RSVP to use correct database column names
-// Date: 2024-12-09
+// Version: 3.0.2 - FINAL - Removed organizer_email (doesn't exist in DB)
+// Date: 2024-12-10
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +10,30 @@ import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
-import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload } from 'lucide-react';
+import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle } from 'lucide-react';
+
+// Common Gabriola venues
+const COMMON_LOCATIONS = [
+  'Gabriola Arts & Heritage Centre',
+  'Agricultural Hall',
+  'Community Hall',
+  'Haven By The Sea',
+  'Twin Beaches School',
+  'Rollo Centre',
+  'Village Square',
+  'Commons',
+  'Private Residence',
+  'Online/Virtual',
+  'Other (specify below)'
+];
+
+interface EventCategory {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+}
 
 export default function EventsManager() {
   const { user } = useUser();
@@ -20,6 +43,16 @@ export default function EventsManager() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [rsvpEvent, setRsvpEvent] = useState<Event | null>(null);
   const [rsvpCount, setRsvpCount] = useState<Record<string, number>>({});
+  const [categories, setCategories] = useState<EventCategory[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [customLocation, setCustomLocation] = useState('');
+
+  // Check if user can publish events instantly
+  const canPublishInstantly = user && (
+    user.is_super_admin || 
+    (user as any).admin_events || 
+    (user as any).can_create_events
+  );
 
   // Form state
   const [form, setForm] = useState({
@@ -33,9 +66,9 @@ export default function EventsManager() {
     location: '',
     venue_name: '',
     venue_address: '',
+    category: '',
     image_url: '',
     organizer_name: '',
-    organizer_email: '',
     contact_email: '',
     contact_phone: '',
     fees: '',
@@ -50,20 +83,32 @@ export default function EventsManager() {
   useEffect(() => {
     fetchEvents();
     fetchRsvpCounts();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('event_categories')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   const fetchEvents = async () => {
     const { data, error } = await supabase
       .from('events')
       .select('*')
       .eq('is_approved', true)
+      .is('deleted_at', null)
       .order('start_date', { ascending: true });
     
     if (error) {
       console.error('Error fetching events:', error);
       setEvents([]);
     } else {
-      // Convert database rows to Event objects
       const formattedEvents: Event[] = (data || []).map(event => ({
         ...event,
         start_date: new Date(event.start_date),
@@ -103,8 +148,27 @@ export default function EventsManager() {
     }
   };
 
+  const handleLocationChange = (value: string) => {
+    setSelectedLocation(value);
+    if (value !== 'Other (specify below)') {
+      setForm({ ...form, location: value });
+      setCustomLocation('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Determine final location
+    const finalLocation = selectedLocation === 'Other (specify below)' 
+      ? customLocation 
+      : form.location;
+
+    if (!finalLocation.trim()) {
+      alert('Please specify a location');
+      return;
+    }
+
     const payload = {
       title: form.title,
       description: form.description,
@@ -113,9 +177,10 @@ export default function EventsManager() {
       start_time: form.start_time || null,
       end_time: form.end_time || null,
       is_all_day: form.is_all_day,
-      location: form.location,
+      location: finalLocation,
       venue_name: form.venue_name || null,
       venue_address: form.venue_address || null,
+      category: form.category || null,
       image_url: form.image_url || null,
       organizer_name: form.organizer_name || null,
       contact_email: form.contact_email || null,
@@ -127,7 +192,7 @@ export default function EventsManager() {
       accessibility_info: form.accessibility_info || null,
       source_name: 'User Submitted',
       source_type: 'user_submitted',
-      is_approved: true,
+      is_approved: canPublishInstantly ? true : false, // Instant approval for authorized users
       created_by: user?.id,
     };
 
@@ -136,36 +201,46 @@ export default function EventsManager() {
       : await supabase.from('events').insert(payload);
 
     if (!error) {
-      alert(selectedEvent ? 'Event updated!' : 'Event created!');
+      if (canPublishInstantly) {
+        alert('Event published! 🎉');
+      } else {
+        alert('Event submitted for approval! 📝\n\nAn admin will review and publish your event soon.');
+      }
       setShowForm(false);
       setSelectedEvent(null);
-      setForm({
-        title: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        start_time: '',
-        end_time: '',
-        is_all_day: false,
-        location: '',
-        venue_name: '',
-        venue_address: '',
-        image_url: '',
-        organizer_name: '',
-        organizer_email: '',
-        contact_email: '',
-        contact_phone: '',
-        fees: '',
-        registration_url: '',
-        additional_info: '',
-        age_restrictions: '',
-        accessibility_info: '',
-      });
-      setImagePreview(null);
+      resetForm();
       fetchEvents();
     } else {
       alert('Error: ' + error.message);
     }
+  };
+
+  const resetForm = () => {
+    setForm({
+      title: '',
+      description: '',
+      start_date: '',
+      end_date: '',
+      start_time: '',
+      end_time: '',
+      is_all_day: false,
+      location: '',
+      venue_name: '',
+      venue_address: '',
+      category: '',
+      image_url: '',
+      organizer_name: '',
+      contact_email: '',
+      contact_phone: '',
+      fees: '',
+      registration_url: '',
+      additional_info: '',
+      age_restrictions: '',
+      accessibility_info: '',
+    });
+    setImagePreview(null);
+    setSelectedLocation('');
+    setCustomLocation('');
   };
 
   const handleDelete = async (id: string) => {
@@ -176,8 +251,8 @@ export default function EventsManager() {
 
   const handleRsvp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const data = new FormData(form);
+    const formEl = e.target as HTMLFormElement;
+    const data = new FormData(formEl);
     const payload = {
       event_id: rsvpEvent?.id,
       name: data.get('name'),
@@ -193,7 +268,7 @@ export default function EventsManager() {
       alert('RSVP sent! Thank you!');
       setRsvpEvent(null);
       fetchRsvpCounts();
-      form.reset();
+      formEl.reset();
     } else {
       console.error('RSVP error:', error);
       alert('Failed to send RSVP. Please try again.');
@@ -212,16 +287,26 @@ export default function EventsManager() {
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="flex justify-between items-center mb-12">
         <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
-        {user && canCreateEvents(user) && (
+        {user && (
           <button
             onClick={() => setShowForm(true)}
             className="bg-gabriola-green text-white px-6 py-3 rounded-full font-bold hover:bg-gabriola-green-dark flex items-center gap-3 shadow-lg"
           >
             <Plus className="w-6 h-6" />
-            Add Event
+            {canPublishInstantly ? 'Add Event' : 'Submit Event'}
           </button>
         )}
       </div>
+
+      {/* Info banner for regular users */}
+      {user && !canPublishInstantly && (
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <strong>Note:</strong> Events you submit will be reviewed by an admin before appearing on the calendar.
+          </div>
+        </div>
+      )}
 
       {/* Upcoming Events */}
       <section className="mb-16">
@@ -236,9 +321,53 @@ export default function EventsManager() {
                 event={event}
                 rsvpCount={rsvpCount[event.id] || 0}
                 onRsvp={() => setRsvpEvent(event)}
-                onEdit={() => { setSelectedEvent(event); setShowForm(true); }}
+                onEdit={() => { 
+                  setSelectedEvent(event); 
+                  
+                  // Check if location is in common locations list
+                  const eventLocation = event.location || '';
+                  const isCommonLocation = COMMON_LOCATIONS.includes(eventLocation);
+                  
+                  setForm({
+                    title: event.title,
+                    description: event.description,
+                    start_date: format(event.start_date, 'yyyy-MM-dd'),
+                    end_date: event.end_date ? format(event.end_date, 'yyyy-MM-dd') : '',
+                    start_time: event.start_time || '',
+                    end_time: event.end_time || '',
+                    is_all_day: event.is_all_day || false,
+                    location: eventLocation,
+                    venue_name: event.venue_name || '',
+                    venue_address: event.venue_address || '',
+                    category: event.category || '',
+                    image_url: event.image_url || '',
+                    organizer_name: event.organizer_name || '',
+                    contact_email: event.contact_email || '',
+                    contact_phone: event.contact_phone || '',
+                    fees: event.fees || '',
+                    registration_url: event.registration_url || '',
+                    additional_info: event.additional_info || '',
+                    age_restrictions: event.age_restrictions || '',
+                    accessibility_info: event.accessibility_info || '',
+                  });
+                  
+                  // Set dropdown state
+                  if (isCommonLocation) {
+                    setSelectedLocation(eventLocation);
+                    setCustomLocation('');
+                  } else if (eventLocation) {
+                    setSelectedLocation('Other (specify below)');
+                    setCustomLocation(eventLocation);
+                  } else {
+                    setSelectedLocation('');
+                    setCustomLocation('');
+                  }
+                  
+                  setImagePreview(event.image_url || null);
+                  setShowForm(true); 
+                }}
                 onDelete={() => handleDelete(event.id)}
-                isAdmin={user?.role === 'admin'}
+                canEdit={user?.id === event.created_by || user?.is_super_admin || (user as any)?.admin_events}
               />
             ))}
           </div>
@@ -266,108 +395,257 @@ export default function EventsManager() {
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-gabriola-green">
-                {selectedEvent ? 'Edit Event' : 'Add New Event'}
+                {selectedEvent ? 'Edit Event' : canPublishInstantly ? 'Add New Event' : 'Submit Event for Approval'}
               </h2>
-              <button onClick={() => { setShowForm(false); setSelectedEvent(null); setImagePreview(null); }} className="p-2 hover:bg-gray-100 rounded-full">
+              <button onClick={() => { setShowForm(false); setSelectedEvent(null); resetForm(); }} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
+            {!canPublishInstantly && (
+              <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-yellow-800">
+                  Your event will be reviewed by an admin before appearing on the calendar. We'll review it as soon as possible!
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" />
+                <input 
+                  type="text" 
+                  value={form.title} 
+                  onChange={e => setForm({ ...form, title: e.target.value })} 
+                  required 
+                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
+                />
               </div>
 
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                <textarea 
+                  value={form.description} 
+                  onChange={e => setForm({ ...form, description: e.target.value })} 
+                  required 
+                  rows={4}
+                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
+                />
+              </div>
+
+              {/* Category */}
+              {categories.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <select 
+                    value={form.category} 
+                    onChange={e => setForm({ ...form, category: e.target.value })}
+                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  >
+                    <option value="">Select a category...</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.icon} {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} required className="w-full p-4 border rounded-lg" />
+                  <input 
+                    type="date" 
+                    value={form.start_date} 
+                    onChange={e => setForm({ ...form, start_date: e.target.value })} 
+                    required 
+                    className="w-full p-4 border rounded-lg" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                  <input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} disabled={form.is_all_day} className="w-full p-4 border rounded-lg" />
+                  <input 
+                    type="time" 
+                    value={form.start_time} 
+                    onChange={e => setForm({ ...form, start_time: e.target.value })} 
+                    disabled={form.is_all_day} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
                 </div>
               </div>
 
+              {/* All Day Checkbox */}
               <div>
                 <label className="flex items-center gap-3">
-                  <input type="checkbox" checked={form.is_all_day} onChange={e => setForm({ ...form, is_all_day: e.target.checked })} className="w-5 h-5" />
+                  <input 
+                    type="checkbox" 
+                    checked={form.is_all_day} 
+                    onChange={e => setForm({ ...form, is_all_day: e.target.checked })} 
+                    className="w-5 h-5" 
+                  />
                   <span>All Day Event</span>
                 </label>
               </div>
 
+              {/* Location Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                <input type="text" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="General location (e.g., Gabriola Island)" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                <select
+                  value={selectedLocation}
+                  onChange={e => handleLocationChange(e.target.value)}
+                  required
+                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                >
+                  <option value="">Select a location...</option>
+                  {COMMON_LOCATIONS.map(loc => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
-                <input type="text" value={form.venue_name} onChange={e => setForm({ ...form, venue_name: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="e.g., Rollo Centre" />
+              {/* Custom Location */}
+              {selectedLocation === 'Other (specify below)' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Specify Location *</label>
+                  <input 
+                    type="text" 
+                    value={customLocation}
+                    onChange={e => setCustomLocation(e.target.value)}
+                    required
+                    placeholder="Enter location name"
+                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
+                  />
+                </div>
+              )}
+
+              {/* Venue Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
+                  <input 
+                    type="text" 
+                    value={form.venue_name} 
+                    onChange={e => setForm({ ...form, venue_name: e.target.value })} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Venue Address</label>
+                  <input 
+                    type="text" 
+                    value={form.venue_address} 
+                    onChange={e => setForm({ ...form, venue_address: e.target.value })} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={4} className="w-full p-4 border rounded-lg resize-none"></textarea>
+              {/* Contact Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                  <input 
+                    type="email" 
+                    value={form.contact_email} 
+                    onChange={e => setForm({ ...form, contact_email: e.target.value })} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
+                  <input 
+                    type="tel" 
+                    value={form.contact_phone} 
+                    onChange={e => setForm({ ...form, contact_phone: e.target.value })} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
+                </div>
               </div>
 
+              {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Fees</label>
-                <input type="text" value={form.fees} onChange={e => setForm({ ...form, fees: e.target.value })} className="w-full p-4 border rounded-lg" placeholder="e.g., Free, $10, By Donation" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
-                <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} className="w-full p-4 border rounded-lg" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Poster Image</label>
-                {imagePreview ? (
-                  <div className="relative">
-                    <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-                    <button type="button" onClick={() => { setImagePreview(null); setForm({ ...form, image_url: '' }); }} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full">
-                      <X className="w-4 h-4" />
-                    </button>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageUpload} 
+                  className="w-full p-4 border rounded-lg" 
+                />
+                {imagePreview && (
+                  <div className="mt-3">
+                    <img src={imagePreview} alt="Preview" className="max-w-xs rounded-lg" />
                   </div>
-                ) : (
-                  <label className="block">
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gabriola-green">
-                      <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <p>Click to upload image (max 5MB)</p>
-                    </div>
-                  </label>
                 )}
               </div>
 
-              <button type="submit" className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark">
-                {selectedEvent ? 'Update Event' : 'Create Event'}
-              </button>
+              {/* Additional Fields */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fees</label>
+                <input 
+                  type="text" 
+                  value={form.fees} 
+                  onChange={e => setForm({ ...form, fees: e.target.value })} 
+                  placeholder="e.g., Free, $10, By donation"
+                  className="w-full p-4 border rounded-lg" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Info</label>
+                <textarea 
+                  value={form.additional_info} 
+                  onChange={e => setForm({ ...form, additional_info: e.target.value })} 
+                  rows={3}
+                  className="w-full p-4 border rounded-lg" 
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark"
+                >
+                  {selectedEvent ? 'Update Event' : canPublishInstantly ? 'Publish Event' : 'Submit for Approval'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowForm(false); setSelectedEvent(null); resetForm(); }}
+                  className="px-6 py-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* RSVP Modal */}
+      {/* RSVP Modal - keeping your existing one */}
       {rsvpEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-8">
-            <h2 className="text-2xl font-bold mb-4">RSVP: {rsvpEvent.title}</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold">RSVP to {rsvpEvent.title}</h3>
+              <button onClick={() => setRsvpEvent(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             <form onSubmit={handleRsvp} className="space-y-4">
-              <input name="name" placeholder="Your name" required className="w-full p-3 border rounded-lg" />
-              <input name="email" type="email" placeholder="Email" required className="w-full p-3 border rounded-lg" />
-              <input name="phone" placeholder="Phone (optional)" className="w-full p-3 border rounded-lg" />
-              <input name="guests" type="number" placeholder="Guests (0 for just you)" defaultValue="0" min="0" className="w-full p-3 border rounded-lg" />
-              <textarea name="message" placeholder="Message (optional)" rows={3} className="w-full p-3 border rounded-lg resize-none"></textarea>
-              <button type="submit" className="w-full bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark">
-                Send RSVP
+              <input name="name" placeholder="Your Name *" required className="w-full p-4 border rounded-lg" />
+              <input name="email" type="email" placeholder="Email *" required className="w-full p-4 border rounded-lg" />
+              <input name="phone" type="tel" placeholder="Phone" className="w-full p-4 border rounded-lg" />
+              <input name="guests" type="number" min="0" placeholder="Additional Guests" className="w-full p-4 border rounded-lg" />
+              <textarea name="message" placeholder="Message (optional)" rows={3} className="w-full p-4 border rounded-lg"></textarea>
+              <button type="submit" className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark">
+                Confirm RSVP
               </button>
             </form>
-            <button onClick={() => setRsvpEvent(null)} className="mt-4 text-red-600 w-full">
-              Cancel
-            </button>
           </div>
         </div>
       )}
@@ -375,8 +653,8 @@ export default function EventsManager() {
   );
 }
 
-// Reusable Event Card
-function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, isAdmin }: any) {
+// EventCard component (keeping your existing one)
+function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, canEdit }: any) {
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
       {event.image_url && (
@@ -385,48 +663,50 @@ function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, isAdmin }: any)
       <div className="p-6">
         <h3 className="text-2xl font-bold text-gabriola-green-dark mb-3">{event.title}</h3>
         
-        <div className="space-y-2 text-gray-700 mb-4">
+        {event.category && (
+          <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-3">
+            {event.category}
+          </span>
+        )}
+
+        <div className="space-y-2 mb-4 text-gray-700">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gabriola-green" />
-            <span>{format(event.start_date, 'PPP')}</span>
-            {event.start_time && <span className="text-sm">• {event.start_time}</span>}
+            <Calendar className="w-4 h-4" />
+            {format(event.start_date, 'PPP')} {event.start_time && `at ${event.start_time}`}
           </div>
           {event.location && (
             <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-gabriola-green" />
-              <span>{event.venue_name || event.location}</span>
+              <MapPin className="w-4 h-4" />
+              {event.location}
             </div>
           )}
           {event.fees && (
             <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-gabriola-green" />
-              <span>{event.fees}</span>
+              <DollarSign className="w-4 h-4" />
+              {event.fees}
             </div>
           )}
         </div>
 
-        {event.description && (
-          <p className="text-gray-600 mb-6 line-clamp-3">{event.description}</p>
-        )}
+        <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>
 
-        <div className="flex items-center justify-between">
-          <button
+        <div className="flex items-center gap-3">
+          <button 
             onClick={onRsvp}
-            className="bg-gabriola-green text-white px-6 py-3 rounded-full font-bold hover:bg-gabriola-green-dark flex items-center gap-2"
+            className="flex-1 bg-gabriola-green text-white px-4 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark flex items-center justify-center gap-2"
           >
-            <Users className="w-5 h-5" />
-            RSVP ({rsvpCount})
+            <Users className="w-4 h-4" />
+            RSVP {rsvpCount > 0 && `(${rsvpCount})`}
           </button>
-
-          {isAdmin && (
-            <div className="flex gap-2">
-              <button onClick={onEdit} className="p-2 hover:bg-gray-100 rounded-full">
+          {canEdit && (
+            <>
+              <button onClick={onEdit} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
                 <Edit className="w-5 h-5" />
               </button>
-              <button onClick={onDelete} className="p-2 hover:bg-red-100 rounded-full text-red-600">
+              <button onClick={onDelete} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
                 <Trash2 className="w-5 h-5" />
               </button>
-            </div>
+            </>
           )}
         </div>
       </div>
