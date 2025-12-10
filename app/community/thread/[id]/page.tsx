@@ -1,4 +1,7 @@
-// app/community/thread/[id]/page.tsx
+// Path: app/community/thread/[id]/page.tsx
+// Version: 2.0.0 - Proper like/unlike with tracking, blocks own posts
+// Date: 2024-12-09
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +9,7 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, ThumbsUp, Flag } from 'lucide-react';
+import { ArrowLeft, Loader2, Heart, Flag } from 'lucide-react';
 import ReplyForm from '@/components/ReplyForm';
 import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
@@ -19,6 +22,8 @@ export default function ThreadPage() {
   const [error, setError] = useState(false);
   const [replyCount, setReplyCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasLiked, setHasLiked] = useState(false);
+  const [isOwnPost, setIsOwnPost] = useState(false);
 
   useEffect(() => {
     fetchThread();
@@ -27,6 +32,13 @@ export default function ThreadPage() {
     // Track view with IP
     trackView(params.id as string, 'post');
   }, [params.id, refreshKey]);
+
+  useEffect(() => {
+    if (user && thread) {
+      checkIfLiked();
+      setIsOwnPost(thread.user_id === user.id);
+    }
+  }, [user, thread]);
 
   const trackView = async (postId: string, type: 'post' | 'reply' = 'post') => {
     try {
@@ -65,6 +77,70 @@ export default function ThreadPage() {
       .eq('is_active', true);
 
     setReplyCount(count || 0);
+  };
+
+  const checkIfLiked = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('bbs_post_likes')
+      .select('id')
+      .eq('post_id', params.id)
+      .eq('user_id', user.id)
+      .single();
+
+    setHasLiked(!!data);
+  };
+
+  const handleLikeToggle = async () => {
+    if (!user) {
+      alert('Sign in to like threads');
+      return;
+    }
+
+    if (isOwnPost) {
+      alert('You cannot like your own post');
+      return;
+    }
+
+    try {
+      if (hasLiked) {
+        // Unlike - delete the like
+        const { error } = await supabase
+          .from('bbs_post_likes')
+          .delete()
+          .eq('post_id', params.id)
+          .eq('user_id', user.id);
+
+        if (!error) {
+          setHasLiked(false);
+          fetchThread(); // Refresh to get updated like_count
+        }
+      } else {
+        // Like - insert a like
+        const { error } = await supabase
+          .from('bbs_post_likes')
+          .insert({
+            post_id: params.id,
+            user_id: user.id,
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            // Unique constraint violation - already liked
+            alert('You already liked this post');
+          } else {
+            console.error('Like error:', error);
+            alert('Failed to like post');
+          }
+        } else {
+          setHasLiked(true);
+          fetchThread(); // Refresh to get updated like_count
+        }
+      }
+    } catch (err) {
+      console.error('Like toggle error:', err);
+    }
   };
 
   const handleReplySuccess = () => {
@@ -176,22 +252,21 @@ export default function ThreadPage() {
             {/* Like and Report buttons */}
             <div className="flex items-center gap-3">
               <button
-                onClick={async () => {
-                  if (!user) {
-                    alert('Sign in to like threads');
-                    return;
-                  }
-                  await supabase
-                    .from('bbs_posts')
-                    .update({ like_count: (thread.like_count || 0) + 1 })
-                    .eq('id', params.id);
-                  fetchThread();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gabriola-green hover:text-white rounded-lg transition"
+                onClick={handleLikeToggle}
+                disabled={isOwnPost}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                  isOwnPost
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : hasLiked
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                    : 'bg-gray-100 hover:bg-red-100 hover:text-red-600'
+                }`}
+                title={isOwnPost ? 'Cannot like own post' : hasLiked ? 'Unlike' : 'Like'}
               >
-                <ThumbsUp className="w-4 h-4" />
-                Like
+                <Heart className={`w-4 h-4 ${hasLiked ? 'fill-current' : ''}`} />
+                {hasLiked ? 'Liked' : 'Like'}
               </button>
+              
               <button
                 onClick={async () => {
                   if (!user) {

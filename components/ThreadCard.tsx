@@ -1,7 +1,10 @@
-// components/ThreadCard.tsx
+// Path: components/ThreadCard.tsx
+// Version: 2.0.0 - Show like count in summary view
+// Date: 2024-12-09
+
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, Pin, Trash2 } from 'lucide-react';
+import { MessageSquare, Pin, Trash2, Heart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 
@@ -93,11 +96,20 @@ export default function ThreadCard({
             <span>{formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}</span>
           </div>
 
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-6 text-sm text-gray-600">
+            {/* Reply count */}
             <span className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
-              {thread.reply_count || 0} replies
+              {thread.reply_count || 0}
             </span>
+
+            {/* Like count - NEW! */}
+            <span className="flex items-center gap-2">
+              <Heart className="w-4 h-4" />
+              {thread.like_count || 0}
+            </span>
+
+            {/* Category badge */}
             <span className="px-3 py-1 bg-gray-100 rounded-full">
               {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
             </span>
