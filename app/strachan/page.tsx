@@ -15,7 +15,7 @@ export default function StrachanPage() {
             />
           </div>
           <h1 className="text-4xl font-display font-bold mb-2 text-center">
-            The Strachan Family
+            The Strachan Famil
           </h1>
           
           <p className="text-gabriola-sand/90 text-lg text-center">
