@@ -1,6 +1,6 @@
 // components/EventsManager.tsx
 // Path: components/EventsManager.tsx
-// Version: 2.2.0 - Fixed RSVP to use correct database column names
+// Version: 2.1.0 - Fixed Add Event button permissions
 // Date: 2024-12-09
 'use client';
 
@@ -78,10 +78,10 @@ export default function EventsManager() {
   const fetchRsvpCounts = async () => {
     const { data } = await supabase
       .from('event_rsvps')
-      .select('event_id, guest_count');
+      .select('event_id, guests');
     const counts: Record<string, number> = {};
     data?.forEach(r => {
-      counts[r.event_id] = (counts[r.event_id] || 0) + 1 + (r.guest_count || 0);
+      counts[r.event_id] = (counts[r.event_id] || 0) + 1 + (r.guests || 0);
     });
     setRsvpCount(counts);
   };
@@ -183,8 +183,8 @@ export default function EventsManager() {
       name: data.get('name'),
       email: data.get('email'),
       phone: data.get('phone'),
-      guest_count: Number(data.get('guests') || 0),
-      notes: data.get('message'),
+      guests: Number(data.get('guests') || 0),
+      message: data.get('message'),
       user_id: user?.id || null,
     };
 
@@ -194,9 +194,6 @@ export default function EventsManager() {
       setRsvpEvent(null);
       fetchRsvpCounts();
       form.reset();
-    } else {
-      console.error('RSVP error:', error);
-      alert('Failed to send RSVP. Please try again.');
     }
   };
 
