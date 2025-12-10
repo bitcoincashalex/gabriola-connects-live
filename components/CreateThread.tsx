@@ -1,5 +1,5 @@
 // Path: components/CreateThread.tsx
-// Version: 2.0.0 - Accept defaultCategory prop from parent
+// Version: 2.1.0 - Use category_id from database lookup
 // Date: 2024-12-09
 
 'use client';
@@ -11,7 +11,7 @@ import { Image, Link2, X } from 'lucide-react';
 
 interface Props {
   currentUser: User;
-  defaultCategory?: string;  // NEW: Default category from parent
+  defaultCategory?: string;  // Category slug (e.g., 'general', 'politics-us')
   onSuccess: () => void;
 }
 
@@ -25,7 +25,7 @@ const categories = [
 export default function CreateThread({ currentUser, defaultCategory = 'general', onSuccess }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState(defaultCategory);  // Use prop instead of 'general'
+  const [category, setCategory] = useState(defaultCategory);
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -62,19 +62,15 @@ export default function CreateThread({ currentUser, defaultCategory = 'general',
         return;
       }
 
+      // Read file as base64
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImageUrl(result);
-        setImagePreview(result);
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setImageUrl(base64);
+        setImagePreview(base64);
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const removeImage = () => {
-    setImageUrl('');
-    setImagePreview(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,28 +79,51 @@ export default function CreateThread({ currentUser, defaultCategory = 'general',
 
     setLoading(true);
 
-    const { error } = await supabase.from('bbs_posts').insert({
-      title: title.trim(),
-      body: content.trim(),
-      category,
-      link_url: linkUrl.trim() || null,
-      image_url: imageUrl || null,
-      user_id: currentUser.id,
-      display_name: displayName,
-      is_anonymous: isAnonymous,
-    });
+    try {
+      // STEP 1: Look up category_id from slug
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('bbs_categories')
+        .select('id')
+        .eq('slug', category)
+        .single();
 
-    if (!error) {
-      setTitle('');
-      setContent('');
-      setLinkUrl('');
-      setImageUrl('');
-      setImagePreview(null);
-      setIsAnonymous(false);
-      onSuccess();
-    } else {
-      alert('Error: ' + error.message);
+      if (categoryError || !categoryData) {
+        alert('Error: Invalid category selected');
+        setLoading(false);
+        return;
+      }
+
+      // STEP 2: Insert post with category_id
+      const { error: insertError } = await supabase.from('bbs_posts').insert({
+        title: title.trim(),
+        body: content.trim(),
+        category_id: categoryData.id,  // ✅ Use UUID from database
+        category: category,             // ✅ Keep text field for backwards compatibility (trigger will sync)
+        link_url: linkUrl.trim() || null,
+        image_url: imageUrl || null,
+        user_id: currentUser.id,
+        display_name: displayName,
+        is_anonymous: isAnonymous,
+      });
+
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        alert('Error creating thread: ' + insertError.message);
+      } else {
+        // Success - clear form
+        setTitle('');
+        setContent('');
+        setLinkUrl('');
+        setImageUrl('');
+        setImagePreview(null);
+        setIsAnonymous(false);
+        onSuccess();
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('An unexpected error occurred');
     }
+
     setLoading(false);
   };
 
@@ -118,112 +137,98 @@ export default function CreateThread({ currentUser, defaultCategory = 'general',
         placeholder="Title..." 
         value={title} 
         onChange={e => setTitle(e.target.value)} 
-        required 
-        className="w-full p-4 border-2 border-gray-200 rounded-lg text-lg font-medium focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+        className="w-full p-4 border rounded-lg text-lg focus:ring-2 focus:ring-gabriola-green"
+        required
       />
+
+      {/* Category Dropdown */}
+      <select 
+        value={category} 
+        onChange={e => setCategory(e.target.value)}
+        className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+      >
+        {categories.map(cat => (
+          <option key={cat} value={cat}>
+            {cat.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+          </option>
+        ))}
+      </select>
 
       {/* Content */}
       <textarea 
-        placeholder="Your message..." 
+        placeholder="What's on your mind?" 
         value={content} 
         onChange={e => setContent(e.target.value)} 
-        rows={8} 
-        required 
-        className="w-full p-4 border-2 border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+        className="w-full p-4 border rounded-lg min-h-[150px] focus:ring-2 focus:ring-gabriola-green"
+        required
       />
 
-      {/* URL Link */}
-      <div className="relative">
-        <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      {/* Link URL */}
+      <div className="flex items-center gap-3">
+        <Link2 className="w-5 h-5 text-gray-500" />
         <input 
           type="url" 
           placeholder="Add a link (optional)" 
           value={linkUrl} 
-          onChange={e => setLinkUrl(e.target.value)} 
-          className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent" 
+          onChange={e => setLinkUrl(e.target.value)}
+          className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
         />
       </div>
 
       {/* Image Upload */}
-      <div>
-        <label className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gabriola-green hover:bg-gabriola-green/5 transition">
-          <Image className="w-6 h-6 text-gray-400" />
-          <div className="flex-1">
-            <p className="font-medium text-gray-700">Add an image (optional)</p>
-            <p className="text-sm text-gray-500">Max 25MB • JPG, PNG, GIF, WebP</p>
-          </div>
-          <input 
-            type="file" 
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden" 
-          />
-        </label>
-
-        {/* Image Preview */}
-        {imagePreview && (
-          <div className="mt-4 relative">
-            <img 
-              src={imagePreview} 
-              alt="Preview" 
-              className="max-w-full h-auto rounded-lg border-2 border-gray-200"
-              style={{ maxHeight: '400px' }}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Image className="w-5 h-5 text-gray-500" />
+          <label className="flex-1 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 focus-within:ring-2 focus-within:ring-gabriola-green">
+            <span className="text-gray-600">{imagePreview ? 'Change image' : 'Upload an image (optional)'}</span>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
             />
+          </label>
+        </div>
+        {imagePreview && (
+          <div className="relative">
+            <img src={imagePreview} alt="Preview" className="max-h-64 rounded-lg" />
             <button
               type="button"
-              onClick={removeImage}
-              className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition shadow-lg"
+              onClick={() => {
+                setImageUrl('');
+                setImagePreview(null);
+              }}
+              className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
 
-      {/* Category and Anonymous */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-          <select 
-            value={category} 
-            onChange={e => setCategory(e.target.value)} 
-            className="w-full p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-          >
-            {categories.map(c => (
-              <option key={c} value={c}>
-                {c.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Anonymous Toggle */}
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input 
+          type="checkbox" 
+          checked={isAnonymous} 
+          onChange={e => setIsAnonymous(e.target.checked)}
+          className="w-5 h-5"
+        />
+        <span className="text-gray-700">Post anonymously as "Island Neighbour"</span>
+      </label>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Privacy</label>
-          <label className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-            <input 
-              type="checkbox" 
-              checked={isAnonymous} 
-              onChange={e => setIsAnonymous(e.target.checked)} 
-              className="w-5 h-5" 
-            />
-            <span className="font-medium">Post anonymously</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Preview Name */}
-      <div className="p-4 bg-gabriola-green/5 border-2 border-gabriola-green/20 rounded-lg">
-        <p className="text-sm text-gray-600 mb-1">Your post will appear as:</p>
-        <p className="font-bold text-gabriola-green text-lg">{displayName}</p>
+      {/* Preview Display Name */}
+      <div className="text-sm text-gray-600">
+        Posting as: <strong>{displayName}</strong>
       </div>
 
       {/* Submit */}
       <button 
         type="submit" 
-        disabled={loading} 
-        className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-60 transform hover:scale-[1.02] active:scale-[0.98]"
+        disabled={loading || !title.trim() || !content.trim()}
+        className="w-full py-4 bg-gabriola-green text-white rounded-lg font-bold text-lg hover:bg-gabriola-green-dark transition disabled:bg-gray-400"
       >
-        {loading ? 'Creating...' : 'Create Thread'}
+        {loading ? 'Posting...' : 'Post to Forum'}
       </button>
     </form>
   );
