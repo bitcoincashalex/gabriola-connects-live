@@ -1,9 +1,22 @@
-// components/ReplyItem.tsx — looks amazing on phones
+// Path: components/ReplyItem.tsx
+// Version: 2.0.0 - Limit nesting depth on mobile to prevent off-screen content
+// Date: 2024-12-09
+
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ReplyItem({ reply, depth }: { reply: any; depth: number }) {
+  // Calculate indentation based on depth
+  // Mobile: Cap at level 2 (32px total indentation)
+  // Desktop: Allow deeper nesting
+  const getIndentClass = () => {
+    if (depth === 0) return '';
+    if (depth === 1) return 'ml-4 pl-4 border-l-4 border-gray-200';
+    // Depth 2+: Stop increasing indent on mobile, continue on desktop
+    return 'ml-8 md:ml-' + Math.min(depth * 4, 16) + ' pl-4 border-l-4 border-gray-300';
+  };
+  
   return (
-    <div className={`${depth > 0 ? 'ml-4 pl-4 border-l-4 border-gray-200' : ''}`}>
+    <div className={getIndentClass()}>
       <div className="bg-white rounded-xl shadow-sm p-5 my-4">
         <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
           <span className="font-medium">{reply.display_name}</span>

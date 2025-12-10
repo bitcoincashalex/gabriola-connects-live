@@ -1,4 +1,7 @@
-// components/CreateThread.tsx
+// Path: components/CreateThread.tsx
+// Version: 2.0.0 - Accept defaultCategory prop from parent
+// Date: 2024-12-09
+
 'use client';
 
 import { useState } from 'react';
@@ -8,6 +11,7 @@ import { Image, Link2, X } from 'lucide-react';
 
 interface Props {
   currentUser: User;
+  defaultCategory?: string;  // NEW: Default category from parent
   onSuccess: () => void;
 }
 
@@ -18,10 +22,10 @@ const categories = [
   'gardening-farming', 'arts-culture', 'spirituality', 'off-topic'
 ];
 
-export default function CreateThread({ currentUser, onSuccess }: Props) {
+export default function CreateThread({ currentUser, defaultCategory = 'general', onSuccess }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState(defaultCategory);  // Use prop instead of 'general'
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);

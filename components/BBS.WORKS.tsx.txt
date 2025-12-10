@@ -1,48 +1,33 @@
-// Path: components/BBS.tsx
-// Version: 3.0.0 - Fetch categories from database, support hierarchy
-// Date: 2024-12-09
-
+// components/BBS.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
-import { supabase } from '@/lib/supabase';
 import CreateThread from './CreateThread';
 import ThreadList from './ThreadList';
 import { Plus, AlertCircle, Ban } from 'lucide-react';
 import Link from 'next/link';
 
+const categories = [
+  { id: 'all', name: 'All Posts' },
+  { id: 'general', name: 'General' },
+  { id: 'events', name: 'Events' },
+  { id: 'buy-sell', name: 'Buy & Sell' },
+  { id: 'ferry', name: 'Ferry' },
+  { id: 'politics-canada', name: 'Politics – Canada' },
+  { id: 'politics-us', name: 'Politics – US' },
+  { id: 'politics-world', name: 'Politics – World' },
+  { id: 'politics-local', name: 'Politics – Local' },
+  { id: 'environment', name: 'Environment' },
+  { id: 'housing', name: 'Housing' },
+  { id: 'health', name: 'Health' },
+];
+
 export default function BBS() {
   const { user } = useUser();
-  const [categories, setCategories] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // Fetch categories from database
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    const { data, error } = await supabase
-      .from('bbs_categories')
-      .select('*')
-      .eq('is_active', true)
-      .eq('is_archived', false)
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching categories:', error);
-      return;
-    }
-
-    // Add "All Posts" pseudo-category at the beginning
-    setCategories([
-      { id: 'all', slug: 'all', name: 'All Posts', parent_id: null },
-      ...(data || [])
-    ]);
-  };
 
   if (!user) {
     return (
@@ -183,10 +168,10 @@ export default function BBS() {
           <div className="flex flex-wrap gap-3">
             {categories.map(cat => (
               <button
-                key={cat.slug}
-                onClick={() => setActiveCategory(cat.slug)}
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
                 className={`px-6 py-3 rounded-full font-medium transition ${
-                  activeCategory === cat.slug
+                  activeCategory === cat.id
                     ? 'bg-gabriola-green text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
@@ -205,11 +190,7 @@ export default function BBS() {
       {showCreateModal && canCreatePost && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <CreateThread 
-              currentUser={user} 
-              defaultCategory={activeCategory === 'all' ? 'general' : activeCategory}
-              onSuccess={handlePostCreated} 
-            />
+            <CreateThread currentUser={user} onSuccess={handlePostCreated} />
             <button 
               onClick={() => setShowCreateModal(false)} 
               className="mt-6 w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
