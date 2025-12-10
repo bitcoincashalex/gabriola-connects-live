@@ -1,5 +1,5 @@
 // Path: components/AuthProvider.tsx
-// Version: 2.0.4 - Fixed TypeScript Promise wrapping for mobile timeout fix
+// Version: 2.0.5 - Adaptive timeout (5s for first attempts, 3s for retries) for desktop speed
 // Date: 2024-12-09
 
 'use client';
@@ -26,7 +26,7 @@ async function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promi
 }
 
 // Helper to poll for profile after signin/signup with timeout on EACH attempt
-async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200, attemptTimeoutMs = 3000): Promise<any> {
+async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 200): Promise<any> {
   console.log(`🔄 Starting profile fetch for ${userId}, max ${maxAttempts} attempts`);
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -34,6 +34,10 @@ async function fetchProfileWithRetry(userId: string, maxAttempts = 5, delayMs = 
       console.log(`⏳ Waiting ${delayMs}ms before attempt ${attempt + 1}...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
+    
+    // Use longer timeout for first attempts (desktop needs this)
+    // Use shorter timeout for later attempts (mobile recovery)
+    const attemptTimeoutMs = attempt < 3 ? 5000 : 3000;
     
     console.log(`🔍 Profile fetch attempt ${attempt + 1}/${maxAttempts} (${attemptTimeoutMs}ms timeout)`);
     
@@ -206,8 +210,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             try {
               const startTime = Date.now();
-              // Use 3 second timeout per attempt for mobile reliability
-              const result = await fetchProfileWithRetry(session.user.id, 5, 200, 3000);
+              // Adaptive timeout: 5s for first 3 attempts, 3s for last 2
+              const result = await fetchProfileWithRetry(session.user.id, 5, 200);
               
               const elapsed = Date.now() - startTime;
               console.log(`🔵 Profile fetch took ${elapsed}ms total`);
