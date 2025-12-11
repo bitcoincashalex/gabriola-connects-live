@@ -22,29 +22,17 @@ export function ForumWidget() {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        // Count active discussions (posts from last 30 days)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Call public function (works for anon users too)
+        const { data, error } = await supabase.rpc('get_forum_stats');
 
-        const { count } = await supabase
-          .from('bbs_posts')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', thirtyDaysAgo.toISOString())
-          .is('deleted_at', null);
+        if (error) {
+          console.error('Error loading forum stats:', error);
+          return;
+        }
 
-        setActiveCount(count || 0);
-
-        // Get latest post
-        const { data: latest } = await supabase
-          .from('bbs_posts')
-          .select('id, title, created_at')
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (latest) {
-          setLatestPost(latest);
+        if (data) {
+          setActiveCount(data.activeCount || 0);
+          setLatestPost(data.latestPost || null);
         }
       } catch (error) {
         console.error('Error loading forum stats:', error);
