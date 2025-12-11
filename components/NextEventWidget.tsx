@@ -28,22 +28,43 @@ export function NextEventWidget() {
         const today = format(now, 'yyyy-MM-dd');
         const currentTime = format(now, 'HH:mm:ss');
 
-        const { data, error } = await supabase
+        // Try to get events happening later TODAY
+        let { data, error } = await supabase
           .from('events')
           .select('id, title, start_date, start_time, location')
           .eq('is_approved', true)
           .is('deleted_at', null)
-          .or(`start_date.gt.${today},and(start_date.eq.${today},start_time.gt.${currentTime})`)
-          .order('start_date', { ascending: true })
+          .eq('start_date', today)
+          .gt('start_time', currentTime)
           .order('start_time', { ascending: true })
-          .limit(1)
-          .single();
+          .limit(1);
 
-        if (!error && data) {
-          setNextEvent(data);
+        // If no events later today, get first event from tomorrow onwards
+        if (!data || data.length === 0) {
+          const result = await supabase
+            .from('events')
+            .select('id, title, start_date, start_time, location')
+            .eq('is_approved', true)
+            .is('deleted_at', null)
+            .gt('start_date', today)
+            .order('start_date', { ascending: true })
+            .order('start_time', { ascending: true })
+            .limit(1);
+          
+          data = result.data;
+          error = result.error;
         }
+
+        if (error) {
+          console.error('Error loading next event:', error);
+          setNextEvent(null);
+          return;
+        }
+
+        setNextEvent(data && data.length > 0 ? data[0] : null);
       } catch (error) {
         console.error('Error loading next event:', error);
+        setNextEvent(null);
       } finally {
         setIsLoading(false);
       }
