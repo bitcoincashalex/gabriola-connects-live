@@ -1,6 +1,6 @@
 // app/page.tsx
-// v3.4.0 - Moved navigation to Footer component (shows on all pages)
-// Date: 2024-12-10
+// v3.5.0 - Fixed time sorting in fetchEvents query
+// Date: 2025-12-11
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -61,7 +61,8 @@ export default function HomePage() {
         .from('events')
         .select('*')
         .eq('is_approved', true)
-        .order('start_date', { ascending: true });
+        .order('start_date', { ascending: true })
+        .order('start_time', { ascending: true });  // FIX: Added time sorting
 
       if (error) throw error;
 

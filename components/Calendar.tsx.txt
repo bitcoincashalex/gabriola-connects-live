@@ -1,6 +1,6 @@
 // Path: components/Calendar.tsx
-// Version: 2.2.0 - Fixed time sorting in eventsForSelectedDate
-// Date: 2025-12-11
+// Version: 2.1.0 - Fixed React Hooks rules violation (moved useState before early return)
+// Date: 2024-12-09
 // components/Calendar.tsx — FULLY RESTORED, FULLY WORKING, NO GAPS
 'use client';
 
@@ -101,16 +101,9 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   }, [events]);
 
   const eventsForSelectedDate = useMemo(() => {
-    return events
-      .filter(event => 
-        event.start_date.toDateString() === selectedDate.toDateString()
-      )
-      .sort((a, b) => {
-        // Sort by time - handle all-day events and missing times
-        const timeA = a.start_time || '00:00:00';
-        const timeB = b.start_time || '00:00:00';
-        return timeA.localeCompare(timeB);
-      });
+    return events.filter(event => 
+      event.start_date.toDateString() === selectedDate.toDateString()
+    );
   }, [events, selectedDate]);
 
   const handleSelectSlot = ({ start }: { start: Date }) => {

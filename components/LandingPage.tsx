@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.7.0 - Added NextFerryWidget to Ferry card
+// v2.8.0 - Added NextEventWidget, DirectoryWidget, and ForumWidget
 // Date: 2025-12-11
 'use client';
 
@@ -8,6 +8,9 @@ import { Calendar, MessageSquare, Book, Anchor, Bell, AlertTriangle, Users, User
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { NextFerryWidget } from '@/components/NextFerryWidget';
+import { NextEventWidget } from '@/components/NextEventWidget';
+import { DirectoryWidget } from '@/components/DirectoryWidget';
+import { ForumWidget } from '@/components/ForumWidget';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -246,7 +249,25 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                     {card.description}
                   </p>
 
-                  {/* Add NextFerryWidget ONLY to Ferry card */}
+                  {/* Add widgets for each card */}
+                  {card.id === 'calendar' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <NextEventWidget />
+                    </div>
+                  )}
+                  
+                  {card.id === 'forum' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <ForumWidget />
+                    </div>
+                  )}
+                  
+                  {card.id === 'directory' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <DirectoryWidget />
+                    </div>
+                  )}
+                  
                   {card.id === 'ferry' && (
                     <div className="mt-3 pt-3 border-t border-white/30">
                       <NextFerryWidget />

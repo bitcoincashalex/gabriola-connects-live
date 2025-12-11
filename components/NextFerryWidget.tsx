@@ -80,24 +80,24 @@ export function NextFerryWidget() {
   }
 
   return (
-    <div className="text-xs space-y-0.5">
+    <div className="text-xs space-y-1">
       {fromGabriola ? (
         <div className="text-white">
-          <span className="font-medium">Gabriola:</span> {fromGabriola.time}
+          <span className="font-semibold">Departs Gabriola:</span> {fromGabriola.time}
         </div>
       ) : (
         <div className="text-white/70">
-          <span className="font-medium">Gabriola:</span> Done for today
+          <span className="font-semibold">From Gabriola:</span> Done for today
         </div>
       )}
       
       {fromNanaimo ? (
         <div className="text-white">
-          <span className="font-medium">Nanaimo:</span> {fromNanaimo.time}
+          <span className="font-semibold">Departs Nanaimo:</span> {fromNanaimo.time}
         </div>
       ) : (
         <div className="text-white/70">
-          <span className="font-medium">Nanaimo:</span> Done for today
+          <span className="font-semibold">From Nanaimo:</span> Done for today
         </div>
       )}
     </div>

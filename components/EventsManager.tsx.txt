@@ -1,6 +1,6 @@
 // Path: components/EventsManager.tsx
-// Version: 3.0.3 - Fixed time sorting in fetchEvents query
-// Date: 2025-12-11
+// Version: 3.0.2 - FINAL - Removed organizer_email (doesn't exist in DB)
+// Date: 2024-12-10
 
 'use client';
 
@@ -103,8 +103,7 @@ export default function EventsManager() {
       .select('*')
       .eq('is_approved', true)
       .is('deleted_at', null)
-      .order('start_date', { ascending: true })
-      .order('start_time', { ascending: true });  // FIX: Added time sorting
+      .order('start_date', { ascending: true });
     
     if (error) {
       console.error('Error fetching events:', error);
