@@ -1,5 +1,5 @@
 // components/EmergencyAlertBanner.tsx
-// v2.0 - Dec 9, 2025 - Only show EMERGENCY (red) and WARNING (orange) alerts
+// v2.1 - Dec 11, 2025 - FIXED: Filter expired alerts (same as AlertsManager fix)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -40,13 +40,15 @@ export default function EmergencyAlertBanner() {
   }, []);
 
   const fetchCriticalAlerts = async () => {
+    // FIXED: Added expires_at filter to prevent showing expired alerts
     const { data, error } = await supabase
       .from('alerts')
       .select(`
         *,
         creator:users!issued_by(full_name)
       `)
-      .eq('active', true)  // Changed from is_active
+      .eq('active', true)
+      .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)  // FIXED: Filter expired
       .in('severity', ['emergency', 'warning']) // ONLY red and orange
       .order('created_at', { ascending: false });
 
