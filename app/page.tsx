@@ -1,5 +1,5 @@
 // app/page.tsx
-// v3.5.0 - Fixed time sorting in fetchEvents query
+// v3.6.0 - Fixed timezone bug in date parsing (prevented day-shift display)
 // Date: 2025-12-11
 'use client';
 
@@ -67,17 +67,25 @@ export default function HomePage() {
       if (error) throw error;
 
       // Convert database rows to Event objects
-      const formattedEvents: Event[] = (data || []).map(event => ({
-        // Core
-        id: event.id,
-        title: event.title,
-        description: event.description || '',
-        category: event.category,
-        
-        // Date/Time
-        start_date: new Date(event.start_date),
-        end_date: event.end_date ? new Date(event.end_date) : new Date(event.start_date),
-        start_time: event.start_time || undefined,
+      const formattedEvents: Event[] = (data || []).map(event => {
+        // Parse dates in local timezone (not UTC) to prevent day-shift
+        const parseLocalDate = (dateStr: string) => {
+          if (!dateStr) return new Date();
+          const [year, month, day] = dateStr.split('-').map(Number);
+          return new Date(year, month - 1, day);
+        };
+
+        return {
+          // Core
+          id: event.id,
+          title: event.title,
+          description: event.description || '',
+          category: event.category,
+          
+          // Date/Time - Parse in local timezone
+          start_date: parseLocalDate(event.start_date),
+          end_date: event.end_date ? parseLocalDate(event.end_date) : parseLocalDate(event.start_date),
+          start_time: event.start_time || undefined,
         end_time: event.end_time || undefined,
         is_all_day: event.is_all_day || false,
         
@@ -130,7 +138,8 @@ export default function HomePage() {
         is_approved: event.is_approved,
         is_featured: event.is_featured || false,
         tags: event.tags || [],
-      }));
+        };
+      });
 
       setEvents(formattedEvents);
     } catch (err) {

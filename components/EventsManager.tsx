@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.0.3 - Fixed time sorting in fetchEvents query
+// Version: 3.0.4 - Fixed timezone bug in date parsing (prevented day-shift display)
 // Date: 2025-12-11
 
 'use client';
@@ -110,11 +110,18 @@ export default function EventsManager() {
       console.error('Error fetching events:', error);
       setEvents([]);
     } else {
+      // Parse dates in local timezone to prevent day-shift
+      const parseLocalDate = (dateStr: string) => {
+        if (!dateStr) return undefined;
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
       const formattedEvents: Event[] = (data || []).map(event => ({
         ...event,
-        start_date: new Date(event.start_date),
-        end_date: event.end_date ? new Date(event.end_date) : undefined,
-        postponed_from_date: event.postponed_from_date ? new Date(event.postponed_from_date) : undefined,
+        start_date: parseLocalDate(event.start_date) || new Date(),
+        end_date: event.end_date ? parseLocalDate(event.end_date) : undefined,
+        postponed_from_date: event.postponed_from_date ? parseLocalDate(event.postponed_from_date) : undefined,
       }));
       setEvents(formattedEvents);
     }
