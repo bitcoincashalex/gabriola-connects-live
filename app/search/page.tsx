@@ -168,6 +168,22 @@ function SearchPageContent() {
       {/* Search Input Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Gabriola Connects</h1>
+		{/* Scope Selector - Added */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <span className="text-sm text-gray-600 self-center font-medium mr-2">Search in:</span>
+          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
+            <button
+              key={scope}
+              onClick={() => setActiveScope(scope)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${ activeScope === scope
+                  ? 'bg-gabriola-green text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {scope.charAt(0).toUpperCase() + scope.slice(1)}
+            </button>
+          ))}
+        </div>
         
         {/* Main Search Bar */}
         <div className="flex gap-2 mb-4">

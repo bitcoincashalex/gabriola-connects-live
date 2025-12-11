@@ -1,5 +1,5 @@
 // components/AlertsManager.tsx
-// v3.1 - Dec 11, 2025 - FIXED: Filter expired alerts, don't show in active view
+// v3.0 - Dec 9, 2025 - Add edit, archive viewing, proper permissions
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,8 +57,7 @@ export default function AlertsManager() {
   const fetchAlerts = async () => {
     setLoading(true);
 
-    // FIXED: Fetch active alerts with creator info - EXCLUDE EXPIRED
-    // Filter: active = true AND (expires_at IS NULL OR expires_at >= NOW())
+    // Fetch active alerts with creator info
     const { data: activeData, error: activeError } = await supabase
       .from('alerts')
       .select(`
@@ -66,7 +65,6 @@ export default function AlertsManager() {
         creator:users!issued_by(full_name, email)
       `)
       .eq('active', true)
-      .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
       .order('created_at', { ascending: false });
 
     if (!activeError && activeData) {
@@ -210,7 +208,7 @@ export default function AlertsManager() {
   };
 
   const archiveAlert = async (alertId: string) => {
-    if (!confirm('Archive this alert? It will still be viewable in the archive.')) return;
+    if (!confirm('Archive this alert? It will no longer be visible to users, but will remain in the archive.')) return;
 
     const { error } = await supabase
       .from('alerts')
@@ -218,14 +216,15 @@ export default function AlertsManager() {
       .eq('id', alertId);
 
     if (error) {
-      alert('Error archiving: ' + error.message);
+      alert('Error archiving alert: ' + error.message);
     } else {
+      alert('Alert archived successfully');
       fetchAlerts();
     }
   };
 
-  const restoreAlert = async (alertId: string) => {
-    if (!confirm('Restore this alert to active status?')) return;
+  const reactivateAlert = async (alertId: string) => {
+    if (!confirm('Reactivate this alert? It will become visible to users again.')) return;
 
     const { error } = await supabase
       .from('alerts')
@@ -233,216 +232,195 @@ export default function AlertsManager() {
       .eq('id', alertId);
 
     if (error) {
-      alert('Error restoring: ' + error.message);
+      alert('Error reactivating alert: ' + error.message);
     } else {
+      alert('Alert reactivated successfully');
       fetchAlerts();
     }
   };
 
-  const renderAlert = (alert: Alert, isArchived: boolean) => {
-    const severityColors = {
-      emergency: 'bg-red-50 border-red-300',
-      warning: 'bg-orange-50 border-orange-300',
-      advisory: 'bg-yellow-50 border-yellow-300',
-      info: 'bg-blue-50 border-blue-300',
-    };
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'emergency': return 'bg-red-100 border-red-500 text-red-900';
+      case 'warning': return 'bg-orange-100 border-orange-500 text-orange-900';
+      case 'advisory': return 'bg-yellow-100 border-yellow-500 text-yellow-900';
+      case 'info': return 'bg-blue-100 border-blue-500 text-blue-900';
+      default: return 'bg-gray-100 border-gray-500 text-gray-900';
+    }
+  };
 
-    const severityIcons = {
-      emergency: <AlertTriangle className="w-8 h-8 text-red-600" />,
-      warning: <AlertCircle className="w-8 h-8 text-orange-600" />,
-      advisory: <Bell className="w-8 h-8 text-yellow-600" />,
-      info: <Info className="w-8 h-8 text-blue-600" />,
-    };
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'emergency': return <AlertTriangle className="w-6 h-6 text-red-600" />;
+      case 'warning': return <AlertCircle className="w-6 h-6 text-orange-600" />;
+      case 'advisory': return <Bell className="w-6 h-6 text-yellow-600" />;
+      case 'info': return <Info className="w-6 h-6 text-blue-600" />;
+      default: return <Info className="w-6 h-6 text-gray-600" />;
+    }
+  };
 
-    const isExpired = alert.expires_at && new Date(alert.expires_at) < new Date();
-
-    return (
-      <div
-        key={alert.id}
-        className={`rounded-xl border-2 p-6 shadow-md transition-all hover:shadow-lg ${
-          isArchived || isExpired ? 'opacity-75' : ''
-        } ${severityColors[alert.severity]}`}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-4 flex-1">
-            <div className="flex-shrink-0">
-              {severityIcons[alert.severity]}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {alert.title}
-                  {isExpired && !isArchived && (
-                    <span className="ml-2 text-sm text-gray-500">(Expired)</span>
-                  )}
-                </h3>
-              </div>
-              <p className="text-gray-700 text-lg mb-3 whitespace-pre-wrap">{alert.message}</p>
-
-              {/* Affected areas */}
-              {alert.affected_areas && alert.affected_areas.length > 0 && (
-                <div className="mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Affected Areas: </span>
-                  <span className="text-sm text-gray-600">{alert.affected_areas.join(', ')}</span>
-                </div>
-              )}
-
-              {/* Category badge */}
-              {alert.category && (
-                <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm font-medium mb-2">
-                  {alert.category}
+  const renderAlert = (alert: Alert, isArchived: boolean = false) => (
+    <div
+      key={alert.id}
+      className={`border-l-4 p-6 rounded-lg shadow-md ${getSeverityColor(alert.severity)} ${
+        isArchived ? 'opacity-60' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1">
+          {getSeverityIcon(alert.severity)}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-xl font-bold">{alert.title}</h3>
+              <span className="text-xs px-2 py-1 rounded bg-white/50 uppercase font-bold">
+                {alert.severity}
+              </span>
+              {isArchived && (
+                <span className="text-xs px-2 py-1 rounded bg-gray-500 text-white uppercase font-bold">
+                  Archived
                 </span>
               )}
+            </div>
+            <p className="text-sm mb-3 whitespace-pre-wrap">{alert.message}</p>
 
-              {/* Action required */}
-              {alert.action_required && (
-                <div className="bg-white/50 border-l-4 border-gray-400 pl-4 py-2 mb-2">
-                  <p className="text-sm font-semibold text-gray-700">Action Required:</p>
-                  <p className="text-sm text-gray-600">{alert.action_required}</p>
-                </div>
-              )}
-
-              {/* Contact info */}
-              {alert.contact_info && (
-                <div className="mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Contact: </span>
-                  <span className="text-sm text-gray-600">{alert.contact_info}</span>
-                </div>
-              )}
-
-              {/* Attribution info */}
-              <div className="flex items-center gap-4 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-300">
+            {/* Details */}
+            <div className="space-y-1 text-sm mb-3">
+              {alert.affected_areas && alert.affected_areas.length > 0 && (
                 <div>
-                  <span className="font-semibold">Posted: </span>
-                  {new Date(alert.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  <strong>Affected Areas:</strong> {alert.affected_areas.join(', ')}
                 </div>
-                {alert.expires_at && (
-                  <div>
-                    <span className="font-semibold">Expires: </span>
-                    {new Date(alert.expires_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                )}
-              </div>
+              )}
+              {alert.action_required && (
+                <div>
+                  <strong>Action Required:</strong> {alert.action_required}
+                </div>
+              )}
+              {alert.contact_info && (
+                <div>
+                  <strong>Contact:</strong> {alert.contact_info}
+                </div>
+              )}
+            </div>
 
-              {/* Show attribution */}
-              <div className="text-sm text-gray-600 mt-2">
-                {alert.on_behalf_of_name || alert.on_behalf_of_organization ? (
-                  <>
-                    <span className="font-semibold">Issued by: </span>
-                    {alert.on_behalf_of_name}
-                    {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
-                    {' '}via {alert.creator_name || alert.creator_email}
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold">Issued by: </span>
-                    {alert.creator_name || alert.creator_email}
-                  </>
-                )}
+            {/* Attribution - WHO ACTUALLY CREATED IT */}
+            <div className="text-xs opacity-75 space-y-1 border-t pt-2">
+              <div>
+                <strong>Created by:</strong> {alert.creator_name || 'Unknown'} 
+                {alert.creator_email && ` (${alert.creator_email})`}
+              </div>
+              
+              {/* ON BEHALF OF (if specified) */}
+              {(alert.on_behalf_of_name || alert.on_behalf_of_organization) && (
+                <div>
+                  <strong>On behalf of:</strong>{' '}
+                  {alert.on_behalf_of_name}
+                  {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
+                </div>
+              )}
+              
+              {/* TIMESTAMP */}
+              <div>
+                <strong>Issued:</strong> {new Date(alert.created_at).toLocaleString()}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Action buttons (only for authorized users) */}
-          {canEditAlert(alert) && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => openEditForm(alert)}
-                className="p-2 hover:bg-white/50 rounded-lg transition"
-                title="Edit alert"
-              >
-                <Edit2 className="w-5 h-5 text-gray-700" />
-              </button>
-              {isArchived ? (
+        {/* Actions - only if user can edit this alert */}
+        {canEditAlert(alert) && (
+          <div className="flex gap-2">
+            {!isArchived ? (
+              <>
                 <button
-                  onClick={() => restoreAlert(alert.id)}
+                  onClick={() => openEditForm(alert)}
                   className="p-2 hover:bg-white/50 rounded-lg transition"
-                  title="Restore alert"
+                  title="Edit alert"
                 >
-                  <Archive className="w-5 h-5 text-green-600" />
+                  <Edit2 className="w-5 h-5" />
                 </button>
-              ) : (
                 <button
                   onClick={() => archiveAlert(alert.id)}
                   className="p-2 hover:bg-white/50 rounded-lg transition"
-                  title="Archive alert"
+                  title="Archive alert (deactivate)"
                 >
-                  <Archive className="w-5 h-5 text-gray-700" />
+                  <Archive className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-          )}
-        </div>
+              </>
+            ) : (
+              // Archived alerts can be reactivated by super admin
+              user?.is_super_admin && (
+                <button
+                  onClick={() => reactivateAlert(alert.id)}
+                  className="p-2 hover:bg-green-200 rounded-lg transition"
+                  title="Reactivate this alert"
+                >
+                  <Bell className="w-5 h-5 text-green-600" />
+                </button>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-2xl text-gray-600">Loading alerts...</p>
       </div>
     );
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-5xl mx-auto px-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-gabriola-green mb-2">Community Alerts</h1>
-            <p className="text-gray-600">Stay informed about important updates and notices</p>
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gabriola-green mb-2">Community Alerts</h1>
+              <p className="text-gray-600">Stay informed about important island updates</p>
+            </div>
+            {canManageAlerts && (
+              <button
+                onClick={openNewForm}
+                className="bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Create Alert
+              </button>
+            )}
           </div>
-          {canManageAlerts && (
-            <button
-              onClick={openNewForm}
-              className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-              Create Alert
-            </button>
-          )}
-        </div>
 
-        {/* Toggle between active and archived */}
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setShowArchived(false)}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              !showArchived
-                ? 'bg-gabriola-green text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Active Alerts ({alerts.length})
-          </button>
-          {canManageAlerts && (
+          {/* Toggle archived view */}
+          <div className="flex gap-4 mt-4">
+            <button
+              onClick={() => setShowArchived(false)}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                !showArchived
+                  ? 'bg-gabriola-green text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Active Alerts ({alerts.length})
+            </button>
             <button
               onClick={() => setShowArchived(true)}
-              className={`px-6 py-3 rounded-lg font-semibold transition ${
+              className={`px-4 py-2 rounded-lg font-medium transition ${
                 showArchived
                   ? 'bg-gabriola-green text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Archived ({archivedAlerts.length})
             </button>
-          )}
+          </div>
         </div>
 
-        {/* Alerts list */}
-        <div className="space-y-6">
-          {loading ? (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gabriola-green mb-4"></div>
-              <p className="text-gray-600">Loading alerts...</p>
-            </div>
-          ) : !showArchived ? (
+        {/* Alerts List */}
+        <div className="space-y-4">
+          {!showArchived ? (
             // Active alerts
             alerts.length === 0 ? (
               <div className="bg-white rounded-xl shadow-md p-12 text-center">
