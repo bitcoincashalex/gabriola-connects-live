@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.8.0 - Added NextEventWidget, DirectoryWidget, and ForumWidget
+// v2.8.1 - FIXED: Alert count now filters expired alerts (same as other components)
 // Date: 2025-12-11
 'use client';
 
@@ -36,10 +36,12 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
   }, []);
 
   const fetchActiveAlertCount = async () => {
+    // FIXED: Added expires_at filter to match AlertsManager and EmergencyAlertBanner
     const { count, error } = await supabase
       .from('alerts')
       .select('*', { count: 'exact', head: true })
-      .eq('active', true);
+      .eq('active', true)
+      .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);  // FIXED: Filter expired
 
     if (!error && count !== null) {
       setActiveAlertCount(count);
@@ -202,10 +204,11 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* Main Navigation Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      {/* Main Content Container */}
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        
+        {/* Main Navigation Cards */}
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
           {cards.map((card) => {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
@@ -217,31 +220,15 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
-                  relative overflow-hidden rounded-2xl
-                  transform transition-all duration-300 cursor-pointer
+                  relative overflow-hidden rounded-2xl p-8 shadow-xl
+                  transition-all duration-300 cursor-pointer
                   ${isHovered ? 'scale-105 shadow-2xl' : 'scale-100'}
                   bg-gradient-to-br ${card.color}
-                  p-8 text-left
-                  hover:ring-4 hover:ring-white/50
+                  group
                 `}
               >
                 <div className="relative z-10">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`
-                      p-4 rounded-xl bg-white/20 backdrop-blur-sm
-                      transform transition-transform duration-300
-                      ${isHovered ? 'scale-110 rotate-3' : 'scale-100'}
-                    `}>
-                      <Icon className={`w-8 h-8 ${card.textColor}`} />
-                    </div>
-                    <div className={`
-                      text-3xl transition-transform duration-300
-                      ${isHovered ? 'translate-x-1' : 'translate-x-0'}
-                    `}>
-                      →
-                    </div>
-                  </div>
-                  
+                  <Icon className={`w-12 h-12 ${card.textColor} mb-4 group-hover:scale-110 transition-transform`} />
                   <h3 className={`text-3xl font-bold ${card.textColor} mb-2`}>
                     {card.title}
                   </h3>
