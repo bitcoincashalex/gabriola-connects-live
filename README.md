@@ -17,7 +17,7 @@ Gabriola Connects is a free, community-driven platform built by islanders, for i
 
 Living on Gabriola Island is wonderful, but staying informed about community events, local services, and island news can be challenging. Information gets scattered across different websites, social media groups, bulletin boards, and word-of-mouth.
 
-We experienced this firsthand and decided to do something about it. Gabriola Connects brings everything together in one easy-to-use place, making it simple to:
+We experienced this firsthand and decided to do something about it. **Gabriola Connects' goal is to bring everything together** in one easy-to-use place, making it simple to:
 
 - **Discover** what's happening on the island
 - **Connect** with your neighbors
@@ -177,7 +177,7 @@ Set your preferences to match your lifestyle - from "tell me everything" to "eme
 We're continuously working to improve Gabriola Connects based on YOUR feedback. Here's what we're planning:
 
 ### Near Future
-- 🔍 **Enhanced search** - Find exactly what you're looking for across all content
+- 🔍 **Search functionality** - Currently not working; this is a priority to fix
 - 📱 **Mobile app** - Access Gabriola Connects on the go
 - 📧 **Email notifications** - Get alerts about events and topics you care about
 - 📸 **Photo galleries** - Share and enjoy island moments
@@ -311,8 +311,6 @@ We promise to:
 - ✅ Notify you if there's ever a security breach
 - ✅ Improve privacy protections as we grow
 
-**Questions about privacy or security?** Ask us directly - we're happy to explain anything in detail.
-
 ---
 
 ## Frequently Asked Questions
@@ -321,13 +319,13 @@ We promise to:
 Yes! No subscription fees, no hidden costs, no ads. Gabriola Connects is provided as a service to our community.
 
 ### Do I have to live on Gabriola to use it?
-Anyone can view the calendar and directory. Creating an account and participating in the forum is open to everyone, though we verify island residents for certain features.
+Anyone can view the calendar, directory, ferry schedules, and community alerts. Creating an account and participating in the forum is open to everyone, though we verify island residents for certain features.
 
 ### How do you make money if it's free?
 We don't. This is a community service project, not a business. The platform costs are covered by the Strachan family as their contribution to the island community.
 
 ### Can businesses advertise here?
-Local businesses can list in our free directory. We don't currently have paid advertising, and we're not sure we ever will - we want to keep the platform focused on community, not commerce.
+Local businesses can list in our free directory. We will never have paid advertising - we want to keep the platform focused on community, not commerce.
 
 ### What about my privacy?
 We collect only what's necessary to run the platform (email, name, etc.). We don't sell data, share information with third parties, or track you across the internet. Your data stays with us and is used only to provide you with community features.
@@ -376,11 +374,11 @@ Help us grow by mentioning Gabriola Connects at community gatherings, sharing th
 
 We built Gabriola Connects because we love this island and its people. We've lived here for over three decades and have experienced firsthand how challenging it can be to stay connected with everything happening in our community.
 
-This platform is our gift to Gabriola Island. We hope it helps you discover events you'd otherwise miss, connect with neighbors you might not otherwise meet, find services you need, and feel more engaged with our incredible island community.
+We hope it helps you discover events you'd otherwise miss, connect with neighbors you might not otherwise meet, find services you need, and feel more engaged with our incredible island community.
 
-Gabriola Connects is far from perfect, and it's still growing and improving. But it's already bringing islanders together, and that makes every hour of work worthwhile.
+Gabriola Connects is far from perfect, and it's still growing and improving. We're excited to see how it evolves as more islanders join and help shape what it becomes.
 
-Thank you for being part of our island community. We're excited to see how Gabriola Connects grows and evolves with your input and participation.
+Thank you for being part of our island community. We're looking forward to seeing how Gabriola Connects grows and improves with your input and participation.
 
 **Welcome home to Gabriola Connects!** 🏝️
 

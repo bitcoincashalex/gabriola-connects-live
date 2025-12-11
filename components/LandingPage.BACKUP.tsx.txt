@@ -1,13 +1,12 @@
 // components/LandingPage.tsx
-// v2.7.0 - Added NextFerryWidget to Ferry card
-// Date: 2025-12-11
+// v2.6.0 - OPTION 1: Colorful emoji icons
+// Date: 2024-12-10
 'use client';
 
 import Link from 'next/link';
 import { Calendar, MessageSquare, Book, Anchor, Bell, AlertTriangle, Users, UserCheck, CalendarDays, Building2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { NextFerryWidget } from '@/components/NextFerryWidget';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -201,12 +200,11 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* Main Navigation Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {cards.map((card) => {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
-
+            
             return (
               <button
                 key={card.id}
@@ -214,8 +212,8 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
-                  relative overflow-hidden rounded-2xl
-                  transform transition-all duration-300 cursor-pointer
+                  relative overflow-hidden rounded-2xl shadow-lg
+                  transform transition-all duration-300 ease-out
                   ${isHovered ? 'scale-105 shadow-2xl' : 'scale-100'}
                   bg-gradient-to-br ${card.color}
                   p-8 text-left
@@ -242,16 +240,9 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                   <h3 className={`text-3xl font-bold ${card.textColor} mb-2`}>
                     {card.title}
                   </h3>
-                  <p className={`${card.textColor} opacity-90 text-lg mb-3`}>
+                  <p className={`${card.textColor} opacity-90 text-lg`}>
                     {card.description}
                   </p>
-
-                  {/* Add NextFerryWidget ONLY to Ferry card */}
-                  {card.id === 'ferry' && (
-                    <div className="mt-3 pt-3 border-t border-white/30">
-                      <NextFerryWidget />
-                    </div>
-                  )}
                 </div>
 
                 <div className={`

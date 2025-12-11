@@ -1,13 +1,12 @@
 // Path: components/Ferry.tsx
-// Version: 2.1.0 - Database-driven schedule (was 2.0.0 with hardcoded schedule)
-// Date: 2025-12-11
+// Version: 2.0.0 - Fixed single-ferry display and added destination clarification
+// Date: 2024-12-09
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getMockFerryStatus } from '@/lib/data';
 import { Anchor, RefreshCw, Clock, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 interface Sailing {
   time: string;
@@ -17,37 +16,65 @@ interface Sailing {
   isCancelled?: boolean;
 }
 
-interface FerrySchedule {
-  fromGabriola: Sailing[];
-  fromNanaimo: Sailing[];
-}
-
 export default function Ferry() {
   const [status, setStatus] = useState(getMockFerryStatus());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'from-gabriola' | 'from-nanaimo'>('from-gabriola');
-  
-  // NEW: Load schedule from database
-  const [schedule, setSchedule] = useState<FerrySchedule | null>(null);
-  const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
-  // Load schedule from database on mount
-  useEffect(() => {
-    const loadSchedule = async () => {
-      try {
-        const { data, error } = await supabase.rpc('get_ferry_schedule');
-        if (error) throw error;
-        setSchedule(data);
-      } catch (error) {
-        console.error('Error loading ferry schedule:', error);
-        // Fallback to empty schedule if error
-        setSchedule({ fromGabriola: [], fromNanaimo: [] });
-      } finally {
-        setIsLoadingSchedule(false);
-      }
-    };
-    loadSchedule();
-  }, []);
+  const schedule = {
+    fromGabriola: [
+      { time: '5:15 AM', departureTime: '5:15 AM', arrivalTime: '5:35 AM' },
+      { time: '6:20 AM', departureTime: '6:20 AM', arrivalTime: '6:40 AM' },
+      { time: '7:05 AM', departureTime: '7:05 AM', arrivalTime: '7:25 AM' },
+      { time: '7:35 AM', departureTime: '7:35 AM', arrivalTime: '7:55 AM' },
+      { time: '8:10 AM', departureTime: '8:10 AM', arrivalTime: '8:30 AM' },
+      { time: '8:45 AM', departureTime: '8:45 AM', arrivalTime: '9:05 AM' },
+      { time: '9:20 AM', departureTime: '9:20 AM', arrivalTime: '9:40 AM' },
+      { time: '9:55 AM', departureTime: '9:55 AM', arrivalTime: '10:15 AM' },
+      { time: '10:35 AM', departureTime: '10:35 AM', arrivalTime: '10:55 AM' },
+      { time: '11:15 AM', departureTime: '11:15 AM', arrivalTime: '11:35 AM' },
+      { time: '11:50 AM', departureTime: '11:50 AM', arrivalTime: '12:10 PM' },
+      { time: '1:10 PM', departureTime: '1:10 PM', arrivalTime: '1:30 PM' },
+      { time: '1:45 PM', departureTime: '1:45 PM', arrivalTime: '2:05 PM' },
+      { time: '2:20 PM', departureTime: '2:20 PM', arrivalTime: '2:40 PM' },
+      { time: '2:55 PM', departureTime: '2:55 PM', arrivalTime: '3:15 PM' },
+      { time: '3:30 PM', departureTime: '3:30 PM', arrivalTime: '3:50 PM' },
+      { time: '4:05 PM', departureTime: '4:05 PM', arrivalTime: '4:25 PM' },
+      { time: '4:40 PM', departureTime: '4:40 PM', arrivalTime: '5:00 PM' },
+      { time: '5:15 PM', departureTime: '5:15 PM', arrivalTime: '5:35 PM' },
+      { time: '5:55 PM', departureTime: '5:55 PM', arrivalTime: '6:15 PM' },
+      { time: '7:05 PM', departureTime: '7:05 PM', arrivalTime: '7:25 PM' },
+      { time: '8:15 PM', departureTime: '8:15 PM', arrivalTime: '8:35 PM' },
+      { time: '9:55 PM', departureTime: '9:55 PM', arrivalTime: '10:15 PM' },
+      { time: '11:05 PM', departureTime: '11:05 PM', arrivalTime: '11:25 PM' },
+    ],
+    fromNanaimo: [
+      { time: '5:45 AM', departureTime: '5:45 AM', arrivalTime: '6:05 AM' },
+      { time: '6:35 AM', departureTime: '6:35 AM', arrivalTime: '6:55 AM' },
+      { time: '6:55 AM', departureTime: '6:55 AM', arrivalTime: '7:15 AM' },
+      { time: '7:35 AM', departureTime: '7:35 AM', arrivalTime: '7:55 AM' },
+      { time: '8:10 AM', departureTime: '8:10 AM', arrivalTime: '8:30 AM' },
+      { time: '8:45 AM', departureTime: '8:45 AM', arrivalTime: '9:05 AM' },
+      { time: '9:20 AM', departureTime: '9:20 AM', arrivalTime: '9:40 AM' },
+      { time: '9:55 AM', departureTime: '9:55 AM', arrivalTime: '10:15 AM' },
+      { time: '10:35 AM', departureTime: '10:35 AM', arrivalTime: '10:55 AM' },
+      { time: '11:15 AM', departureTime: '11:15 AM', arrivalTime: '11:35 AM' },
+      { time: '11:50 AM', departureTime: '11:50 AM', arrivalTime: '12:10 PM' },
+      { time: '1:10 PM', departureTime: '1:10 PM', arrivalTime: '1:30 PM' },
+      { time: '1:45 PM', departureTime: '1:45 PM', arrivalTime: '2:05 PM' },
+      { time: '2:20 PM', departureTime: '2:20 PM', arrivalTime: '2:40 PM' },
+      { time: '2:55 PM', departureTime: '2:55 PM', arrivalTime: '3:15 PM' },
+      { time: '3:30 PM', departureTime: '3:30 PM', arrivalTime: '3:50 PM' },
+      { time: '4:05 PM', departureTime: '4:05 PM', arrivalTime: '4:25 PM' },
+      { time: '4:40 PM', departureTime: '4:40 PM', arrivalTime: '5:00 PM' },
+      { time: '5:20 PM', departureTime: '5:20 PM', arrivalTime: '5:40 PM' },
+      { time: '6:30 PM', departureTime: '6:30 PM', arrivalTime: '6:50 PM' },
+      { time: '7:40 PM', departureTime: '7:40 PM', arrivalTime: '8:00 PM' },
+      { time: '9:25 PM', departureTime: '9:25 PM', arrivalTime: '9:45 PM' },
+      { time: '10:30 PM', departureTime: '10:30 PM', arrivalTime: '10:50 PM' },
+      { time: '11:30 PM', departureTime: '11:30 PM', arrivalTime: '11:50 PM' },
+    ],
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -55,25 +82,6 @@ export default function Ferry() {
     setStatus(newStatus);
     setIsRefreshing(false);
   };
-
-  // Show loading state while schedule loads
-  if (isLoadingSchedule || !schedule) {
-    return (
-      <div className="flex flex-col min-h-screen bg-gabriola-ocean/5 pb-20">
-        <div className="bg-white/80 backdrop-blur-sm border-b-4 border-gabriola-ocean/30 py-6">
-          <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Anchor className="w-12 h-12 text-gabriola-ocean" />
-              <div>
-                <h1 className="text-4xl font-bold text-gabriola-ocean">Ferry Status</h1>
-                <p className="text-lg text-gabriola-ocean/80">Loading schedule...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const scheduleToUse = activeTab === 'from-gabriola' ? schedule.fromGabriola : schedule.fromNanaimo;
 
@@ -96,7 +104,7 @@ export default function Ferry() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gabriola-ocean/5 pb-20">
-      {/* Clean, beautiful page title – NOT a duplicate header */}
+      {/* Clean, beautiful page title — NOT a duplicate header */}
       <div className="bg-white/80 backdrop-blur-sm border-b-4 border-gabriola-ocean/30 py-6">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -268,7 +276,7 @@ export default function Ferry() {
               rel="noopener noreferrer"
               className="block text-center bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 font-semibold text-sm py-3 rounded-lg transition-all shadow-md"
             >
-              🔹 View Live Ferry Cam - Current Traffic Conditions
+              📹 View Live Ferry Cam - Current Traffic Conditions
             </a>
             
             <a
