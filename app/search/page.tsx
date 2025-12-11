@@ -1,5 +1,6 @@
 // app/search/page.tsx
-// Full search page with tabs for filtering results
+// Comprehensive search page with filters, date ranges, and advanced options
+// Version: 2.0.0
 // Date: 2025-12-11
 
 'use client';
@@ -7,46 +8,93 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSearch, SearchScope } from '@/lib/useSearch';
-import { Calendar, MapPin, Ship, AlertTriangle, Search as SearchIcon } from 'lucide-react';
+import { Calendar, MapPin, Ship, AlertTriangle, Search as SearchIcon, Filter, X, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const query = searchParams.get('q') || '';
+  const initialQuery = searchParams.get('q') || '';
   const scopeParam = searchParams.get('scope') as SearchScope | null;
+  
+  // Search state
+  const [query, setQuery] = useState(initialQuery);
   const [activeScope, setActiveScope] = useState<SearchScope>(scopeParam || 'all');
   const { search, results, loading } = useSearch();
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'name'>('relevance');
 
-  // Perform search on mount and when query/scope changes
-  useEffect(() => {
+  // Categories for filtering
+  const categories = {
+    events: ['Arts & Culture', 'Community', 'Education', 'Entertainment', 'Food & Drink', 'Health & Wellness', 'Music', 'Outdoors', 'Sports & Recreation'],
+    directory: ['Food & Dining', 'Services', 'Retail', 'Health & Wellness', 'Arts & Crafts', 'Accommodations', 'Recreation', 'Professional Services'],
+  };
+
+  const locations = ['North End', 'South End', 'Central', 'Village', 'Silva Bay', 'Descanso Bay'];
+
+  // Perform search
+  const performSearch = () => {
     if (query.trim().length >= 2) {
       search(query, activeScope);
+      
+      // Update URL
+      const params = new URLSearchParams();
+      params.set('q', query);
+      if (activeScope !== 'all') params.set('scope', activeScope);
+      router.push(`/search?${params.toString()}`);
     }
-  }, [query, activeScope]);
+  };
+
+  // Search on mount if query exists
+  useEffect(() => {
+    if (initialQuery.trim().length >= 2) {
+      search(initialQuery, activeScope);
+    }
+  }, []);
 
   const handleScopeChange = (newScope: SearchScope) => {
     setActiveScope(newScope);
-    const params = new URLSearchParams();
-    params.set('q', query);
-    if (newScope !== 'all') {
-      params.set('scope', newScope);
+    if (query.trim().length >= 2) {
+      search(query, newScope);
     }
-    router.push(`/search?${params.toString()}`);
   };
 
-  if (!query) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="text-center py-20">
-          <SearchIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Search Gabriola Connects</h1>
-          <p className="text-gray-600">Enter a search query to find events, businesses, ferry schedules, and alerts.</p>
-        </div>
-      </div>
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      performSearch();
+    }
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
     );
-  }
+  };
+
+  const toggleLocation = (location: string) => {
+    setSelectedLocations(prev =>
+      prev.includes(location)
+        ? prev.filter(l => l !== location)
+        : [...prev, location]
+    );
+  };
+
+  const clearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setSelectedCategories([]);
+    setSelectedLocations([]);
+    setSortBy('relevance');
+  };
 
   const getCountForScope = (scope: SearchScope): number => {
     if (scope === 'all') return results.totalCount;
@@ -57,38 +105,251 @@ function SearchPageContent() {
     return 0;
   };
 
+  // Filter results based on advanced filters
+  const filterResults = () => {
+    let filtered = { ...results };
+
+    // Date filtering for events
+    if (dateFrom || dateTo) {
+      filtered.events = filtered.events.filter(event => {
+        const eventDate = new Date(event.start_date);
+        if (dateFrom && eventDate < new Date(dateFrom)) return false;
+        if (dateTo && eventDate > new Date(dateTo)) return false;
+        return true;
+      });
+    }
+
+    // Category filtering
+    if (selectedCategories.length > 0) {
+      filtered.events = filtered.events.filter(event =>
+        event.category && selectedCategories.includes(event.category)
+      );
+      filtered.directory = filtered.directory.filter(business =>
+        business.category && selectedCategories.includes(business.category)
+      );
+    }
+
+    // Location filtering (for events with location field)
+    if (selectedLocations.length > 0) {
+      filtered.events = filtered.events.filter(event =>
+        event.location && selectedLocations.some(loc => event.location?.includes(loc))
+      );
+      filtered.directory = filtered.directory.filter(business =>
+        business.address && selectedLocations.some(loc => business.address?.includes(loc))
+      );
+    }
+
+    // Sorting
+    if (sortBy === 'date') {
+      filtered.events.sort((a, b) => 
+        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+      );
+    } else if (sortBy === 'name') {
+      filtered.events.sort((a, b) => a.title.localeCompare(b.title));
+      filtered.directory.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Update total count
+    filtered.totalCount = 
+      filtered.events.length + 
+      filtered.directory.length + 
+      filtered.ferry.length + 
+      filtered.alerts.length;
+
+    return filtered;
+  };
+
+  const filteredResults = filterResults();
+  const hasActiveFilters = dateFrom || dateTo || selectedCategories.length > 0 || selectedLocations.length > 0;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      
+      {/* Search Input Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Search Results for "{query}"
-        </h1>
-        {loading ? (
-          <p className="text-gray-600">Searching...</p>
-        ) : (
-          <p className="text-gray-600">
-            {results.totalCount} {results.totalCount === 1 ? 'result' : 'results'} found
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Gabriola Connects</h1>
+        
+        {/* Main Search Bar */}
+        <div className="flex gap-2 mb-4">
+          <div className="flex-1 relative">
+            <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Search events, businesses, ferry schedules, alerts..."
+              className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+            />
+          </div>
+          <button
+            onClick={performSearch}
+            disabled={query.trim().length < 2}
+            className="px-8 py-4 bg-gabriola-green text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Search
+          </button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`px-6 py-4 border-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+              showFilters ? 'border-gabriola-green text-gabriola-green bg-green-50' : 'border-gray-300 text-gray-700 hover:border-gray-400'
+            }`}
+          >
+            <Filter className="w-5 h-5" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-1 px-2 py-0.5 bg-gabriola-green text-white text-xs rounded-full">
+                {(dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + selectedCategories.length + selectedLocations.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 space-y-6">
+            
+            {/* Date Range */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Date Range (Events)
+              </h3>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm text-gray-600 mb-1">From</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm text-gray-600 mb-1">To</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Categories */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Categories</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {[...categories.events, ...categories.directory].map(category => (
+                  <label key={category} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => toggleCategory(category)}
+                      className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Locations */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Location
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {locations.map(location => (
+                  <label key={location} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedLocations.includes(location)}
+                      onChange={() => toggleLocation(location)}
+                      className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">{location}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Sort */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Sort By</h3>
+              <div className="flex gap-4">
+                {(['relevance', 'date', 'name'] as const).map(option => (
+                  <label key={option} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sortBy"
+                      checked={sortBy === option}
+                      onChange={() => setSortBy(option)}
+                      className="w-4 h-4 text-gabriola-green focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700 capitalize">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <div className="pt-4 border-t border-gray-300">
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 text-gabriola-green hover:text-green-700 font-medium"
+                >
+                  <X className="w-4 h-4" />
+                  Clear all filters
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Results Summary */}
+        {query && !loading && (
+          <p className="text-gray-600 mt-4">
+            {filteredResults.totalCount} {filteredResults.totalCount === 1 ? 'result' : 'results'} found for "{query}"
+            {hasActiveFilters && ' (filtered)'}
           </p>
         )}
       </div>
 
+      {/* No Query State - Show Tips */}
+      {!query && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <h3 className="font-semibold text-gray-900 mb-2">Search Tips:</h3>
+          <ul className="space-y-1 text-sm text-gray-700">
+            <li>• Try searching for "coffee", "market", "yoga", or "ferry"</li>
+            <li>• Use filters to narrow down by date, category, or location</li>
+            <li>• Search works across events, businesses, ferry schedules, and alerts</li>
+            <li>• Results are sorted by relevance by default</li>
+          </ul>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
-        {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
-          <button
-            key={scope}
-            onClick={() => handleScopeChange(scope)}
-            className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
-              activeScope === scope
-                ? 'text-gabriola-green border-b-2 border-gabriola-green'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {scope.charAt(0).toUpperCase() + scope.slice(1)} ({getCountForScope(scope)})
-          </button>
-        ))}
-      </div>
+      {query && (
+        <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
+          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
+            <button
+              key={scope}
+              onClick={() => handleScopeChange(scope)}
+              className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
+                activeScope === scope
+                  ? 'text-gabriola-green border-b-2 border-gabriola-green'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {scope.charAt(0).toUpperCase() + scope.slice(1)} ({getCountForScope(scope)})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -99,26 +360,34 @@ function SearchPageContent() {
       )}
 
       {/* No Results */}
-      {!loading && results.totalCount === 0 && (
+      {!loading && query && filteredResults.totalCount === 0 && (
         <div className="text-center py-12">
           <p className="text-xl text-gray-600">No results found for "{query}"</p>
-          <p className="text-gray-500 mt-2">Try different keywords or check your spelling</p>
+          <p className="text-gray-500 mt-2">Try different keywords or adjust your filters</p>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="mt-4 text-gabriola-green hover:text-green-700 font-medium"
+            >
+              Clear filters and try again
+            </button>
+          )}
         </div>
       )}
 
-      {/* Results */}
-      {!loading && results.totalCount > 0 && (
+      {/* Results - Same as before but using filteredResults */}
+      {!loading && query && filteredResults.totalCount > 0 && (
         <div className="space-y-8">
           
           {/* Events Results */}
-          {(activeScope === 'all' || activeScope === 'events') && results.events.length > 0 && (
+          {(activeScope === 'all' || activeScope === 'events') && filteredResults.events.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-6 h-6 text-gabriola-green" />
-                <h2 className="text-2xl font-bold text-gray-900">Events ({results.events.length})</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Events ({filteredResults.events.length})</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {results.events.map(event => (
+                {filteredResults.events.map(event => (
                   <Link
                     key={event.id}
                     href={`/events#${event.id}`}
@@ -157,14 +426,14 @@ function SearchPageContent() {
           )}
 
           {/* Directory Results */}
-          {(activeScope === 'all' || activeScope === 'directory') && results.directory.length > 0 && (
+          {(activeScope === 'all' || activeScope === 'directory') && filteredResults.directory.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-6 h-6 text-gabriola-green" />
-                <h2 className="text-2xl font-bold text-gray-900">Directory ({results.directory.length})</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Directory ({filteredResults.directory.length})</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {results.directory.map(business => (
+                {filteredResults.directory.map(business => (
                   <Link
                     key={business.id}
                     href={`/directory#${business.id}`}
@@ -187,14 +456,14 @@ function SearchPageContent() {
           )}
 
           {/* Ferry Results */}
-          {(activeScope === 'all' || activeScope === 'ferry') && results.ferry.length > 0 && (
+          {(activeScope === 'all' || activeScope === 'ferry') && filteredResults.ferry.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Ship className="w-6 h-6 text-gabriola-green" />
-                <h2 className="text-2xl font-bold text-gray-900">Ferry Schedule ({results.ferry.length})</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Ferry Schedule ({filteredResults.ferry.length})</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {results.ferry.map((schedule, idx) => (
+                {filteredResults.ferry.map((schedule, idx) => (
                   <Link
                     key={schedule.id || idx}
                     href="/ferry"
@@ -217,14 +486,14 @@ function SearchPageContent() {
           )}
 
           {/* Alerts Results */}
-          {(activeScope === 'all' || activeScope === 'alerts') && results.alerts.length > 0 && (
+          {(activeScope === 'all' || activeScope === 'alerts') && filteredResults.alerts.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="w-6 h-6 text-gabriola-green" />
-                <h2 className="text-2xl font-bold text-gray-900">Alerts ({results.alerts.length})</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Alerts ({filteredResults.alerts.length})</h2>
               </div>
               <div className="space-y-4">
-                {results.alerts.map(alert => (
+                {filteredResults.alerts.map(alert => (
                   <Link
                     key={alert.id}
                     href="/alerts"
