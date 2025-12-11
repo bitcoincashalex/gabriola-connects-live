@@ -1,18 +1,29 @@
 // Path: components/Calendar.tsx
-// Version: 2.2.0 - Fixed time sorting in eventsForSelectedDate
+// Version: 2.3.0 - Integrated venues table for dynamic location selection with auto-fill
 // Date: 2025-12-11
 // components/Calendar.tsx — FULLY RESTORED, FULLY WORKING, NO GAPS
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { Event } from '@/lib/types';
 import { X, MapPin, Clock, Plus, Mail, Phone, Upload, LogIn, UserCircle } from 'lucide-react';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { useUser } from '@/components/AuthProvider';
+import { supabase } from '@/lib/supabase';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar-custom.css';
+
+interface Venue {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  postal_code: string | null;
+  map_url: string;
+  alternate_names: string[];
+}
 
 const locales = {
   'en-US': require('date-fns/locale/en-US'),
@@ -31,6 +42,8 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState<string>('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -41,6 +54,11 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     endTime: '',
     allDay: false,
     location: '',
+    venue_name: '',
+    venue_address: '',
+    venue_city: 'Gabriola',
+    venue_postal_code: '',
+    venue_map_url: '',
     description: '',
     posterImage: '',
     organizerEmail: '',
@@ -53,6 +71,22 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [customLocation, setCustomLocation] = useState<string>('');
+  
+  // Load venues from database
+  useEffect(() => {
+    const loadVenues = async () => {
+      const { data, error } = await supabase
+        .from('venues')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (!error && data) {
+        setVenues(data);
+      }
+    };
+    loadVenues();
+  }, []);
+  
   // Only show loading while auth is loading
   if (authLoading) {
     return (
@@ -127,10 +161,46 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     setSelectedEvent(null);
   };
 
+  const handleVenueChange = (venueId: string) => {
+    setSelectedVenueId(venueId);
+    
+    if (venueId === 'other') {
+      // Custom location - clear venue fields
+      setFormData({
+        ...formData,
+        venue_name: '',
+        venue_address: '',
+        venue_city: 'Gabriola',
+        venue_postal_code: '',
+        venue_map_url: '',
+        location: ''
+      });
+      setCustomLocation('');
+    } else if (venueId) {
+      // Selected venue - auto-fill all fields
+      const venue = venues.find(v => v.id === venueId);
+      if (venue) {
+        setFormData({
+          ...formData,
+          venue_name: venue.name,
+          venue_address: venue.address || '',
+          venue_city: venue.city || 'Gabriola',
+          venue_postal_code: venue.postal_code || '',
+          venue_map_url: venue.map_url || '',
+          location: `${venue.name}, Gabriola`
+        });
+      }
+      setCustomLocation('');
+    } else {
+      // No selection
+      setCustomLocation('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const finalLocation = formData.location === 'other' ? customLocation.trim() : formData.location.trim();
+    const finalLocation = selectedVenueId === 'other' ? customLocation.trim() : formData.location.trim();
     
     if (!formData.title.trim() || !finalLocation) {
       alert('Please fill in Title and Location');
@@ -166,6 +236,11 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       start_date: eventDate,
       start_time: formData.allDay ? 'All Day' : formatTimeDisplay(formData.time),
       location: finalLocation,
+      venue_name: formData.venue_name || undefined,
+      venue_address: formData.venue_address || undefined,
+      venue_city: formData.venue_city || 'Gabriola',
+      venue_postal_code: formData.venue_postal_code || undefined,
+      venue_map_url: formData.venue_map_url || undefined,
       description: formData.description.trim() || 'No description provided.',
       image_url: formData.posterImage.trim() || undefined,
       contact_email: formData.organizerEmail.trim() || undefined,
@@ -186,6 +261,11 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       endTime: '',
       allDay: false,
       location: '',
+      venue_name: '',
+      venue_address: '',
+      venue_city: 'Gabriola',
+      venue_postal_code: '',
+      venue_map_url: '',
       description: '',
       posterImage: '',
       organizerEmail: '',
@@ -197,6 +277,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     });
     setImagePreview(null);
     setCustomLocation('');
+    setSelectedVenueId('');
     setShowAddForm(false);
   };
 
@@ -350,36 +431,20 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
               <p className="text-xs text-gray-500 mt-1">For recurring events or special timing notes</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Venue *</label>
               <select
-                value={formData.location === 'other' || (formData.location && !['Community Hall - 2200 South Road','Agi Hall - 575 South Road','Surf Lodge - 885 Berry Point Rd','The Commons - 501 South Road','Rollo Centre - 575 South Road','Gabriola Fellowship Church','Gabriola Golf Club','Phoenix Auditorium','Gabriola Library - 575 South Road',"Page's Inn on Silva Bay - 3415 South Road",'Huxley Community Park - 2720 Huxley Rd'].includes(formData.location)) ? 'other' : formData.location}
-                onChange={(e) => {
-                  if (e.target.value === 'other') {
-                    setFormData({ ...formData, location: 'other' });
-                    setCustomLocation('');
-                  } else {
-                    setFormData({ ...formData, location: e.target.value });
-                    setCustomLocation('');
-                  }
-                }}
+                value={selectedVenueId}
+                onChange={(e) => handleVenueChange(e.target.value)}
                 required={!customLocation}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gabriola-green"
               >
-                <option value="">Choose location or select "Other"</option>
-                <option value="Community Hall - 2200 South Road">Community Hall - 2200 South Road</option>
-                <option value="Agi Hall - 575 South Road">Agi Hall - 575 South Road</option>
-                <option value="Surf Lodge - 885 Berry Point Rd">Surf Lodge - 885 Berry Point Rd</option>
-                <option value="The Commons - 501 South Road">The Commons - 501 South Road</option>
-                <option value="Rollo Centre - 575 South Road">Rollo Centre - 575 South Road</option>
-                <option value="Gabriola Fellowship Church">Gabriola Fellowship Church</option>
-                <option value="Gabriola Golf Club">Gabriola Golf Club</option>
-                <option value="Phoenix Auditorium">Phoenix Auditorium</option>
-                <option value="Gabriola Library - 575 South Road">Gabriola Library - 575 South Road</option>
-                <option value="Page's Inn on Silva Bay - 3415 South Road">Page's Inn on Silva Bay - 3415 South Road</option>
-                <option value="Huxley Community Park - 2720 Huxley Rd">Huxley Community Park - 2720 Huxley Rd</option>
-                <option value="other">Other (type below)</option>
+                <option value="">Select a venue...</option>
+                {venues.map(venue => (
+                  <option key={venue.id} value={venue.id}>{venue.name}</option>
+                ))}
+                <option value="other">Other location...</option>
               </select>
-              {formData.location === 'other' && (
+              {selectedVenueId === 'other' && (
                 <input
                   type="text"
                   placeholder="Type custom location here"

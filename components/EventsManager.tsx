@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.0.4 - Fixed timezone bug in date parsing (prevented day-shift display)
+// Version: 3.1.0 - Integrated venues table for dynamic location selection with auto-fill
 // Date: 2025-12-11
 
 'use client';
@@ -12,20 +12,15 @@ import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
 import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle } from 'lucide-react';
 
-// Common Gabriola venues
-const COMMON_LOCATIONS = [
-  'Gabriola Arts & Heritage Centre',
-  'Agricultural Hall',
-  'Community Hall',
-  'Haven By The Sea',
-  'Twin Beaches School',
-  'Rollo Centre',
-  'Village Square',
-  'Commons',
-  'Private Residence',
-  'Online/Virtual',
-  'Other (specify below)'
-];
+interface Venue {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  postal_code: string | null;
+  map_url: string;
+  alternate_names: string[];
+}
 
 interface EventCategory {
   id: string;
@@ -44,7 +39,8 @@ export default function EventsManager() {
   const [rsvpEvent, setRsvpEvent] = useState<Event | null>(null);
   const [rsvpCount, setRsvpCount] = useState<Record<string, number>>({});
   const [categories, setCategories] = useState<EventCategory[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState<string>('');
   const [customLocation, setCustomLocation] = useState('');
 
   // Check if user can publish events instantly
@@ -84,6 +80,7 @@ export default function EventsManager() {
     fetchEvents();
     fetchRsvpCounts();
     fetchCategories();
+    fetchVenues();
   }, []);
 
   const fetchCategories = async () => {
@@ -94,6 +91,17 @@ export default function EventsManager() {
     
     if (!error && data) {
       setCategories(data);
+    }
+  };
+
+  const fetchVenues = async () => {
+    const { data, error } = await supabase
+      .from('venues')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (!error && data) {
+      setVenues(data);
     }
   };
 
@@ -156,10 +164,38 @@ export default function EventsManager() {
     }
   };
 
-  const handleLocationChange = (value: string) => {
-    setSelectedLocation(value);
-    if (value !== 'Other (specify below)') {
-      setForm({ ...form, location: value });
+  const handleVenueChange = (venueId: string) => {
+    setSelectedVenueId(venueId);
+    
+    if (venueId === 'other') {
+      // Custom location - clear venue fields
+      setForm({
+        ...form,
+        venue_name: '',
+        venue_address: '',
+        venue_city: 'Gabriola',
+        venue_postal_code: '',
+        venue_map_url: '',
+        location: ''
+      });
+      setCustomLocation('');
+    } else if (venueId) {
+      // Selected venue - auto-fill all fields
+      const venue = venues.find(v => v.id === venueId);
+      if (venue) {
+        setForm({
+          ...form,
+          venue_name: venue.name,
+          venue_address: venue.address || '',
+          venue_city: venue.city || 'Gabriola',
+          venue_postal_code: venue.postal_code || '',
+          venue_map_url: venue.map_url || '',
+          location: `${venue.name}, Gabriola`
+        });
+      }
+      setCustomLocation('');
+    } else {
+      // No selection
       setCustomLocation('');
     }
   };
@@ -168,7 +204,7 @@ export default function EventsManager() {
     e.preventDefault();
 
     // Determine final location
-    const finalLocation = selectedLocation === 'Other (specify below)' 
+    const finalLocation = selectedVenueId === 'other' 
       ? customLocation 
       : form.location;
 
@@ -247,7 +283,7 @@ export default function EventsManager() {
       accessibility_info: '',
     });
     setImagePreview(null);
-    setSelectedLocation('');
+    setSelectedVenueId('');
     setCustomLocation('');
   };
 
@@ -332,9 +368,9 @@ export default function EventsManager() {
                 onEdit={() => { 
                   setSelectedEvent(event); 
                   
-                  // Check if location is in common locations list
-                  const eventLocation = event.location || '';
-                  const isCommonLocation = COMMON_LOCATIONS.includes(eventLocation);
+                  // Find venue by venue_name and set dropdown
+                  const eventVenueName = event.venue_name || '';
+                  const matchingVenue = venues.find(v => v.name === eventVenueName);
                   
                   setForm({
                     title: event.title,
@@ -344,7 +380,7 @@ export default function EventsManager() {
                     start_time: event.start_time || '',
                     end_time: event.end_time || '',
                     is_all_day: event.is_all_day || false,
-                    location: eventLocation,
+                    location: event.location || '',
                     venue_name: event.venue_name || '',
                     venue_address: event.venue_address || '',
                     category: event.category || '',
@@ -359,15 +395,15 @@ export default function EventsManager() {
                     accessibility_info: event.accessibility_info || '',
                   });
                   
-                  // Set dropdown state
-                  if (isCommonLocation) {
-                    setSelectedLocation(eventLocation);
+                  // Set venue dropdown state
+                  if (matchingVenue) {
+                    setSelectedVenueId(matchingVenue.id);
                     setCustomLocation('');
-                  } else if (eventLocation) {
-                    setSelectedLocation('Other (specify below)');
-                    setCustomLocation(eventLocation);
+                  } else if (event.location) {
+                    setSelectedVenueId('other');
+                    setCustomLocation(event.location);
                   } else {
-                    setSelectedLocation('');
+                    setSelectedVenueId('');
                     setCustomLocation('');
                   }
                   
@@ -500,24 +536,25 @@ export default function EventsManager() {
                 </label>
               </div>
 
-              {/* Location Dropdown */}
+              {/* Venue Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
                 <select
-                  value={selectedLocation}
-                  onChange={e => handleLocationChange(e.target.value)}
+                  value={selectedVenueId}
+                  onChange={e => handleVenueChange(e.target.value)}
                   required
                   className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
                 >
-                  <option value="">Select a location...</option>
-                  {COMMON_LOCATIONS.map(loc => (
-                    <option key={loc} value={loc}>{loc}</option>
+                  <option value="">Select a venue...</option>
+                  {venues.map(venue => (
+                    <option key={venue.id} value={venue.id}>{venue.name}</option>
                   ))}
+                  <option value="other">Other location...</option>
                 </select>
               </div>
 
               {/* Custom Location */}
-              {selectedLocation === 'Other (specify below)' && (
+              {selectedVenueId === 'other' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Specify Location *</label>
                   <input 
