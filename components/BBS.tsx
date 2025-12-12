@@ -1,6 +1,6 @@
 // Path: components/BBS.tsx
-// Version: 3.1.1 - Fixed: Pass defaultCategoryId instead of defaultCategory
-// Date: 2024-12-10
+// Version: 4.0.0 - Added forum search bar with real-time filtering
+// Date: 2025-12-11
 
 'use client';
 
@@ -9,6 +9,7 @@ import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import CreateThread from './CreateThread';
 import ThreadList from './ThreadList';
+import ForumSearchBar from './ForumSearchBar';
 import { Plus, AlertCircle, Ban, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,6 +20,11 @@ export default function BBS() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['politics'])); // Politics expanded by default
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResultCount, setSearchResultCount] = useState<number | undefined>(undefined);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Fetch categories from database
   useEffect(() => {
@@ -39,6 +45,22 @@ export default function BBS() {
     }
 
     setCategories(data || []);
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setIsSearching(true);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResultCount(undefined);
+    setIsSearching(false);
+  };
+
+  const handleSearchResults = (count: number) => {
+    setSearchResultCount(count);
+    setIsSearching(false);
   };
 
   if (!user) {
@@ -193,6 +215,16 @@ export default function BBS() {
             )}
           </div>
 
+          {/* SEARCH BAR - NEW! */}
+          <div className="mb-6">
+            <ForumSearchBar
+              onSearch={handleSearch}
+              onClear={handleClearSearch}
+              resultCount={searchResultCount}
+              isSearching={isSearching}
+            />
+          </div>
+
           {/* Category Tabs with Hierarchy */}
           <div className="flex flex-wrap gap-3">
             {/* All Posts - Special category */}
@@ -258,7 +290,13 @@ export default function BBS() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <ThreadList key={refreshKey} category={activeCategory} currentUser={user} />
+        <ThreadList 
+          key={refreshKey} 
+          category={activeCategory} 
+          currentUser={user}
+          searchQuery={searchQuery}
+          onSearchResults={handleSearchResults}
+        />
       </div>
 
       {showCreateModal && canCreatePost && (
