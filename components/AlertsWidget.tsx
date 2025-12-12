@@ -26,20 +26,38 @@ export function AlertsWidget() {
 
   const fetchTopAlert = async () => {
     try {
-      // Get most severe active alert (emergency > warning > advisory > info)
+      // Get all active alerts (can't sort severity properly in SQL)
       const { data, error } = await supabase
         .from('alerts')
         .select('id, title, message, severity, category, created_at')
         .eq('active', true)
         .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
-        .order('severity', { ascending: false }) // emergency first
-        .order('created_at', { ascending: false }) // newest first
-        .limit(1)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setTopAlert(data);
+      if (error || !data || data.length === 0) {
+        setTopAlert(null);
+        setLoading(false);
+        return;
       }
+
+      // Sort by severity (emergency > warning > advisory > info) in JavaScript
+      const severityOrder: Record<string, number> = {
+        'emergency': 4,
+        'warning': 3,
+        'advisory': 2,
+        'info': 1
+      };
+
+      const sortedAlerts = [...data].sort((a, b) => {
+        const aSeverity = severityOrder[a.severity as string] || 0;
+        const bSeverity = severityOrder[b.severity as string] || 0;
+        const severityDiff = bSeverity - aSeverity;
+        if (severityDiff !== 0) return severityDiff;
+        // If same severity, newest first
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      setTopAlert(sortedAlerts[0]);
     } catch (error) {
       console.error('Error fetching top alert:', error);
     } finally {
