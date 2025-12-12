@@ -30,7 +30,7 @@ export function AlertsWidget() {
       const { data, error } = await supabase
         .from('alerts')
         .select('id, title, message, severity, category, created_at')
-        .eq('is_active', true)
+        .eq('active', true)
         .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
         .order('severity', { ascending: false }) // emergency first
         .order('created_at', { ascending: false }) // newest first

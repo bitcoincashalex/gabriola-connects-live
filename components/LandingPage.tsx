@@ -41,7 +41,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
     const { count, error } = await supabase
       .from('alerts')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+      .eq('active', true)
       .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);  // FIXED: Filter expired
 
     if (!error && count !== null) {
