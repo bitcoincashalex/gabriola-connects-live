@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.8.1 - FIXED: Alert count now filters expired alerts (same as other components)
+// v2.9.0 - Added AlertsWidget to show top alert summary in banner
 // Date: 2025-12-11
 'use client';
 
@@ -11,6 +11,7 @@ import { NextFerryWidget } from '@/components/NextFerryWidget';
 import { NextEventWidget } from '@/components/NextEventWidget';
 import { DirectoryWidget } from '@/components/DirectoryWidget';
 import { ForumWidget } from '@/components/ForumWidget';
+import { AlertsWidget } from '@/components/AlertsWidget';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -40,7 +41,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
     const { count, error } = await supabase
       .from('alerts')
       .select('*', { count: 'exact', head: true })
-      .eq('active', true)
+      .eq('is_active', true)
       .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);  // FIXED: Filter expired
 
     if (!error && count !== null) {
@@ -204,11 +205,9 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
         </div>
       </div>
 
-      {/* Main Content Container */}
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        
-        {/* Main Navigation Cards */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+      {/* Main Cards Grid */}
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {cards.map((card) => {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
@@ -220,19 +219,26 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
-                  relative overflow-hidden rounded-2xl p-8 shadow-xl
-                  transition-all duration-300 cursor-pointer
-                  ${isHovered ? 'scale-105 shadow-2xl' : 'scale-100'}
+                  relative overflow-hidden
                   bg-gradient-to-br ${card.color}
+                  rounded-3xl p-8
+                  shadow-xl hover:shadow-2xl
+                  transform transition-all duration-300
+                  ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
+                  cursor-pointer
                   group
                 `}
               >
-                <div className="relative z-10">
-                  <Icon className={`w-12 h-12 ${card.textColor} mb-4 group-hover:scale-110 transition-transform`} />
-                  <h3 className={`text-3xl font-bold ${card.textColor} mb-2`}>
+                <div className={`relative z-10 ${card.textColor}`}>
+                  <div className="mb-4 transform transition-transform duration-300 group-hover:scale-110">
+                    <Icon className="w-12 h-12" />
+                  </div>
+
+                  <h3 className="text-2xl font-bold mb-2">
                     {card.title}
                   </h3>
-                  <p className={`${card.textColor} opacity-90 text-lg mb-3`}>
+
+                  <p className="text-sm opacity-90 mb-4">
                     {card.description}
                   </p>
 
@@ -273,15 +279,15 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           })}
         </div>
 
-        {/* Community Alerts Banner with Count */}
+        {/* Community Alerts Banner with AlertsWidget */}
         <button
           onClick={() => window.location.href = '/alerts'}
           className="w-full max-w-5xl mx-auto bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
         >
           <div className="flex items-center justify-between p-8">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-1">
               {/* Bell Icon with Badge */}
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <div className="p-4 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
                   <Bell className="w-10 h-10" />
                 </div>
@@ -293,20 +299,15 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 )}
               </div>
 
-              {/* Text */}
-              <div className="text-left">
-                <h3 className="text-3xl font-bold mb-2">Community Alerts</h3>
-                <p className="text-lg opacity-90">
-                  {activeAlertCount === 0
-                    ? 'No active alerts — all clear!'
-                    : `${activeAlertCount} active ${activeAlertCount === 1 ? 'alert' : 'alerts'} — stay informed`
-                  }
-                </p>
+              {/* AlertsWidget - Shows alert summary */}
+              <div className="text-left flex-1">
+                <h3 className="text-3xl font-bold mb-3">Community Alerts</h3>
+                <AlertsWidget />
               </div>
             </div>
 
             {/* Arrow */}
-            <div className="text-4xl group-hover:translate-x-2 transition-transform">
+            <div className="text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
               →
             </div>
           </div>
@@ -368,7 +369,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </button>
         </div>
 
-        {/* Community Stats - NEW! */}
+        {/* Community Stats */}
         {!statsLoading && (
           <div className="mt-8">
             <div className="bg-gradient-to-r from-gray-50 to-green-50/30 rounded-xl p-5 border border-gray-200/50 shadow-sm">
