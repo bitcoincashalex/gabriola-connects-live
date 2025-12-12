@@ -73,7 +73,7 @@ export default function ForumSearchBar({
 
         {/* Advanced Search Button */}
         <Link
-          href="/search?scope=forum"
+          href="/community/search"
           className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition font-medium whitespace-nowrap"
           title="Advanced Search"
         >
