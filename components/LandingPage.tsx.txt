@@ -106,19 +106,19 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       textColor: 'text-white',
     },
     {
-      id: 'ferry',
-      title: 'Ferry',
-      description: 'Schedule & real-time status',
-      icon: Anchor,
-      color: 'from-teal-500 to-teal-700',
-      textColor: 'text-white',
-    },
-    {
       id: 'directory',
       title: 'Directory',
       description: 'Local businesses & services',
       icon: Book,
       color: 'from-purple-500 to-purple-700',
+      textColor: 'text-white',
+    },
+    {
+      id: 'ferry',
+      title: 'Ferry',
+      description: 'Schedule & real-time status',
+      icon: Anchor,
+      color: 'from-teal-500 to-teal-700',
       textColor: 'text-white',
     },
   ];
@@ -173,16 +173,6 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('ferry')}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">⛴️</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Ferry</span>
-            </button>
-
-            <button
               onClick={() => onNavigate('directory')}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
@@ -190,6 +180,16 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
               <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
                 textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
               }}>Directory</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('ferry')}
+              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
+            >
+              <span className="text-lg sm:text-xl">⛴️</span>
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
+              }}>Ferry</span>
             </button>
 
             <button
