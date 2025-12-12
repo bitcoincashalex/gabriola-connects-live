@@ -121,8 +121,8 @@ export default function Header() {
     { label: 'Home', onClick: goHome },
     { label: 'Events', href: '/events' },
     { label: 'Discussion', href: '/community' },
-    { label: 'Ferry', href: '/ferry' },
     { label: 'Directory', href: '/directory/business' },
+    { label: 'Ferry', href: '/ferry' },
     { label: 'Alerts', href: '/alerts' },
   ];
 

@@ -32,8 +32,8 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
     // Only show forum if user is not banned
     ...(user?.is_banned ? [] : [{ id: 'forum', label: 'Forum', icon: MessageSquare }]),
-    { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'ferry', label: 'Ferry', icon: Anchor },
+    { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search
   ], [user?.is_banned]);
 

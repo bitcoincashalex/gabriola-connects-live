@@ -1,6 +1,6 @@
 // components/Footer.tsx
-// v2.2 - Optimized with useMemo to prevent re-render errors
-// Date: 2024-12-10
+// v2.3 - Updated: 2025-12-11 - Search tab now navigates to /search page
+// Date: 2025-12-11
 
 'use client';
 
@@ -34,7 +34,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     ...(user?.is_banned ? [] : [{ id: 'forum', label: 'Forum', icon: MessageSquare }]),
     { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'ferry', label: 'Ferry', icon: Anchor },
-    { id: 'search', label: 'Search', icon: Search },
+    { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search
   ], [user?.is_banned]);
 
   return (
@@ -45,6 +45,28 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            
+            // Special handling for search - always navigate to /search page
+            if (tab.id === 'search') {
+              return (
+                <Link
+                  key={tab.id}
+                  href="/search"
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
+            
+            // Regular tabs - use button with handleTabClick
             return (
               <button
                 key={tab.id}
