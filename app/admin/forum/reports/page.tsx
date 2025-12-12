@@ -4,6 +4,9 @@
 
 'use client';
 
+// Fix Next.js prerendering error with useSearchParams
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
