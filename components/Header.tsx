@@ -266,15 +266,15 @@ export default function Header() {
                           </Link>
                         )}
                         
-                        {/* Forum Moderation - Forum Admin or Super Admin */}
-                        {(isForumAdmin || isSuperAdmin) && (
+                        {/* Forum Admin - Super Admin, Forum Admin, or Forum Moderator */}
+                        {((user as any).is_super_admin || (user as any).admin_forum || (user as any).forum_moderator) && (
                           <Link
                             href="/admin/forum"
                             onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
                           >
                             <Shield className="w-5 h-5" />
-                            <span>Forum Moderation</span>
+                            <span>Forum Admin</span>
                           </Link>
                         )}
                         
