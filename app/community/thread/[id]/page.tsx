@@ -1,6 +1,6 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 2.1.0 - Add Send Message button to author
-// Date: 2024-12-09
+// Version: 3.0.0 - Updated to use upvote/downvote system, preserved messaging
+// Date: 2025-12-11
 
 'use client';
 
@@ -9,11 +9,12 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, Heart, Flag, Mail } from 'lucide-react';
+import { ArrowLeft, Loader2, Flag, Mail } from 'lucide-react';
 import ReplyForm from '@/components/ReplyForm';
 import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
+import VoteButtons from '@/components/VoteButtons';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -23,7 +24,6 @@ export default function ThreadPage() {
   const [error, setError] = useState(false);
   const [replyCount, setReplyCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [hasLiked, setHasLiked] = useState(false);
   const [isOwnPost, setIsOwnPost] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
 
@@ -37,7 +37,6 @@ export default function ThreadPage() {
 
   useEffect(() => {
     if (user && thread) {
-      checkIfLiked();
       setIsOwnPost(thread.user_id === user.id);
     }
   }, [user, thread]);
@@ -79,70 +78,6 @@ export default function ThreadPage() {
       .eq('is_active', true);
 
     setReplyCount(count || 0);
-  };
-
-  const checkIfLiked = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('bbs_post_likes')
-      .select('id')
-      .eq('post_id', params.id)
-      .eq('user_id', user.id)
-      .single();
-
-    setHasLiked(!!data);
-  };
-
-  const handleLikeToggle = async () => {
-    if (!user) {
-      alert('Sign in to like threads');
-      return;
-    }
-
-    if (isOwnPost) {
-      alert('You cannot like your own post');
-      return;
-    }
-
-    try {
-      if (hasLiked) {
-        // Unlike - delete the like
-        const { error } = await supabase
-          .from('bbs_post_likes')
-          .delete()
-          .eq('post_id', params.id)
-          .eq('user_id', user.id);
-
-        if (!error) {
-          setHasLiked(false);
-          fetchThread(); // Refresh to get updated like_count
-        }
-      } else {
-        // Like - insert a like
-        const { error } = await supabase
-          .from('bbs_post_likes')
-          .insert({
-            post_id: params.id,
-            user_id: user.id,
-          });
-
-        if (error) {
-          if (error.code === '23505') {
-            // Unique constraint violation - already liked
-            alert('You already liked this post');
-          } else {
-            console.error('Like error:', error);
-            alert('Failed to like post');
-          }
-        } else {
-          setHasLiked(true);
-          fetchThread(); // Refresh to get updated like_count
-        }
-      }
-    } catch (err) {
-      console.error('Like toggle error:', err);
-    }
   };
 
   const handleReplySuccess = () => {
@@ -193,117 +128,115 @@ export default function ThreadPage() {
 
         {/* Main Thread */}
         <article className="bg-white rounded-2xl shadow-lg p-8 mb-10">
-          {/* Pinned Badge */}
-          {thread.global_pinned && (
-            <span className="inline-block bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold mb-4">
-              📌 PINNED
-            </span>
-          )}
-
-          {/* Title */}
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">{thread.title}</h1>
-
-          {/* Meta Info with Send Message Button */}
-          <div className="flex flex-wrap items-center gap-3 text-gray-600 mb-6 text-sm">
-            <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
-            
-            {/* Send Message Button */}
-            {canMessageAuthor && (
-              <button
-                onClick={() => setShowMessageModal(true)}
-                className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                title="Send private message"
-              >
-                <Mail className="w-3 h-3" />
-                Message
-              </button>
-            )}
-            
-            {thread.is_anonymous && (
-              <span className="bg-gray-200 px-2 py-1 rounded text-xs">🕶️ Anonymous</span>
-            )}
-            <span>•</span>
-            <time>{format(new Date(thread.created_at), 'PPP p')}</time>
-            <span>•</span>
-            <span className="bg-gabriola-green/10 text-gabriola-green px-3 py-1 rounded-full text-xs font-medium">
-              {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-            </span>
-          </div>
-
-          {/* External Link */}
-          {thread.link_url && (
-            <a
-              href={thread.link_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-100 transition"
-            >
-              🔗 <span className="font-medium">{thread.link_url}</span>
-            </a>
-          )}
-
-          {/* Image */}
-          {thread.image_url && (
-            <div className="mb-6">
-              <img 
-                src={thread.image_url} 
-                alt="Post attachment" 
-                className="max-w-full h-auto rounded-lg border-2 border-gray-200"
-                style={{ maxHeight: '600px' }}
+          <div className="flex gap-6">
+            {/* Vote Buttons - Left side */}
+            <div className="flex-shrink-0">
+              <VoteButtons
+                itemId={thread.id}
+                itemType="post"
+                initialScore={thread.vote_score || 0}
+                onScoreChange={() => fetchThread()}
               />
             </div>
-          )}
 
-          {/* Content Body */}
-          <div className="prose prose-lg max-w-none mb-8 whitespace-pre-wrap text-gray-700 leading-relaxed">
-            {thread.body}
-          </div>
+            {/* Content - Right side */}
+            <div className="flex-1 min-w-0">
+              {/* Pinned Badge */}
+              {thread.global_pinned && (
+                <span className="inline-block bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold mb-4">
+                  📌 PINNED
+                </span>
+              )}
 
-          {/* Stats and Actions */}
-          <div className="flex items-center justify-between pt-6 border-t">
-            <div className="flex items-center gap-6 text-sm text-gray-500">
-              <span>👁️ {thread.view_count || 0} views</span>
-              <span>💬 {replyCount} replies</span>
-              <span>❤️ {thread.like_count || 0} likes</span>
-            </div>
+              {/* Title */}
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">{thread.title}</h1>
 
-            {/* Like and Report buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleLikeToggle}
-                disabled={isOwnPost}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  isOwnPost
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : hasLiked
-                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                    : 'bg-gray-100 hover:bg-red-100 hover:text-red-600'
-                }`}
-                title={isOwnPost ? 'Cannot like own post' : hasLiked ? 'Unlike' : 'Like'}
-              >
-                <Heart className={`w-4 h-4 ${hasLiked ? 'fill-current' : ''}`} />
-                {hasLiked ? 'Liked' : 'Like'}
-              </button>
-              
-              <button
-                onClick={async () => {
-                  if (!user) {
-                    alert('Sign in to report threads');
-                    return;
-                  }
-                  if (!confirm('Report this thread as inappropriate?')) return;
-                  await supabase
-                    .from('bbs_posts')
-                    .update({ reported_count: (thread.reported_count || 0) + 1 })
-                    .eq('id', params.id);
-                  alert('Thread reported. Moderators will review it.');
-                  fetchThread();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-red-600 hover:text-white rounded-lg transition"
-              >
-                <Flag className="w-4 h-4" />
-                Report
-              </button>
+              {/* Meta Info with Send Message Button - PRESERVED */}
+              <div className="flex flex-wrap items-center gap-3 text-gray-600 mb-6 text-sm">
+                <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
+                
+                {/* Send Message Button - PRESERVED ✅ */}
+                {canMessageAuthor && (
+                  <button
+                    onClick={() => setShowMessageModal(true)}
+                    className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                    title="Send private message"
+                  >
+                    <Mail className="w-3 h-3" />
+                    Message
+                  </button>
+                )}
+                
+                {thread.is_anonymous && (
+                  <span className="bg-gray-200 px-2 py-1 rounded text-xs">🕶️ Anonymous</span>
+                )}
+                <span>•</span>
+                <time>{format(new Date(thread.created_at), 'PPP p')}</time>
+                <span>•</span>
+                <span className="bg-gabriola-green/10 text-gabriola-green px-3 py-1 rounded-full text-xs font-medium">
+                  {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                </span>
+              </div>
+
+              {/* External Link */}
+              {thread.link_url && (
+                <a
+                  href={thread.link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-100 transition"
+                >
+                  🔗 <span className="font-medium">{thread.link_url}</span>
+                </a>
+              )}
+
+              {/* Image */}
+              {thread.image_url && (
+                <div className="mb-6">
+                  <img 
+                    src={thread.image_url} 
+                    alt="Post attachment" 
+                    className="max-w-full h-auto rounded-lg border-2 border-gray-200"
+                    style={{ maxHeight: '600px' }}
+                  />
+                </div>
+              )}
+
+              {/* Content Body */}
+              <div className="prose prose-lg max-w-none mb-8 whitespace-pre-wrap text-gray-700 leading-relaxed">
+                {thread.body}
+              </div>
+
+              {/* Stats and Actions */}
+              <div className="flex items-center justify-between pt-6 border-t">
+                <div className="flex items-center gap-6 text-sm text-gray-500">
+                  <span>👁️ {thread.view_count || 0} views</span>
+                  <span>💬 {replyCount} replies</span>
+                </div>
+
+                {/* Report button */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      if (!user) {
+                        alert('Sign in to report threads');
+                        return;
+                      }
+                      if (!confirm('Report this thread as inappropriate?')) return;
+                      await supabase
+                        .from('bbs_posts')
+                        .update({ reported_count: (thread.reported_count || 0) + 1 })
+                        .eq('id', params.id);
+                      alert('Thread reported. Moderators will review it.');
+                      fetchThread();
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-red-600 hover:text-white rounded-lg transition"
+                  >
+                    <Flag className="w-4 h-4" />
+                    Report
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </article>
@@ -320,7 +253,7 @@ export default function ThreadPage() {
         <ReplyForm postId={params.id as string} onSuccess={handleReplySuccess} />
       </div>
 
-      {/* Send Message Modal */}
+      {/* Send Message Modal - PRESERVED ✅ */}
       {showMessageModal && canMessageAuthor && (
         <SendMessageModal
           recipientId={thread.user_id}

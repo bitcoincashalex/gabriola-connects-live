@@ -1,8 +1,12 @@
+// Path: components/PostCard.tsx
+// Version: 4.0.0 - Replaced likes with upvote/downvote system
+// Date: 2025-12-11
+
 'use client';
 
-import { useState } from 'react';
 import { supabase, BBSPost } from '@/lib/supabase';
-import { Heart, Calendar, Tag, User } from 'lucide-react';
+import { Calendar, Tag, User } from 'lucide-react';
+import VoteButtons from '@/components/VoteButtons';
 
 interface PostCardProps {
   post: BBSPost;
@@ -10,39 +14,6 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onRefresh }: PostCardProps) {
-  const [isLiking, setIsLiking] = useState(false);
-  const [likes, setLikes] = useState(post.likes || 0);
-
-  const handleLike = async () => {
-    if (isLiking) return;
-    
-    setIsLiking(true);
-    const newLikes = likes + 1;
-    
-    // Optimistic update
-    setLikes(newLikes);
-
-    try {
-      const { error } = await supabase
-        .from('bbs_posts')
-        .update({ likes: newLikes })
-        .eq('id', post.id);
-
-      if (error) {
-        console.error('Error updating likes:', error);
-        // Revert on error
-        setLikes(likes);
-      } else {
-        onRefresh?.();
-      }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      setLikes(likes);
-    } finally {
-      setIsLiking(false);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -91,10 +62,21 @@ export default function PostCard({ post, onRefresh }: PostCardProps) {
 
   return (
     <article className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 overflow-hidden hover:border-gabriola-green/30 transition-all duration-300 hover:shadow-xl">
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
+      <div className="p-6 flex gap-4">
+        {/* Vote Buttons - Left side */}
+        <div className="flex-shrink-0">
+          <VoteButtons
+            itemId={post.id}
+            itemType="post"
+            initialScore={post.vote_score || 0}
+            onScoreChange={() => onRefresh?.()}
+          />
+        </div>
+
+        {/* Content - Right side */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${getCategoryColor(post.category)}`}>
                 <Tag className="w-3 h-3" />
@@ -121,33 +103,12 @@ export default function PostCard({ post, onRefresh }: PostCardProps) {
             </div>
           </div>
 
-          {/* Like Button */}
-          <button
-            onClick={handleLike}
-            disabled={isLiking}
-            className={`flex flex-col items-center justify-center min-w-[60px] p-3 rounded-lg transition-all ${
-              isLiking 
-                ? 'bg-gray-100 cursor-not-allowed' 
-                : 'bg-red-50 hover:bg-red-100 active:scale-95'
-            }`}
-            title="Like this post"
-          >
-            <Heart 
-              className={`w-6 h-6 mb-1 transition-colors ${
-                likes > 0 ? 'fill-red-500 text-red-500' : 'text-gray-400'
-              }`}
-            />
-            <span className="text-lg font-bold text-gray-700">
-              {likes}
-            </span>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="prose prose-lg max-w-none">
-          <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-            {post.content}
-          </p>
+          {/* Content */}
+          <div className="prose prose-lg max-w-none">
+            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+              {post.content}
+            </p>
+          </div>
         </div>
       </div>
 

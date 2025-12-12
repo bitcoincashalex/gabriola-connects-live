@@ -1,4 +1,7 @@
-// components/ThreadList.tsx
+// Path: components/ThreadList.tsx
+// Version: 3.0.0 - Fetch vote_score and sort by it
+// Date: 2025-12-11
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,15 +20,18 @@ export default function ThreadList({ category, currentUser }: { category: string
   }, [category]);
 
   const fetchThreads = async () => {
+    // Select both reply_count AND vote_score
     let query = supabase
       .from('bbs_posts')
-      .select('*, reply_count')
+      .select('*, reply_count, vote_score')
       .eq('is_active', true)
       // GLOBAL PINNED = always first
       .order('global_pinned', { ascending: false })
       // Then regular pinned
       .order('pin_order', { ascending: false })
-      // Then normal sort
+      // Then by vote score (highest first)
+      .order('vote_score', { ascending: false })
+      // Then by date
       .order('created_at', { ascending: false });
 
     if (category !== 'all') {

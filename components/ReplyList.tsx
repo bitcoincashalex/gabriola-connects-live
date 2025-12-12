@@ -1,16 +1,17 @@
 // Path: components/ReplyList.tsx
-// Version: 2.0.0 - Add Send Message button to replies
-// Date: 2024-12-09
+// Version: 3.0.0 - Replaced likes with upvote/downvote system
+// Date: 2025-12-11
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, ThumbsUp, Flag, Trash2, Loader2, Reply, Mail } from 'lucide-react';
+import { MessageSquare, Flag, Trash2, Loader2, Reply, Mail } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 import ReplyForm from '@/components/ReplyForm';
 import SendMessageModal from '@/components/SendMessageModal';
+import VoteButtons from '@/components/VoteButtons';
 
 interface Reply {
   id: string;
@@ -22,7 +23,7 @@ interface Reply {
   image_url: string | null;
   display_name: string;
   is_anonymous: boolean;
-  like_count: number;
+  vote_score: number;
   reported_count: number;
   is_active: boolean;
   created_at: string;
@@ -97,21 +98,6 @@ export default function ReplyList({ postId, onRefresh }: Props) {
     }
   };
 
-  const handleLike = async (replyId: string, currentCount: number) => {
-    if (!user) {
-      alert('Sign in to like replies');
-      return;
-    }
-
-    // Simple increment (we can add like tracking table later)
-    await supabase
-      .from('bbs_replies')
-      .update({ like_count: currentCount + 1 })
-      .eq('id', replyId);
-
-    fetchReplies();
-  };
-
   const handleReport = async (replyId: string, currentCount: number) => {
     if (!user) {
       alert('Sign in to report replies');
@@ -154,100 +140,108 @@ export default function ReplyList({ postId, onRefresh }: Props) {
     return (
       <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200' : ''}`}>
         <div className="bg-white rounded-xl shadow-sm p-5 mb-4 relative group">
-          {/* Delete button */}
-          {canDelete && (
-            <button
-              onClick={() => handleDelete(reply.id)}
-              className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition p-2 text-red-600 hover:bg-red-50 rounded-lg"
-              title="Delete reply"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Author & Time with Send Message */}
-          <div className="flex items-center gap-3 text-sm text-gray-600 mb-3 flex-wrap">
-            <span className="font-medium text-gabriola-green">{reply.display_name}</span>
-            
-            {/* Send Message Button */}
-            {canMessage && (
-              <button
-                onClick={() => setMessagingUser({ id: reply.user_id, name: reply.display_name })}
-                className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                title="Send private message"
-              >
-                <Mail className="w-3 h-3" />
-                Message
-              </button>
-            )}
-            
-            {reply.is_anonymous && (
-              <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
-            )}
-            <span>•</span>
-            <time>{formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}</time>
-            {reply.reported_count > 0 && (
-              <>
-                <span>•</span>
-                <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
-                  ⚠️ {reply.reported_count} reports
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Link */}
-          {reply.link_url && (
-            <a
-              href={reply.link_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-100 transition text-sm"
-            >
-              🔗 <span className="font-medium">{reply.link_url}</span>
-            </a>
-          )}
-
-          {/* Image */}
-          {reply.image_url && (
-            <div className="mb-3">
-              <img 
-                src={reply.image_url} 
-                alt="Reply attachment" 
-                className="max-w-full h-auto rounded-lg border-2 border-gray-200"
-                style={{ maxHeight: '400px' }}
+          <div className="flex gap-4">
+            {/* Vote Buttons - Left side */}
+            <div className="flex-shrink-0">
+              <VoteButtons
+                itemId={reply.id}
+                itemType="reply"
+                initialScore={reply.vote_score || 0}
+                onScoreChange={() => fetchReplies()}
               />
             </div>
-          )}
 
-          {/* Body */}
-          <div className="whitespace-pre-wrap text-gray-800 mb-3">
-            {reply.body}
-          </div>
+            {/* Content - Right side */}
+            <div className="flex-1 min-w-0">
+              {/* Delete button */}
+              {canDelete && (
+                <button
+                  onClick={() => handleDelete(reply.id)}
+                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                  title="Delete reply"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
 
-          {/* Actions */}
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <button 
-              onClick={() => handleLike(reply.id, reply.like_count)}
-              className="flex items-center gap-1 hover:text-gabriola-green transition"
-            >
-              <ThumbsUp className="w-4 h-4" />
-              <span>{reply.like_count || 0}</span>
-            </button>
-            <button 
-              onClick={() => handleReport(reply.id, reply.reported_count)}
-              className="flex items-center gap-1 hover:text-red-600 transition"
-            >
-              <Flag className="w-4 h-4" />
-              Report
-            </button>
-            <button
-              onClick={() => setReplyingTo(isReplying ? null : reply.id)}
-              className="flex items-center gap-1 hover:text-gabriola-green transition"
-            >
-              <Reply className="w-4 h-4" />
-              Reply
-            </button>
+              {/* Author & Time with Send Message */}
+              <div className="flex items-center gap-3 text-sm text-gray-600 mb-3 flex-wrap">
+                <span className="font-medium text-gabriola-green">{reply.display_name}</span>
+                
+                {/* Send Message Button */}
+                {canMessage && (
+                  <button
+                    onClick={() => setMessagingUser({ id: reply.user_id, name: reply.display_name })}
+                    className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                    title="Send private message"
+                  >
+                    <Mail className="w-3 h-3" />
+                    Message
+                  </button>
+                )}
+                
+                {reply.is_anonymous && (
+                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
+                )}
+                <span>•</span>
+                <time>{formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}</time>
+                {reply.reported_count > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
+                      ⚠️ {reply.reported_count} reports
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Link */}
+              {reply.link_url && (
+                <a
+                  href={reply.link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 hover:bg-blue-100 transition text-sm"
+                >
+                  🔗 <span className="font-medium">{reply.link_url}</span>
+                </a>
+              )}
+
+              {/* Image */}
+              {reply.image_url && (
+                <div className="mb-3">
+                  <img 
+                    src={reply.image_url} 
+                    alt="Reply attachment" 
+                    className="max-w-full h-auto rounded-lg border-2 border-gray-200"
+                    style={{ maxHeight: '400px' }}
+                  />
+                </div>
+              )}
+
+              {/* Body */}
+              <div className="whitespace-pre-wrap text-gray-800 mb-3">
+                {reply.body}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <button 
+                  onClick={() => handleReport(reply.id, reply.reported_count)}
+                  className="flex items-center gap-1 hover:text-red-600 transition"
+                >
+                  <Flag className="w-4 h-4" />
+                  Report
+                </button>
+                <button
+                  onClick={() => setReplyingTo(isReplying ? null : reply.id)}
+                  className="flex items-center gap-1 hover:text-gabriola-green transition"
+                >
+                  <Reply className="w-4 h-4" />
+                  Reply
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

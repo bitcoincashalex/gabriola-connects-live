@@ -1,3 +1,7 @@
+// Path: lib/types.ts
+// Version: 2.0.0 - Updated BBSPost and BBSReply types for voting system
+// Date: 2025-12-11
+
 export interface Event {
   // Core identification
   id: string;
@@ -82,27 +86,95 @@ export interface Event {
   updated_at?: string;
 }
 
+// Updated BBSPost interface to match actual database schema
 export interface BBSPost {
   id: string;
-  name: string;
+  user_id: string;
   title: string;
-  message: string;
-  category: BBSCategory;
-  newsLink?: string;
-  imageUrl?: string;
-  imageStatus?: 'pending' | 'approved' | 'rejected';
-  createdAt: Date;
-  replies: BBSReply[];
+  body: string;
+  content?: string; // Alias for body, used in some components
+  category: string;
+  category_id: string;
+  
+  // Media
+  link_url?: string;
+  image_url?: string;
+  
+  // Display
+  display_name: string;
+  user_name?: string; // For display purposes
+  is_anonymous: boolean;
+  
+  // Voting (NEW - added for upvote/downvote system)
+  vote_score: number;
+  
+  // Legacy (kept for backward compatibility)
+  like_count?: number;
+  likes?: number; // Legacy alias
+  
+  // Engagement
+  reply_count: number;
+  view_count: number;
+  reported_count: number;
+  
+  // Status
+  is_active: boolean;
+  is_pinned: boolean;
+  is_hidden: boolean;
+  global_pinned: boolean;
+  pin_order: number;
+  
+  // Timestamps
+  created_at: string;
+  updated_at?: string;
+  deleted_at?: string;
+  deleted_by?: string;
+  
+  // Relationships (for component use)
+  replies?: BBSReply[];
 }
 
+// Updated BBSReply interface to match actual database schema
 export interface BBSReply {
   id: string;
-  name: string;
-  message: string;
-  createdAt: Date;
-  replies: BBSReply[];
+  post_id: string;
+  parent_reply_id?: string;
+  user_id: string;
+  body: string;
+  message?: string; // Legacy alias
+  
+  // Media
+  link_url?: string;
+  image_url?: string;
+  
+  // Display
+  display_name: string;
+  is_anonymous: boolean;
+  
+  // Voting (NEW - added for upvote/downvote system)
+  vote_score: number;
+  
+  // Legacy
+  like_count?: number;
+  
+  // Status
+  is_active: boolean;
+  is_hidden: boolean;
+  reported_count: number;
+  
+  // Timestamps
+  created_at: string;
+  createdAt?: Date; // Legacy alias
+  updated_at?: string;
+  deleted_at?: string;
+  deleted_by?: string;
+  
+  // Relationships
+  replies?: BBSReply[];
+  children?: BBSReply[]; // Alias for nested replies
 }
 
+// Deprecated - kept for backward compatibility
 export type BBSCategory = 
   | 'Announcements'
   | 'Lost & Found'
@@ -223,12 +295,6 @@ export interface User {
   // Core fields
   id: string;
   full_name: string;
-
-  // These three lines have been REMOVED — they were duplicates
-  // real_name?: string;
-  // can_post?: boolean;
-  // is_moderator?: boolean;
-
   username: string;
   email?: string;
   postal_code: string;

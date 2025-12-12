@@ -1,4 +1,8 @@
-import { Event, DirectoryListing, FerryStatus, BBSPost, EmergencyAlert } from './types';
+// lib/data.ts
+// Version: 2.0.0 - Removed outdated BBS mock data (using real database now)
+// Date: 2025-12-11
+
+import { Event, DirectoryListing, FerryStatus, EmergencyAlert } from './types';
 import { gabriolaBusinesses } from './gabriola-businesses';
 
 // Mock events data - simulating scraped data from gabriolaevents.ca and other sources
@@ -74,74 +78,22 @@ export function getMockFerryStatus(): FerryStatus {
   };
 }
 
-// Mock BBS posts storage (in-memory for demo)
-let mockPosts: BBSPost[] = [
-  {
-    id: 'post-1',
-    name: 'Sarah M.',
-    title: 'Lost Cat - Orange Tabby',
-    message: 'Our cat Marmalade has been missing since yesterday evening around South Road. Orange tabby with white paws, very friendly. Please call if you spot him!',
-    category: 'Lost & Found',
-    createdAt: new Date(2024, 10, 28),
-    replies: [
-      {
-        id: 'reply-1-1',
-        name: 'Tom',
-        message: 'I think I saw an orange cat near the Commons this morning. Hope you find him!',
-        createdAt: new Date(2024, 10, 28, 14, 30),
-        replies: []
-      }
-    ]
-  },
-  {
-    id: 'post-2',
-    name: 'Island Health Update',
-    title: 'Flu Shot Clinic - December 5th',
-    message: 'Walk-in flu shot clinic at the Medical Centre from 1-4pm. All ages welcome, no appointment needed.',
-    category: 'Health',
-    createdAt: new Date(2024, 10, 29),
-    replies: []
-  },
-  {
-    id: 'post-3',
-    name: 'Ferry Rider',
-    title: 'Ferry Delays This Morning',
-    message: 'Multiple sailings delayed due to mechanical issues. Check BC Ferries site before heading to terminal.',
-    category: 'Ferry',
-    createdAt: new Date(2024, 11, 1, 8, 15),
-    replies: [
-      {
-        id: 'reply-3-1',
-        name: 'Anonymous',
-        message: 'Thanks for the heads up! Just checked and 9am sailing is 30 min late.',
-        createdAt: new Date(2024, 11, 1, 8, 45),
-        replies: [
-          {
-            id: 'reply-3-1-1',
-            name: 'CommuteCrew',
-            message: 'Appreciate you both sharing this. Working from car now!',
-            createdAt: new Date(2024, 11, 1, 9, 10),
-            replies: []
-          }
-        ]
-      }
-    ]
-  }
-];
+// ========================================
+// BBS MOCK DATA REMOVED
+// ========================================
+// These functions are no longer needed since the forum
+// now uses the real Supabase database.
+// Kept as empty functions for backward compatibility.
 
-export function getMockPosts(): BBSPost[] {
-  return mockPosts;
+export function getMockPosts(): any[] {
+  // Deprecated - forum now uses Supabase database
+  return [];
 }
 
-export function addMockPost(post: Omit<BBSPost, 'id' | 'createdAt' | 'replies'>): BBSPost {
-  const newPost: BBSPost = {
-    ...post,
-    id: `post-${Date.now()}`,
-    createdAt: new Date(),
-    replies: []
-  };
-  mockPosts.unshift(newPost);
-  return newPost;
+export function addMockPost(post: any): any {
+  // Deprecated - forum now uses Supabase database
+  console.warn('addMockPost is deprecated - use Supabase database instead');
+  return null;
 }
 
 // Mock emergency alerts
