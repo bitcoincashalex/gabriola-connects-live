@@ -1,6 +1,6 @@
 // components/ForumWidget.tsx
-// Shows active discussion count and latest topic - REDESIGNED
-// Version: 2.0.0 - Larger, more readable text
+// Shows active discussion count and latest topic
+// Version: 1.0.0
 // Date: 2025-12-11
 
 'use client';
@@ -50,27 +50,24 @@ export function ForumWidget() {
 
   if (isLoading) {
     return (
-      <div className="text-sm text-white/70">
+      <div className="text-xs text-white/70">
         Loading...
       </div>
     );
   }
 
-  // Truncate title if too long - allow more characters now with bigger text
-  const displayTitle = latestPost && latestPost.title.length > 40
-    ? latestPost.title.substring(0, 37) + '...'
+  // Truncate title if too long
+  const displayTitle = latestPost && latestPost.title.length > 30
+    ? latestPost.title.substring(0, 27) + '...'
     : latestPost?.title;
 
   return (
-    <div className="space-y-2">
-      {/* Active Count - Medium Size */}
-      <div className="text-lg font-semibold text-white">
+    <div className="text-xs space-y-1">
+      <div className="text-white font-semibold">
         {activeCount} active {activeCount === 1 ? 'discussion' : 'discussions'}
       </div>
-      
-      {/* Latest Thread - Readable Size */}
       {latestPost && (
-        <div className="text-base font-medium text-white/90 line-clamp-2">
+        <div className="text-white/90">
           Latest: {displayTitle}
         </div>
       )}

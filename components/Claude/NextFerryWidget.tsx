@@ -1,7 +1,7 @@
 // components/NextFerryWidget.tsx
-// Ferry display for landing page - REDESIGNED
-// Shows next ferry from both terminals with LARGE times
-// Version: 2.0.0 - Big, readable times
+// Minimal ferry display for landing page
+// Shows next ferry from both terminals
+// Version: 1.0.0
 // Date: 2025-12-11
 
 'use client';
@@ -57,14 +57,14 @@ export function NextFerryWidget() {
 
     loadNextFerries();
 
-    // Refresh every 60 seconds
+    // Refresh every 60 seconds (ferry times don't change that fast)
     const interval = setInterval(loadNextFerries, 60000);
     return () => clearInterval(interval);
   }, []);
 
   if (isLoading) {
     return (
-      <div className="text-sm text-white/70">
+      <div className="text-xs text-gray-500">
         Loading...
       </div>
     );
@@ -73,53 +73,31 @@ export function NextFerryWidget() {
   // Handle case where both are done for the day
   if (!fromGabriola && !fromNanaimo) {
     return (
-      <div className="text-base text-white/80">
+      <div className="text-xs text-gray-600">
         Service ended for today
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* From Gabriola */}
+    <div className="text-xs space-y-1">
       {fromGabriola ? (
-        <div>
-          <div className="text-sm text-white/80 mb-1">
-            Next from Gabriola
-          </div>
-          <div className="text-2xl font-bold text-white">
-            {fromGabriola.time}
-          </div>
+        <div className="text-white">
+          <span className="font-semibold">Departs Gabriola:</span> {fromGabriola.time}
         </div>
       ) : (
-        <div>
-          <div className="text-sm text-white/70 mb-1">
-            From Gabriola
-          </div>
-          <div className="text-base text-white/60">
-            Done for today
-          </div>
+        <div className="text-white/70">
+          <span className="font-semibold">From Gabriola:</span> Done for today
         </div>
       )}
       
-      {/* From Nanaimo */}
       {fromNanaimo ? (
-        <div>
-          <div className="text-sm text-white/80 mb-1">
-            Next from Nanaimo
-          </div>
-          <div className="text-2xl font-bold text-white">
-            {fromNanaimo.time}
-          </div>
+        <div className="text-white">
+          <span className="font-semibold">Departs Nanaimo:</span> {fromNanaimo.time}
         </div>
       ) : (
-        <div>
-          <div className="text-sm text-white/70 mb-1">
-            From Nanaimo
-          </div>
-          <div className="text-base text-white/60">
-            Done for today
-          </div>
+        <div className="text-white/70">
+          <span className="font-semibold">From Nanaimo:</span> Done for today
         </div>
       )}
     </div>

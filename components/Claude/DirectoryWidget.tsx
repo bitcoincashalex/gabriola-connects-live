@@ -1,6 +1,6 @@
 // components/DirectoryWidget.tsx
-// Shows business count - REDESIGNED for better readability
-// Version: 2.0.0 - Larger text for mobile
+// Shows business count only (simplified - no hours checking)
+// Version: 1.1.0
 // Date: 2025-12-11
 
 'use client';
@@ -38,16 +38,15 @@ export function DirectoryWidget() {
 
   if (isLoading) {
     return (
-      <div className="text-sm text-white/70">
+      <div className="text-xs text-white/70">
         Loading...
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {/* Business Count - Large & Visible */}
-      <div className="text-lg font-semibold text-white">
+    <div className="text-xs text-white">
+      <div className="font-semibold">
         {totalCount} local {totalCount === 1 ? 'business' : 'businesses'}
       </div>
     </div>
