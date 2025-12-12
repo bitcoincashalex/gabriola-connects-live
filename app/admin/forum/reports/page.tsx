@@ -4,15 +4,11 @@
 
 'use client';
 
-// Fix Next.js prerendering error with useSearchParams
-export const dynamic = 'force-dynamic';
-
 import { useEffect, useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import { Flag, Search, Eye, Trash2, X, Check, AlertCircle, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 
 interface ReportData {
   id: string;
@@ -45,7 +41,6 @@ interface ReportData {
 
 export default function ReportsPage() {
   const { user } = useUser();
-  const searchParams = useSearchParams();
   const [reports, setReports] = useState<ReportData[]>([]);
   const [filteredReports, setFilteredReports] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(true);
