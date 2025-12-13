@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v2.9.0 - Added AlertsWidget to show top alert summary in banner
+// v3.0.0 - Simplified cards: widgets now include their own icon/title/description
 // Date: 2025-12-11
 'use client';
 
@@ -106,19 +106,19 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
       textColor: 'text-white',
     },
     {
-      id: 'directory',
-      title: 'Directory',
-      description: 'Local businesses & services',
-      icon: Book,
-      color: 'from-purple-500 to-purple-700',
-      textColor: 'text-white',
-    },
-    {
       id: 'ferry',
       title: 'Ferry',
       description: 'Schedule & real-time status',
       icon: Anchor,
       color: 'from-teal-500 to-teal-700',
+      textColor: 'text-white',
+    },
+    {
+      id: 'directory',
+      title: 'Directory',
+      description: 'Local businesses & services',
+      icon: Book,
+      color: 'from-purple-500 to-purple-700',
       textColor: 'text-white',
     },
   ];
@@ -173,16 +173,6 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('directory')}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">📖</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Directory</span>
-            </button>
-
-            <button
               onClick={() => onNavigate('ferry')}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
@@ -190,6 +180,16 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
               <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
                 textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
               }}>Ferry</span>
+            </button>
+
+            <button
+              onClick={() => onNavigate('directory')}
+              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
+            >
+              <span className="text-lg sm:text-xl">📖</span>
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
+              }}>Directory</span>
             </button>
 
             <button
@@ -230,42 +230,11 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 `}
               >
                 <div className={`relative z-10 ${card.textColor}`}>
-                  <div className="mb-4 transform transition-transform duration-300 group-hover:scale-110">
-                    <Icon className="w-12 h-12" />
-                  </div>
-
-                  <h3 className="text-2xl font-bold mb-2">
-                    {card.title}
-                  </h3>
-
-                  <p className="text-sm opacity-90 mb-4">
-                    {card.description}
-                  </p>
-
-                  {/* Add widgets for each card */}
-                  {card.id === 'calendar' && (
-                    <div className="mt-3 pt-3 border-t border-white/30">
-                      <NextEventWidget />
-                    </div>
-                  )}
-                  
-                  {card.id === 'forum' && (
-                    <div className="mt-3 pt-3 border-t border-white/30">
-                      <ForumWidget />
-                    </div>
-                  )}
-                  
-                  {card.id === 'directory' && (
-                    <div className="mt-3 pt-3 border-t border-white/30">
-                      <DirectoryWidget />
-                    </div>
-                  )}
-                  
-                  {card.id === 'ferry' && (
-                    <div className="mt-3 pt-3 border-t border-white/30">
-                      <NextFerryWidget />
-                    </div>
-                  )}
+                  {/* Widgets now include their own icon, title, and description */}
+                  {card.id === 'calendar' && <NextEventWidget />}
+                  {card.id === 'forum' && <ForumWidget />}
+                  {card.id === 'ferry' && <NextFerryWidget />}
+                  {card.id === 'directory' && <DirectoryWidget />}
                 </div>
 
                 <div className={`
