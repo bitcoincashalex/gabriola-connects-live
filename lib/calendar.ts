@@ -1,5 +1,5 @@
 // Path: lib/calendar.ts
-// Version: 1.2.0 - Added openInMobileCalendar for direct calendar app opening
+// Version: 1.2.1 - Use window.open for mobile calendar to avoid download prompts
 // Date: 2024-12-13
 
 export interface EventData {
@@ -142,9 +142,13 @@ export function openInMobileCalendar(event: EventData): void {
   const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
   const blobUrl = URL.createObjectURL(blob);
   
-  // On mobile, navigating to the blob URL makes the OS open it in the calendar app
-  // No download dialog - calendar app opens directly!
-  window.location.href = blobUrl;
+  // Try opening in new window/tab - mobile OS should intercept and open calendar app
+  const newWindow = window.open(blobUrl, '_blank');
+  
+  // Fallback: if popup blocked, try direct navigation
+  if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+    window.location.href = blobUrl;
+  }
   
   // Clean up blob URL after a delay
   setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);

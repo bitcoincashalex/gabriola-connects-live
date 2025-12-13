@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.7.0 - Proper mobile calendar: opens app directly (no file download!)
+// Version: 3.7.1 - Use Google Calendar URL on mobile (prompts to open in app)
 // Date: 2024-12-13
 
 'use client';
@@ -826,19 +826,14 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
     return result;
   };
   
-  // Handle Google Calendar - smart behavior for mobile vs desktop
+  // Handle Google Calendar - use Google Calendar URL on ALL platforms
   const handleGoogleCalendar = () => {
-    const mobile = isMobile();
-    console.log('📅 Google Calendar clicked, isMobile:', mobile);
-    
-    if (mobile) {
-      console.log('📱 Mobile detected - opening calendar app directly');
-      handleMobileCalendar();
-    } else {
-      console.log('🖥️ Desktop detected - opening Google Calendar web');
-      // On desktop, open Google Calendar web interface
-      window.open(onExport.googleUrl, '_blank');
-    }
+    console.log('📅 Opening Google Calendar');
+    // Google Calendar URL works great on both desktop AND mobile!
+    // On mobile with Google Calendar app installed: Opens in app
+    // On mobile without app: Opens in mobile web
+    // On desktop: Opens in web interface
+    window.open(onExport.googleUrl, '_blank');
     setShowCalendarMenu(false);
   };
   
@@ -873,7 +868,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
   // Handle all other calendar options (Apple, Outlook, etc.)
   const handleOtherCalendar = () => {
     if (isMobile()) {
-      console.log('📱 Mobile - opening calendar app directly');
+      console.log('📱 Mobile - opening calendar app');
       handleMobileCalendar();
     } else {
       console.log('🖥️ Desktop - downloading .ics file');
@@ -973,7 +968,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                       <div className="flex-1">
                         <div className="text-sm font-medium">Google Calendar</div>
                         {isMobile() && (
-                          <div className="text-xs text-gray-500 mt-0.5">Opens in your calendar app</div>
+                          <div className="text-xs text-gray-500 mt-0.5">Opens in app if installed</div>
                         )}
                       </div>
                     </button>
