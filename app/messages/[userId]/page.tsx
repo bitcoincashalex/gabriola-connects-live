@@ -1,4 +1,6 @@
 // app/messages/[userId]/page.tsx
+// Version: 2.0.0 - Added improved read receipts with timestamps and clickable images
+// Date: 2024-12-13
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -200,10 +202,24 @@ export default function ConversationPage() {
                     />
                   )}
                   <p className="whitespace-pre-wrap break-words">{msg.message}</p>
-                  <p className={`text-xs mt-2 ${isMine ? 'text-white/70' : 'text-gray-500'}`}>
-                    {format(new Date(msg.created_at), 'p')}
-                    {isMine && msg.read && ' • Read'}
-                  </p>
+                  <div className={`flex items-center gap-2 text-xs mt-2 ${isMine ? 'text-white/70' : 'text-gray-500'}`}>
+                    <span>{format(new Date(msg.created_at), 'p')}</span>
+                    {isMine && (
+                      <span className="flex items-center gap-1">
+                        {msg.read ? (
+                          <>
+                            <span className="font-bold">✓✓</span>
+                            <span>Read {msg.read_at ? format(new Date(msg.read_at), 'p') : ''}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="opacity-70">✓</span>
+                            <span className="opacity-70">Sent</span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

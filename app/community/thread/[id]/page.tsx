@@ -1,5 +1,5 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 3.2.0 - Added clickable images with lightbox viewer
+// Version: 3.2.1 - Added authorId to VoteButtons to prevent self-voting
 // Date: 2024-12-13
 
 'use client';
@@ -140,6 +140,7 @@ export default function ThreadPage() {
                 itemId={thread.id}
                 itemType="post"
                 initialScore={thread.vote_score || 0}
+                authorId={thread.user_id}
                 onScoreChange={() => fetchThread()}
               />
             </div>

@@ -1,6 +1,6 @@
 // Path: components/PostCard.tsx
-// Version: 4.0.0 - Replaced likes with upvote/downvote system
-// Date: 2025-12-11
+// Version: 4.1.0 - Added authorId to VoteButtons to prevent self-voting
+// Date: 2024-12-13
 
 'use client';
 
@@ -69,6 +69,7 @@ export default function PostCard({ post, onRefresh }: PostCardProps) {
             itemId={post.id}
             itemType="post"
             initialScore={post.vote_score || 0}
+            authorId={post.user_id}
             onScoreChange={() => onRefresh?.()}
           />
         </div>

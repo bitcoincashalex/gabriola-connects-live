@@ -1,6 +1,6 @@
 // components/VoteButtons.tsx
 // Reusable upvote/downvote component for posts and replies
-// Version: 1.0.1 - Fixed: Use maybeSingle() instead of single() to prevent 406 errors
+// Version: 1.1.0 - Added check to prevent voting on own content
 // Date: 2024-12-13
 
 'use client';
@@ -14,13 +14,15 @@ interface VoteButtonsProps {
   itemId: string;
   itemType: 'post' | 'reply';
   initialScore: number;
+  authorId?: string; // ID of the post/reply author
   onScoreChange?: (newScore: number) => void;
 }
 
 export default function VoteButtons({ 
   itemId, 
   itemType, 
-  initialScore, 
+  initialScore,
+  authorId,
   onScoreChange 
 }: VoteButtonsProps) {
   const { user } = useUser();
@@ -30,6 +32,9 @@ export default function VoteButtons({
 
   const tableName = itemType === 'post' ? 'bbs_post_votes' : 'bbs_reply_votes';
   const idColumn = itemType === 'post' ? 'post_id' : 'reply_id';
+
+  // Check if user is the author (can't vote on own content)
+  const isOwnContent = user && authorId && user.id === authorId;
 
   // Fetch user's existing vote
   useEffect(() => {
@@ -131,6 +136,23 @@ export default function VoteButtons({
     if (score < 0) return 'text-red-600';
     return 'text-gray-600';
   };
+
+  // If it's the user's own content, just show the score (no voting)
+  if (isOwnContent) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <div className="p-1 text-gray-300">
+          <ChevronUp className="w-6 h-6" />
+        </div>
+        <span className={`font-bold text-lg ${getScoreColor()}`}>
+          {score}
+        </span>
+        <div className="p-1 text-gray-300">
+          <ChevronDown className="w-6 h-6" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-1">
