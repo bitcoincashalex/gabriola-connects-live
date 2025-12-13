@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.4.0 - Fixed dropdown positioning and mobile touch events
+// Version: 3.5.0 - Fixed dropdown positioning (removed scroll offset for fixed positioning)
 // Date: 2024-12-13
 
 'use client';
@@ -793,8 +793,8 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setMenuPosition({
-        top: rect.bottom + window.scrollY + 8,
-        left: rect.left + window.scrollX
+        top: rect.bottom + 8,  // Fixed positioning = viewport relative, NO scrollY!
+        left: rect.left         // Fixed positioning = viewport relative, NO scrollX!
       });
     }
     setShowCalendarMenu(!showCalendarMenu);
