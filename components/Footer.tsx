@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v3.0.0 - Added PWA install link (always accessible if app not installed)
+// v3.1.0 - Updated wording: "Install App" → "Add Quick Access"
 // Date: 2024-12-13
 
 'use client';
@@ -173,7 +173,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
                   className="hover:underline inline-flex items-center gap-1"
                 >
                   <Download className="w-3 h-3" />
-                  Install App
+                  Add Quick Access
                 </button>
               </>
             )}

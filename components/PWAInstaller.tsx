@@ -1,6 +1,6 @@
 // components/PWAInstaller.tsx
-// Version: 1.0.0 - Service Worker registration and PWA install prompt
-// Date: 2025-12-11
+// Version: 1.1.0 - Updated wording: "Install App" → "Add to Home Screen"
+// Date: 2025-12-13
 
 'use client';
 
@@ -92,7 +92,7 @@ export default function PWAInstaller() {
               onClick={handleInstallClick}
               className="px-4 py-2 bg-gabriola-green text-white rounded-lg font-medium hover:bg-gabriola-green-dark transition"
             >
-              Install App
+              Add to Home Screen
             </button>
             <button
               onClick={handleDismiss}

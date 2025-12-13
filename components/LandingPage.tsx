@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.1.0 - Changed to sessionStorage for dismissal (session-based, not permanent)
+// v4.2.0 - Updated wording: "Install as Mobile App" → "Add to Home Screen"
 // Date: 2024-12-13
 'use client';
 
@@ -136,7 +136,7 @@ function ShareAndInstallSection() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <div className="text-left flex-1">
-                <div className="font-semibold">Install as Mobile App</div>
+                <div className="font-semibold">Add to Home Screen</div>
                 <div className="text-sm text-white/80">Quick access from your home screen</div>
               </div>
             </button>

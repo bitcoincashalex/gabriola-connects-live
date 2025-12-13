@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.0.0 - Added PWA install functionality to share section
+// v4.1.0 - Changed to sessionStorage for dismissal (session-based, not permanent)
 // Date: 2024-12-13
 'use client';
 
@@ -50,7 +50,7 @@ function ShareAndInstallSection() {
       setDeferredPrompt(e);
       
       // Check if user previously dismissed
-      const dismissed = localStorage.getItem('pwa-install-dismissed');
+      const dismissed = sessionStorage.getItem('pwa-install-dismissed');
       if (!dismissed) {
         setShowInstallButton(true);
       }
@@ -98,7 +98,7 @@ function ShareAndInstallSection() {
 
   const handleDismissInstall = () => {
     setShowInstallButton(false);
-    localStorage.setItem('pwa-install-dismissed', 'true');
+    sessionStorage.setItem('pwa-install-dismissed', 'true');
   };
 
   return (
