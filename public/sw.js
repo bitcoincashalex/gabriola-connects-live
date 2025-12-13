@@ -1,5 +1,5 @@
 // public/sw.js
-// v1.1.0 - Service Worker with auto-update notification support
+// v1.1.1 - Service Worker with auto-update notification support
 // Date: 2024-12-13
 
 const CACHE_NAME = 'gabriola-connects-v1.1.0';

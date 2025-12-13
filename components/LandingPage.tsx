@@ -328,7 +328,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           <p className="text-xl text-white mb-4" style={{
             textShadow: '1px 1px 6px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.6)'
           }}>
-            Your Community Hub
+            Your Island Community Hub
           </p>
 
           {/* Quick Navigation Icons */}
