@@ -1,6 +1,6 @@
 // Path: app/signin/page.tsx
-// Version: 2.1.0 - Added weak password detection
-// Date: 2024-12-09
+// Version: 2.2.0 - Improved error messages for better user feedback
+// Date: 2024-12-13
 
 'use client';
 
@@ -123,17 +123,25 @@ export default function SignInPage() {
         });
         
         if (error) {
-          // Check if user exists
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', email.toLowerCase())
-            .single();
-          
-          if (!userData) {
-            setError('No account found with this email address.');
+          // Better error messages based on Supabase error codes
+          if (error.message.includes('Invalid login credentials')) {
+            // Check if account exists to provide better feedback
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', email.toLowerCase())
+              .single();
+            
+            if (userData) {
+              setError('Incorrect password. Please try again or use "Forgot password?" to reset it.');
+            } else {
+              setError('No account found with this email address. Please check your email or sign up.');
+            }
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please check your email and click the confirmation link before signing in.');
           } else {
-            setError('Incorrect password. Please try again.');
+            // Generic fallback
+            setError(error.message);
           }
           setLoading(false);
         } else {

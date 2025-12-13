@@ -1,6 +1,6 @@
 // Path: app/admin/users/page.tsx
-// Version: 3.1.0 - Optimistic updates for responsive checkboxes in edit modal
-// Date: 2024-12-13
+// Version: 3.0.5 - All TypeScript fixes (profile_photo, icon title, email undefined)
+// Date: 2024-12-10
 
 'use client';
 
@@ -55,24 +55,16 @@ export default function AdminUsersPage() {
   };
 
   const updatePermission = async (userId: string, field: string, value: any) => {
-    // Optimistic update - immediately update the local state
-    setUsers(prevUsers => prevUsers.map(u => 
-      u.id === userId ? { ...u, [field]: value } : u
-    ));
-
-    // Update database
     const { error } = await supabase
       .from('users')
       .update({ [field]: value })
       .eq('id', userId);
 
-    if (error) {
-      alert('Error updating permission: ' + error.message);
-      // Revert on error
+    if (!error) {
       await fetchUsers();
+    } else {
+      alert('Error updating permission: ' + error.message);
     }
-    // Note: We don't refetch on success to keep the optimistic update
-    // The next auto-refresh (every 30s) will sync with database
   };
 
   const forceLogout = async (userId: string, userName: string) => {

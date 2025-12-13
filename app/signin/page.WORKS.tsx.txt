@@ -1,4 +1,7 @@
-// app/signin/page.tsx
+// Path: app/signin/page.tsx
+// Version: 2.1.0 - Added weak password detection
+// Date: 2024-12-09
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,6 +22,29 @@ export default function SignInPage() {
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // Weak passwords list
+  const weakPasswords = [
+    'password', '12345678', 'password123', 'qwerty123', 'abc12345',
+    'password1', 'welcome1', 'admin123', 'letmein1', '11111111'
+  ];
+
+  const isWeakPassword = (pwd: string): boolean => {
+    return weakPasswords.includes(pwd.toLowerCase());
+  };
+
+  const getPasswordStrength = (pwd: string): { text: string; color: string; icon: any } => {
+    if (pwd.length < 8) {
+      return { text: 'Too short - minimum 8 characters', color: 'orange', icon: AlertCircle };
+    }
+    if (isWeakPassword(pwd)) {
+      return { text: 'Too weak - please choose a stronger password', color: 'red', icon: AlertCircle };
+    }
+    if (pwd.length >= 12) {
+      return { text: 'Strong password', color: 'green', icon: CheckCircle };
+    }
+    return { text: 'Good password', color: 'green', icon: CheckCircle };
+  };
+
   const handlePostalChange = (value: string) => {
     const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const formatted = cleaned.length > 3 ? `${cleaned.slice(0,3)} ${cleaned.slice(3,6)}` : cleaned;
@@ -32,11 +58,18 @@ export default function SignInPage() {
     setError('');
     setMessage('');
 
-    // Validate password length for signup
-    if (isSignup && password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setLoading(false);
-      return;
+    // Validate password for signup
+    if (isSignup) {
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long');
+        setLoading(false);
+        return;
+      }
+      if (isWeakPassword(password)) {
+        setError('Password is too weak. Please avoid common passwords like "password" or "12345678".');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -76,42 +109,14 @@ export default function SignInPage() {
           }
           setLoading(false);
         } else if (data.user) {
-          // Show success message
-          setMessage('Account created! Setting up your profile...');
-          
-          // Wait for user record to be created
-          let attempts = 0;
-          let userFound = false;
-          
-          while (attempts < 10 && !userFound) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const { data: userRecord } = await supabase
-              .from('users')
-              .select('id')
-              .eq('id', data.user.id)
-              .single();
-            
-            if (userRecord) {
-              userFound = true;
-              // Set flag in sessionStorage so home page can show welcome message
-              sessionStorage.setItem('justSignedUp', 'true');
-              sessionStorage.setItem('newUserName', fullName);
-              window.location.href = '/';
-            } else {
-              attempts++;
-            }
-          }
-          
-          if (!userFound) {
-            sessionStorage.setItem('justSignedUp', 'true');
-            sessionStorage.setItem('newUserName', fullName);
-            window.location.href = '/';
-          }
+          // Set welcome flags and redirect immediately
+          sessionStorage.setItem('justSignedUp', 'true');
+          sessionStorage.setItem('newUserName', fullName);
+          window.location.href = '/';
         }
         
       } else {
-        // Sign in - wait for auth to fully complete
+        // Sign in
         const { error } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
@@ -132,33 +137,7 @@ export default function SignInPage() {
           }
           setLoading(false);
         } else {
-          // Wait for user profile to be loaded before redirecting
-          setMessage('Loading your profile...');
-          
-          // Poll for user session to be fully established
-          let attempts = 0;
-          while (attempts < 20) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-              // Check if profile exists
-              const { data: profile } = await supabase
-                .from('users')
-                .select('id')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (profile) {
-                // Profile found, safe to redirect
-                window.location.href = '/';
-                return;
-              }
-            }
-            attempts++;
-          }
-          
-          // Fallback: redirect anyway after timeout
+          // Redirect immediately - AuthProvider will handle the rest
           window.location.href = '/';
         }
       }
@@ -167,6 +146,9 @@ export default function SignInPage() {
       setLoading(false);
     }
   };
+
+  // Password strength indicator
+  const passwordStrength = isSignup && password.length > 0 ? getPasswordStrength(password) : null;
 
   // Forgot password view
   if (isForgot) {
@@ -203,54 +185,37 @@ export default function SignInPage() {
                     value={email} 
                     onChange={e => setEmail(e.target.value)} 
                     required 
+                    autoComplete="email"
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
                   />
                 </div>
 
-                {error && (
-                  <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-700 text-sm">{error}</p>
-                  </div>
-                )}
-
                 <button 
                   type="submit" 
                   disabled={loading} 
-                  className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
                 >
                   {loading ? 'Sending...' : 'Send Reset Link'}
                 </button>
               </form>
 
-              <div className="text-center mt-6">
+              <div className="mt-6 text-center">
                 <button 
                   onClick={() => setIsForgot(false)}
-                  className="text-gabriola-green font-semibold underline hover:no-underline"
+                  className="text-sm text-gabriola-green hover:underline font-medium"
                 >
                   Back to Sign In
                 </button>
               </div>
             </>
           )}
-        </div>
-      </div>
-    );
-  }
 
-  // Show success message with animation
-  if (message && isSignup) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <Loader2 className="w-16 h-16 text-gabriola-green mx-auto mb-4 animate-spin" />
-          <h2 className="text-2xl font-bold text-gabriola-green mb-2">{message}</h2>
-          <p className="text-gray-600">Please wait, this may take a few seconds...</p>
-          <div className="mt-6 flex justify-center gap-2">
-            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-            <div className="w-2 h-2 bg-gabriola-green rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-          </div>
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 text-sm font-medium">{error}</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -269,9 +234,17 @@ export default function SignInPage() {
             {isSignup ? 'Join Gabriola Connects' : 'Welcome Back'}
           </h1>
           <p className="text-gray-600">
-            {isSignup ? 'Connect with your island community' : 'Sign in to your account'}
+            {isSignup ? 'Create your account to get started' : 'Sign in to your account'}
           </p>
         </div>
+
+        {/* Success Message */}
+        {message && (
+          <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <p className="text-green-700 text-sm font-medium">{message}</p>
+          </div>
+        )}
 
         {/* Error Messages */}
         {error && (
@@ -292,6 +265,7 @@ export default function SignInPage() {
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               required 
+              autoComplete="email"
               className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
             />
           </div>
@@ -307,6 +281,7 @@ export default function SignInPage() {
                 onChange={e => setPassword(e.target.value)} 
                 required 
                 minLength={isSignup ? 8 : undefined}
+                autoComplete={isSignup ? "new-password" : "current-password"}
                 className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
               />
               <button
@@ -319,19 +294,10 @@ export default function SignInPage() {
             </div>
             
             {/* Password strength indicator */}
-            {isSignup && password.length > 0 && (
+            {passwordStrength && (
               <div className="mt-2 flex items-center gap-2 text-sm">
-                {password.length < 8 ? (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-orange-500" />
-                    <span className="text-orange-600">Password must be at least 8 characters</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-green-600">Password strength: Good</span>
-                  </>
-                )}
+                <passwordStrength.icon className={`w-4 h-4 text-${passwordStrength.color}-500`} />
+                <span className={`text-${passwordStrength.color}-600`}>{passwordStrength.text}</span>
               </div>
             )}
           </div>
@@ -348,6 +314,7 @@ export default function SignInPage() {
                   value={fullName} 
                   onChange={e => setFullName(e.target.value)} 
                   required 
+                  autoComplete="name"
                   className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent transition" 
                 />
               </div>
@@ -361,6 +328,7 @@ export default function SignInPage() {
                   value={username} 
                   onChange={e => setUsername(e.target.value.replace(/\s/g,'').toLowerCase())} 
                   required 
+                  autoComplete="username"
                   className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
                 />
               </div>
@@ -374,6 +342,7 @@ export default function SignInPage() {
                     placeholder="Postal Code (optional)" 
                     value={postalCode} 
                     onChange={e => handlePostalChange(e.target.value)} 
+                    autoComplete="postal-code"
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-gabriola-green focus:border-transparent font-mono transition" 
                   />
                 </div>
@@ -425,7 +394,7 @@ export default function SignInPage() {
           {/* Submit Button */}
           <button 
             type="submit" 
-            disabled={loading || (isSignup && password.length < 8)} 
+            disabled={loading || (isSignup && (password.length < 8 || isWeakPassword(password)))} 
             className="w-full bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading 
