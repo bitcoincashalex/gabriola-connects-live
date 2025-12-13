@@ -1,6 +1,6 @@
 // Path: components/EventsManager.tsx
-// Version: 3.1.0 - Integrated venues table for dynamic location selection with auto-fill
-// Date: 2025-12-11
+// Version: 3.2.0 - Added calendar export (.ics) functionality
+// Date: 2024-12-13
 
 'use client';
 
@@ -10,7 +10,8 @@ import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
-import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle } from 'lucide-react';
+import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download } from 'lucide-react';
+import { exportEventToCalendar } from '@/lib/calendar';
 
 interface Venue {
   id: string;
@@ -394,6 +395,32 @@ export default function EventsManager() {
                 event={event}
                 rsvpCount={rsvpCount[event.id] || 0}
                 onRsvp={() => setRsvpEvent(event)}
+                onExport={() => {
+                  const eventStartDate = new Date(event.start_date);
+                  if (event.start_time) {
+                    const [hours, minutes] = event.start_time.split(':');
+                    eventStartDate.setHours(parseInt(hours), parseInt(minutes));
+                  }
+
+                  const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
+                  if (eventEndDate && event.end_time) {
+                    const [hours, minutes] = event.end_time.split(':');
+                    eventEndDate.setHours(parseInt(hours), parseInt(minutes));
+                  }
+
+                  exportEventToCalendar({
+                    title: event.title,
+                    description: event.description,
+                    location: event.venue_name || event.location,
+                    startDate: eventStartDate,
+                    endDate: eventEndDate,
+                    url: `https://gabriolaconnects.ca/events#${event.id}`,
+                    organizer: event.contact_email ? {
+                      name: event.organizer_name || 'Event Organizer',
+                      email: event.contact_email
+                    } : undefined
+                  });
+                }}
                 onEdit={() => { 
                   setSelectedEvent(event); 
                   
@@ -731,7 +758,7 @@ export default function EventsManager() {
 }
 
 // EventCard component (keeping your existing one)
-function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, canEdit }: any) {
+function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEdit }: any) {
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
       {event.image_url && (
@@ -767,23 +794,38 @@ function EventCard({ event, rsvpCount, onRsvp, onEdit, onDelete, canEdit }: any)
 
         <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>
 
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={onRsvp}
-            className="flex-1 bg-gabriola-green text-white px-4 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark flex items-center justify-center gap-2"
-          >
-            <Users className="w-4 h-4" />
-            RSVP {rsvpCount > 0 && `(${rsvpCount})`}
-          </button>
+        <div className="flex flex-col gap-2">
+          {/* Primary action buttons */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={onRsvp}
+              className="flex-1 bg-gabriola-green text-white px-4 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark flex items-center justify-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              RSVP {rsvpCount > 0 && `(${rsvpCount})`}
+            </button>
+            <button 
+              onClick={onExport}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
+              title="Add to your calendar"
+            >
+              <Download className="w-4 h-4" />
+              Add to Calendar
+            </button>
+          </div>
+          
+          {/* Admin action buttons */}
           {canEdit && (
-            <>
-              <button onClick={onEdit} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <button onClick={onEdit} className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded-lg flex items-center justify-center gap-2">
                 <Edit className="w-5 h-5" />
+                Edit
               </button>
-              <button onClick={onDelete} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+              <button onClick={onDelete} className="flex-1 p-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2">
                 <Trash2 className="w-5 h-5" />
+                Delete
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

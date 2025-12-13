@@ -339,7 +339,17 @@ export default function EventsManager() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="flex justify-between items-center mb-12">
-        <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
+          <a 
+            href="https://directory.gabriolaevents.ca/gabriola-events/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-sm text-gray-600 hover:text-gabriola-green transition-colors"
+          >
+            Event data courtesy of Gabriola Chamber of Commerce
+          </a>
+        </div>
         {user && (
           <button
             onClick={() => setShowForm(true)}
@@ -363,7 +373,17 @@ export default function EventsManager() {
 
       {/* Upcoming Events */}
       <section className="mb-16">
-        <h2 className="text-3xl font-bold text-gabriola-green-dark mb-8">Upcoming Events</h2>
+        <div className="flex items-center gap-4 mb-8">
+          <h2 className="text-3xl font-bold text-gabriola-green-dark">Upcoming Events</h2>
+          <a 
+            href="https://directory.gabriolaevents.ca/gabriola-events/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-sm text-gray-600 hover:text-gabriola-green transition-colors"
+          >
+            Event data courtesy of Gabriola Chamber of Commerce
+          </a>
+        </div>
         {upcoming.length === 0 ? (
           <p className="text-center text-gray-600 py-20 text-xl">No upcoming events — be the first to add one!</p>
         ) : (
