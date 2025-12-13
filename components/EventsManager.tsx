@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.5.0 - Fixed dropdown positioning (removed scroll offset for fixed positioning)
+// Version: 3.6.0 - Smart calendar handling: web for desktop, native app for mobile
 // Date: 2024-12-13
 
 'use client';
@@ -800,6 +800,23 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
     setShowCalendarMenu(!showCalendarMenu);
   };
   
+  // Detect if user is on mobile
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+  
+  // Handle Google Calendar - smart behavior for mobile vs desktop
+  const handleGoogleCalendar = () => {
+    if (isMobile()) {
+      // On mobile, download .ics file which opens in native calendar app
+      onExport.downloadICS();
+    } else {
+      // On desktop, open Google Calendar web interface
+      window.open(onExport.googleUrl, '_blank');
+    }
+    setShowCalendarMenu(false);
+  };
+  
   return (
     <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
       {event.image_url && (
@@ -883,13 +900,17 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        window.open(onExport.googleUrl, '_blank');
-                        setShowCalendarMenu(false);
+                        handleGoogleCalendar();
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
                       <Calendar className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium">Google Calendar</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">Google Calendar</div>
+                        {isMobile() && (
+                          <div className="text-xs text-gray-500 mt-0.5">Opens in your calendar app</div>
+                        )}
+                      </div>
                     </button>
                     
                     <button
