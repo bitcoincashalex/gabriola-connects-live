@@ -52,7 +52,54 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-1.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/desktop-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
   "categories": ["social", "news", "lifestyle"],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Events",
+      "short_name": "Events",
+      "description": "View upcoming community events",
+      "url": "/#calendar",
+      "icons": [{ "src": "/icons/events-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Forum",
+      "short_name": "Forum",
+      "description": "Join community discussions",
+      "url": "/#forum",
+      "icons": [{ "src": "/icons/forum-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Alerts",
+      "short_name": "Alerts",
+      "description": "Check community alerts",
+      "url": "/alerts",
+      "icons": [{ "src": "/icons/alerts-96x96.png", "sizes": "96x96" }]
+    }
+  ],
   "related_applications": [],
   "prefer_related_applications": false,
   "lang": "en-CA",
