@@ -1,10 +1,10 @@
 // Path: components/EventsManager.tsx
-// Version: 3.3.0 - Fixed calendar export with Google Calendar link and dropdown menu
+// Version: 3.4.0 - Fixed dropdown positioning and mobile touch events
 // Date: 2024-12-13
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
@@ -783,9 +783,25 @@ export default function EventsManager() {
 // EventCard component
 function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEdit }: any) {
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  
+  const handleOpenMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX
+      });
+    }
+    setShowCalendarMenu(!showCalendarMenu);
+  };
   
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
+    <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
       {event.image_url && (
         <img src={event.image_url} alt={event.title} className="w-full h-48 object-cover" />
       )}
@@ -831,9 +847,10 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
             </button>
             
             {/* Calendar dropdown */}
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <button 
-                onClick={() => setShowCalendarMenu(!showCalendarMenu)}
+                ref={buttonRef}
+                onClick={handleOpenMenu}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
                 title="Add to your calendar"
               >
@@ -846,55 +863,73 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                 <>
                   {/* Backdrop to close dropdown */}
                   <div 
-                    className="fixed inset-0 z-10" 
-                    onClick={() => setShowCalendarMenu(false)}
+                    className="fixed inset-0 z-40" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowCalendarMenu(false);
+                    }}
                   />
                   
-                  {/* Dropdown menu */}
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
+                  {/* Dropdown menu - fixed positioning with calculated position */}
+                  <div 
+                    className="fixed z-50 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 py-2"
+                    style={{
+                      top: `${menuPosition.top}px`,
+                      left: `${menuPosition.left}px`
+                    }}
+                  >
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         window.open(onExport.googleUrl, '_blank');
                         setShowCalendarMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
-                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <Calendar className="w-5 h-5 text-blue-600" />
                       <span className="text-sm font-medium">Google Calendar</span>
                     </button>
                     
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         onExport.downloadICS();
                         setShowCalendarMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
-                      <Calendar className="w-4 h-4 text-gray-600" />
+                      <Calendar className="w-5 h-5 text-gray-600" />
                       <span className="text-sm font-medium">Apple Calendar</span>
                     </button>
                     
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         onExport.downloadICS();
                         setShowCalendarMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
-                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <Calendar className="w-5 h-5 text-blue-500" />
                       <span className="text-sm font-medium">Outlook</span>
                     </button>
                     
                     <div className="border-t border-gray-200 my-1" />
                     
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         onExport.downloadICS();
                         setShowCalendarMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                      className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
-                      <Download className="w-4 h-4 text-gray-500" />
+                      <Download className="w-5 h-5 text-gray-500" />
                       <span className="text-sm">Download .ics file</span>
                     </button>
                   </div>
