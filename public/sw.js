@@ -1,18 +1,11 @@
 // public/sw.js
-// Service Worker for Gabriola Connects PWA
-// Version: 1.0.1 - Fixed icon filenames
+// v1.1.0 - Service Worker with auto-update notification support
 // Date: 2024-12-13
 
-const CACHE_NAME = 'gabriola-connects-v1';
-const OFFLINE_URL = '/offline.html';
-
-// Files to cache immediately on install
-// IMPORTANT: Only include files that actually exist!
+const CACHE_NAME = 'gabriola-connects-v1.1.0';
 const PRECACHE_ASSETS = [
   '/',
-  '/manifest.json',
-  // Note: Removed offline.html and icons from precache
-  // They'll be cached as users visit/use them
+  '/manifest.json'
 ];
 
 // Install event - cache essential assets
@@ -21,17 +14,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[ServiceWorker] Pre-caching essential files');
-        // Use addAll with error handling
-        return cache.addAll(PRECACHE_ASSETS).catch((error) => {
-          console.error('[ServiceWorker] Pre-cache failed:', error);
-          // Don't fail install if pre-cache fails
-          // Service worker will still work, just without pre-cached files
-        });
+        console.log('[ServiceWorker] Pre-caching offline page');
+        return cache.addAll(PRECACHE_ASSETS);
       })
-      .then(() => {
-        console.log('[ServiceWorker] Pre-cache complete');
-        return self.skipWaiting();
+      .catch((error) => {
+        console.error('[ServiceWorker] Pre-cache failed:', error);
       })
   );
 });
@@ -44,122 +31,147 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache:', cacheName);
+            console.log('[ServiceWorker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
   );
+  // Take control of all pages immediately
+  return self.clients.claim();
 });
 
-// Fetch event - network first, fall back to cache
+// Fetch event - network first, then cache fallback
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip chrome-extension and other non-http(s) requests
-  if (!event.request.url.startsWith('http')) return;
-
   // Skip API calls and Supabase requests (always need fresh data)
-  if (event.request.url.includes('/api/') || 
-      event.request.url.includes('supabase.co')) {
+  if (
+    event.request.url.includes('/api/') ||
+    event.request.url.includes('supabase.co')
+  ) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone the response before caching
+        // Clone the response
         const responseToCache = response.clone();
-        
+
         // Cache successful responses
         if (response.status === 200) {
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
         }
-        
+
         return response;
       })
       .catch(() => {
         // Network failed, try cache
-        return caches.match(event.request)
-          .then((response) => {
-            if (response) {
-              return response;
-            }
-            
-            // If no cache and navigation request, show offline page if cached
-            if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL).then((offlineResponse) => {
-                if (offlineResponse) {
-                  return offlineResponse;
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+
+          // Return offline page for navigation requests
+          if (event.request.mode === 'navigate') {
+            return caches.match('/offline.html').then((offlinePage) => {
+              if (offlinePage) {
+                return offlinePage;
+              }
+              // Fallback HTML if offline.html not cached
+              return new Response(
+                `<!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Offline - Gabriola Connects</title>
+                  <style>
+                    body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      min-height: 100vh;
+                      margin: 0;
+                      background: linear-gradient(135deg, #2d5f3f 0%, #1a3a28 100%);
+                      color: white;
+                      text-align: center;
+                      padding: 20px;
+                    }
+                    .container {
+                      max-width: 400px;
+                    }
+                    h1 {
+                      font-size: 2.5rem;
+                      margin-bottom: 1rem;
+                    }
+                    p {
+                      font-size: 1.1rem;
+                      opacity: 0.9;
+                      margin-bottom: 2rem;
+                    }
+                    button {
+                      background: white;
+                      color: #2d5f3f;
+                      border: none;
+                      padding: 12px 24px;
+                      font-size: 1rem;
+                      font-weight: 600;
+                      border-radius: 8px;
+                      cursor: pointer;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <div class="container">
+                    <h1>📡 Offline</h1>
+                    <p>You're currently offline. Gabriola Connects will work again when you reconnect.</p>
+                    <button onclick="window.location.reload()">Try Again</button>
+                  </div>
+                </body>
+                </html>`,
+                {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: new Headers({
+                    'Content-Type': 'text/html',
+                  }),
                 }
-                // No offline page cached, return basic response
-                return new Response(
-                  '<html><body><h1>Offline</h1><p>You are currently offline. Please check your internet connection.</p></body></html>',
-                  {
-                    status: 503,
-                    statusText: 'Service Unavailable',
-                    headers: { 'Content-Type': 'text/html' }
-                  }
-                );
-              });
-            }
-            
-            // For other requests, return a basic error response
-            return new Response('Network error', {
-              status: 408,
-              headers: { 'Content-Type': 'text/plain' }
+              );
             });
+          }
+
+          // For non-navigation requests, return a basic error
+          return new Response('Network error', {
+            status: 408,
+            headers: { 'Content-Type': 'text/plain' },
           });
+        });
       })
   );
 });
 
-// Background sync for posting when back online (optional)
-self.addEventListener('sync', (event) => {
-  console.log('[ServiceWorker] Background sync:', event.tag);
-  if (event.tag === 'sync-posts') {
-    event.waitUntil(syncPosts());
+// Listen for skip waiting message
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[ServiceWorker] Skip waiting and activate new version');
+    self.skipWaiting();
   }
 });
 
-async function syncPosts() {
-  // TODO: Implement background sync for forum posts
-  console.log('[ServiceWorker] Syncing posts...');
-}
-
-// Push notification support (optional - for future alerts)
-self.addEventListener('push', (event) => {
-  console.log('[ServiceWorker] Push received');
-  
-  const options = {
-    body: event.data ? event.data.text() : 'New update from Gabriola Connects',
-    icon: '/icons/icon-192-192.png',  // Updated filename with dashes
-    badge: '/icons/icon-96x96.png',
-    vibrate: [200, 100, 200],
-    tag: 'gabriola-notification',
-    actions: [
-      { action: 'view', title: 'View' },
-      { action: 'close', title: 'Close' }
-    ]
-  };
-
-  event.waitUntil(
-    self.registration.showNotification('Gabriola Connects', options)
-  );
-});
-
-// Handle notification clicks
-self.addEventListener('notificationclick', (event) => {
-  console.log('[ServiceWorker] Notification click');
-  event.notification.close();
-
-  if (event.action === 'view') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+// Notify clients when a new service worker is waiting
+self.addEventListener('waiting', () => {
+  console.log('[ServiceWorker] New version waiting');
+  // Notify all clients that an update is available
+  self.clients.matchAll().then((clients) => {
+    clients.forEach((client) => {
+      client.postMessage({ type: 'UPDATE_AVAILABLE' });
+    });
+  });
 });

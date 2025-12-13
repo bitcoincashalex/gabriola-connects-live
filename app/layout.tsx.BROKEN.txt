@@ -1,27 +1,40 @@
 // app/layout.tsx
-// v4.0.0 - Added PWA support (manifest, service worker, meta tags)
+// v4.0.1 - Fixed PWA metadata configuration for Next.js 14 (viewport in separate export)
 // Date: 2024-12-13
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
+import UpdateNotification from '@/components/UpdateNotification';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <UpdateNotification /> {/* ← Add this line */}
+      </body>
+    </html>
+  );
+}
 
 export const metadata = {
   title: 'Gabriola Connects',
   description: 'Your Island Community Hub - Events, Forum, Directory, Ferry, and Alerts for Gabriola Island, BC',
   manifest: '/manifest.json',
-  themeColor: '#2d5f3f',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Gabriola Connects'
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-    viewportFit: 'cover'
   }
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: '#2d5f3f'
 };
 
 export default function RootLayout({

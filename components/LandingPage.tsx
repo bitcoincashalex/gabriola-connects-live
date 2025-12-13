@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.2.0 - Updated wording: "Install as Mobile App" → "Add to Home Screen"
+// v4.4.0 - Emoji nav "Events" now navigates to /events (EventsManager) instead of calendar
 // Date: 2024-12-13
 'use client';
 
@@ -334,7 +334,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           {/* Quick Navigation Icons */}
           <div className="flex justify-center items-center gap-3 sm:gap-5 mt-4">
             <button
-              onClick={() => onNavigate('calendar')}
+              onClick={() => window.location.href = '/events'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">📅</span>
