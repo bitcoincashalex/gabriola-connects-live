@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.4.0 - Emoji nav "Events" now navigates to /events (EventsManager) instead of calendar
+// v4.5.0 - Changed install wording: "Add to Home Screen" → "Add Shortcut" (more accurate)
 // Date: 2024-12-13
 'use client';
 
@@ -136,7 +136,7 @@ function ShareAndInstallSection() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <div className="text-left flex-1">
-                <div className="font-semibold">Add to Home Screen</div>
+                <div className="font-semibold">Add Shortcut</div>
                 <div className="text-sm text-white/80">Quick access from your home screen</div>
               </div>
             </button>

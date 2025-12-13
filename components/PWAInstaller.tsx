@@ -1,5 +1,5 @@
 // components/PWAInstaller.tsx
-// Version: 1.1.0 - Updated wording: "Install App" → "Add to Home Screen"
+// Version: 1.2.0 - Changed install wording: "Add to Home Screen" → "Add Shortcut"
 // Date: 2025-12-13
 
 'use client';
@@ -84,7 +84,7 @@ export default function PWAInstaller() {
         <div className="flex-1">
           <h3 className="font-bold text-gray-900 mb-1">Install Gabriola Connects</h3>
           <p className="text-sm text-gray-600 mb-3">
-            Add to your home screen for quick access and offline support!
+            Quick access from your home screen and offline support!
           </p>
           
           <div className="flex gap-2">
@@ -92,7 +92,7 @@ export default function PWAInstaller() {
               onClick={handleInstallClick}
               className="px-4 py-2 bg-gabriola-green text-white rounded-lg font-medium hover:bg-gabriola-green-dark transition"
             >
-              Add to Home Screen
+              Add Shortcut
             </button>
             <button
               onClick={handleDismiss}
