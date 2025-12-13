@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.7.1 - Use Google Calendar URL on mobile (prompts to open in app)
+// Version: 3.7.2 - Simplified: Google Calendar URL for all, .ics download for others
 // Date: 2024-12-13
 
 'use client';
@@ -11,7 +11,7 @@ import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
 import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download, ChevronDown } from 'lucide-react';
-import { exportEventToCalendar, generateGoogleCalendarURL, openInMobileCalendar } from '@/lib/calendar';
+import { exportEventToCalendar, generateGoogleCalendarURL } from '@/lib/calendar';
 
 interface Venue {
   id: string;
@@ -830,50 +830,19 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
   const handleGoogleCalendar = () => {
     console.log('📅 Opening Google Calendar');
     // Google Calendar URL works great on both desktop AND mobile!
-    // On mobile with Google Calendar app installed: Opens in app
-    // On mobile without app: Opens in mobile web
-    // On desktop: Opens in web interface
+    // On mobile with Google Calendar app installed: Prompts to open in app ✅
+    // On mobile without app: Opens in mobile web ✅
+    // On desktop: Opens in web interface ✅
     window.open(onExport.googleUrl, '_blank');
     setShowCalendarMenu(false);
   };
   
-  // Handle opening calendar on mobile (works for all calendar types)
-  const handleMobileCalendar = () => {
-    const eventStartDate = new Date(event.start_date);
-    if (event.start_time) {
-      const [hours, minutes] = event.start_time.split(':');
-      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
-    }
-
-    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
-    if (eventEndDate && event.end_time) {
-      const [hours, minutes] = event.end_time.split(':');
-      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
-    }
-
-    openInMobileCalendar({
-      title: event.title,
-      description: event.description,
-      location: event.venue_name || event.location,
-      startDate: eventStartDate,
-      endDate: eventEndDate,
-      url: `https://gabriolaconnects.ca/events#${event.id}`,
-      organizer: event.contact_email ? {
-        name: event.organizer_name || 'Event Organizer',
-        email: event.contact_email
-      } : undefined
-    });
-  };
-  
-  // Handle all other calendar options (Apple, Outlook, etc.)
+  // Handle all other calendar options - just download .ics file
   const handleOtherCalendar = () => {
-    if (isMobile()) {
-      console.log('📱 Mobile - opening calendar app');
-      handleMobileCalendar();
-    } else {
-      console.log('🖥️ Desktop - downloading .ics file');
-      onExport.downloadICS();
-    }
+    console.log('📥 Downloading .ics file');
+    // On both mobile and desktop: Download .ics file
+    // Mobile users can then tap the file to open in their calendar app
+    onExport.downloadICS();
     setShowCalendarMenu(false);
   };
   
