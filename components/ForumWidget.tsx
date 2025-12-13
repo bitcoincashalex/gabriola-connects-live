@@ -1,6 +1,6 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.0.0 - Changed to "Community" with modal popup
+// Version: 5.0.1 - Fixed: Added stopPropagation to prevent parent card navigation
 // Date: 2024-12-13
 
 'use client';
@@ -67,7 +67,10 @@ export function ForumWidget() {
   return (
     <>
       <button 
-        onClick={() => setShowModal(true)}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent parent button from navigating
+          setShowModal(true);
+        }}
         className="w-full text-left space-y-3 hover:opacity-90 transition-opacity"
       >
         {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
