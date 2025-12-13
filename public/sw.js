@@ -1,18 +1,18 @@
 // public/sw.js
 // Service Worker for Gabriola Connects PWA
-// Version: 1.0.0
-// Date: 2025-12-11
+// Version: 1.0.1 - Fixed icon filenames
+// Date: 2024-12-13
 
 const CACHE_NAME = 'gabriola-connects-v1';
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache immediately on install
+// IMPORTANT: Only include files that actually exist!
 const PRECACHE_ASSETS = [
   '/',
-  '/offline.html',
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  // Note: Removed offline.html and icons from precache
+  // They'll be cached as users visit/use them
 ];
 
 // Install event - cache essential assets
@@ -21,10 +21,18 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[ServiceWorker] Pre-caching offline page');
-        return cache.addAll(PRECACHE_ASSETS);
+        console.log('[ServiceWorker] Pre-caching essential files');
+        // Use addAll with error handling
+        return cache.addAll(PRECACHE_ASSETS).catch((error) => {
+          console.error('[ServiceWorker] Pre-cache failed:', error);
+          // Don't fail install if pre-cache fails
+          // Service worker will still work, just without pre-cached files
+        });
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[ServiceWorker] Pre-cache complete');
+        return self.skipWaiting();
+      })
   );
 });
 
@@ -53,6 +61,12 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and other non-http(s) requests
   if (!event.request.url.startsWith('http')) return;
 
+  // Skip API calls and Supabase requests (always need fresh data)
+  if (event.request.url.includes('/api/') || 
+      event.request.url.includes('supabase.co')) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -76,9 +90,22 @@ self.addEventListener('fetch', (event) => {
               return response;
             }
             
-            // If no cache, return offline page for navigation requests
+            // If no cache and navigation request, show offline page if cached
             if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
+              return caches.match(OFFLINE_URL).then((offlineResponse) => {
+                if (offlineResponse) {
+                  return offlineResponse;
+                }
+                // No offline page cached, return basic response
+                return new Response(
+                  '<html><body><h1>Offline</h1><p>You are currently offline. Please check your internet connection.</p></body></html>',
+                  {
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { 'Content-Type': 'text/html' }
+                  }
+                );
+              });
             }
             
             // For other requests, return a basic error response
@@ -110,7 +137,7 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: event.data ? event.data.text() : 'New update from Gabriola Connects',
-    icon: '/icons/icon-192x192.png',
+    icon: '/icons/icon-192-192.png',  // Updated filename with dashes
     badge: '/icons/icon-96x96.png',
     vibrate: [200, 100, 200],
     tag: 'gabriola-notification',
