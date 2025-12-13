@@ -1,5 +1,5 @@
 // Path: lib/calendar.ts
-// Version: 1.0.0 - iCalendar (.ics) file generator for event exports
+// Version: 1.1.0 - Added Google Calendar direct link support
 // Date: 2024-12-13
 
 export interface EventData {
@@ -13,6 +13,43 @@ export interface EventData {
     name: string;
     email?: string;
   };
+}
+
+/**
+ * Formats a date to Google Calendar format (YYYYMMDDTHHmmssZ)
+ */
+function formatGoogleCalDate(date: Date): string {
+  return date.toISOString().replace(/-|:|\.\d+/g, '');
+}
+
+/**
+ * Generates a Google Calendar URL to add an event
+ */
+export function generateGoogleCalendarURL(event: EventData): string {
+  const startDate = formatGoogleCalDate(event.startDate);
+  const endDate = event.endDate 
+    ? formatGoogleCalDate(event.endDate)
+    : formatGoogleCalDate(new Date(event.startDate.getTime() + 60 * 60 * 1000));
+  
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title,
+    dates: `${startDate}/${endDate}`,
+  });
+  
+  if (event.description) {
+    params.append('details', event.description);
+  }
+  
+  if (event.location) {
+    params.append('location', event.location);
+  }
+  
+  if (event.url) {
+    params.append('sprop', `website:${event.url}`);
+  }
+  
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 /**

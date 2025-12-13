@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.2.0 - Added calendar export (.ics) functionality
+// Version: 3.3.0 - Fixed calendar export with Google Calendar link and dropdown menu
 // Date: 2024-12-13
 
 'use client';
@@ -10,8 +10,8 @@ import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
-import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download } from 'lucide-react';
-import { exportEventToCalendar } from '@/lib/calendar';
+import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download, ChevronDown } from 'lucide-react';
+import { exportEventToCalendar, generateGoogleCalendarURL } from '@/lib/calendar';
 
 interface Venue {
   id: string;
@@ -340,17 +340,7 @@ export default function EventsManager() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="flex justify-between items-center mb-12">
-        <div className="flex items-center gap-4">
-          <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
-          <a 
-            href="https://directory.gabriolaevents.ca/gabriola-events/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-gray-600 hover:text-gabriola-green transition-colors"
-          >
-            Event data courtesy of Gabriola Chamber of Commerce
-          </a>
-        </div>
+        <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
         {user && (
           <button
             onClick={() => setShowForm(true)}
@@ -374,16 +364,21 @@ export default function EventsManager() {
 
       {/* Upcoming Events */}
       <section className="mb-16">
-        <div className="flex items-center gap-4 mb-8">
-          <h2 className="text-3xl font-bold text-gabriola-green-dark">Upcoming Events</h2>
-          <a 
-            href="https://directory.gabriolaevents.ca/gabriola-events/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-gray-600 hover:text-gabriola-green transition-colors"
-          >
-            Event data courtesy of Gabriola Chamber of Commerce
-          </a>
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-3">Upcoming Events</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
+            <p className="text-sm text-blue-800">
+              Sample events data from{' '}
+              <a 
+                href="https://directory.gabriolaevents.ca/gabriola-events/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-semibold text-gabriola-green hover:text-gabriola-green-dark underline"
+              >
+                Gabriola Chamber of Commerce website
+              </a>
+            </p>
+          </div>
         </div>
         {upcoming.length === 0 ? (
           <p className="text-center text-gray-600 py-20 text-xl">No upcoming events — be the first to add one!</p>
@@ -395,31 +390,59 @@ export default function EventsManager() {
                 event={event}
                 rsvpCount={rsvpCount[event.id] || 0}
                 onRsvp={() => setRsvpEvent(event)}
-                onExport={() => {
-                  const eventStartDate = new Date(event.start_date);
-                  if (event.start_time) {
-                    const [hours, minutes] = event.start_time.split(':');
-                    eventStartDate.setHours(parseInt(hours), parseInt(minutes));
-                  }
+                onExport={{
+                  googleUrl: (() => {
+                    const eventStartDate = new Date(event.start_date);
+                    if (event.start_time) {
+                      const [hours, minutes] = event.start_time.split(':');
+                      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
+                    }
 
-                  const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
-                  if (eventEndDate && event.end_time) {
-                    const [hours, minutes] = event.end_time.split(':');
-                    eventEndDate.setHours(parseInt(hours), parseInt(minutes));
-                  }
+                    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
+                    if (eventEndDate && event.end_time) {
+                      const [hours, minutes] = event.end_time.split(':');
+                      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
+                    }
 
-                  exportEventToCalendar({
-                    title: event.title,
-                    description: event.description,
-                    location: event.venue_name || event.location,
-                    startDate: eventStartDate,
-                    endDate: eventEndDate,
-                    url: `https://gabriolaconnects.ca/events#${event.id}`,
-                    organizer: event.contact_email ? {
-                      name: event.organizer_name || 'Event Organizer',
-                      email: event.contact_email
-                    } : undefined
-                  });
+                    return generateGoogleCalendarURL({
+                      title: event.title,
+                      description: event.description,
+                      location: event.venue_name || event.location,
+                      startDate: eventStartDate,
+                      endDate: eventEndDate,
+                      url: `https://gabriolaconnects.ca/events#${event.id}`,
+                      organizer: event.contact_email ? {
+                        name: event.organizer_name || 'Event Organizer',
+                        email: event.contact_email
+                      } : undefined
+                    });
+                  })(),
+                  downloadICS: () => {
+                    const eventStartDate = new Date(event.start_date);
+                    if (event.start_time) {
+                      const [hours, minutes] = event.start_time.split(':');
+                      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
+                    }
+
+                    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
+                    if (eventEndDate && event.end_time) {
+                      const [hours, minutes] = event.end_time.split(':');
+                      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
+                    }
+
+                    exportEventToCalendar({
+                      title: event.title,
+                      description: event.description,
+                      location: event.venue_name || event.location,
+                      startDate: eventStartDate,
+                      endDate: eventEndDate,
+                      url: `https://gabriolaconnects.ca/events#${event.id}`,
+                      organizer: event.contact_email ? {
+                        name: event.organizer_name || 'Event Organizer',
+                        email: event.contact_email
+                      } : undefined
+                    });
+                  }
                 }}
                 onEdit={() => { 
                   setSelectedEvent(event); 
@@ -757,8 +780,10 @@ export default function EventsManager() {
   );
 }
 
-// EventCard component (keeping your existing one)
+// EventCard component
 function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEdit }: any) {
+  const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition">
       {event.image_url && (
@@ -804,14 +829,78 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
               <Users className="w-4 h-4" />
               RSVP {rsvpCount > 0 && `(${rsvpCount})`}
             </button>
-            <button 
-              onClick={onExport}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
-              title="Add to your calendar"
-            >
-              <Download className="w-4 h-4" />
-              Add to Calendar
-            </button>
+            
+            {/* Calendar dropdown */}
+            <div className="flex-1 relative">
+              <button 
+                onClick={() => setShowCalendarMenu(!showCalendarMenu)}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
+                title="Add to your calendar"
+              >
+                <Calendar className="w-4 h-4" />
+                Add to Calendar
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              
+              {showCalendarMenu && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowCalendarMenu(false)}
+                  />
+                  
+                  {/* Dropdown menu */}
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
+                    <button
+                      onClick={() => {
+                        window.open(onExport.googleUrl, '_blank');
+                        setShowCalendarMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                    >
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium">Google Calendar</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        onExport.downloadICS();
+                        setShowCalendarMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                    >
+                      <Calendar className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium">Apple Calendar</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        onExport.downloadICS();
+                        setShowCalendarMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                    >
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm font-medium">Outlook</span>
+                    </button>
+                    
+                    <div className="border-t border-gray-200 my-1" />
+                    
+                    <button
+                      onClick={() => {
+                        onExport.downloadICS();
+                        setShowCalendarMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3"
+                    >
+                      <Download className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm">Download .ics file</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           
           {/* Admin action buttons */}
