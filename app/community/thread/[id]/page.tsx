@@ -1,5 +1,5 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 3.1.0 - Added avatars and resident badges, hidden admin roles from public view
+// Version: 3.2.0 - Added clickable images with lightbox viewer
 // Date: 2024-12-13
 
 'use client';
@@ -15,6 +15,7 @@ import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
+import ImageLightbox from '@/components/ImageLightbox';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -26,6 +27,7 @@ export default function ThreadPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isOwnPost, setIsOwnPost] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchThread();
@@ -224,8 +226,10 @@ export default function ThreadPage() {
                   <img 
                     src={thread.image_url} 
                     alt="Post attachment" 
-                    className="max-w-full h-auto rounded-lg border-2 border-gray-200"
+                    onClick={() => setLightboxImage(thread.image_url)}
+                    className="max-w-full h-auto rounded-lg border-2 border-gray-200 cursor-pointer hover:border-gabriola-green transition"
                     style={{ maxHeight: '600px' }}
+                    title="Click to view full size"
                   />
                 </div>
               )}
@@ -288,6 +292,15 @@ export default function ThreadPage() {
           recipientName={thread.display_name || 'Anonymous'}
           currentUserId={user!.id}
           onClose={() => setShowMessageModal(false)}
+        />
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <ImageLightbox
+          src={lightboxImage}
+          alt="Post image"
+          onClose={() => setLightboxImage(null)}
         />
       )}
     </div>

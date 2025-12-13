@@ -1,7 +1,7 @@
 // components/VoteButtons.tsx
 // Reusable upvote/downvote component for posts and replies
-// Version: 1.0.0
-// Date: 2025-12-11
+// Version: 1.0.1 - Fixed: Use maybeSingle() instead of single() to prevent 406 errors
+// Date: 2024-12-13
 
 'use client';
 
@@ -44,7 +44,7 @@ export default function VoteButtons({
         .select('vote_type')
         .eq(idColumn, itemId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Returns null when user hasn't voted yet
 
       if (data) {
         setUserVote(data.vote_type as 'upvote' | 'downvote');

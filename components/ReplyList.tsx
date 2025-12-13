@@ -1,5 +1,5 @@
 // Path: components/ReplyList.tsx
-// Version: 3.1.0 - Added avatars and resident badges to replies, hidden admin roles from public view
+// Version: 3.2.0 - Added clickable images with lightbox viewer
 // Date: 2024-12-13
 
 'use client';
@@ -12,6 +12,7 @@ import { useUser } from '@/components/AuthProvider';
 import ReplyForm from '@/components/ReplyForm';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
+import ImageLightbox from '@/components/ImageLightbox';
 
 interface Reply {
   id: string;
@@ -45,6 +46,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [messagingUser, setMessagingUser] = useState<{ id: string; name: string } | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
 
@@ -246,8 +248,10 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                   <img 
                     src={reply.image_url} 
                     alt="Reply attachment" 
-                    className="max-w-full h-auto rounded-lg border-2 border-gray-200"
+                    onClick={() => setLightboxImage(reply.image_url)}
+                    className="max-w-full h-auto rounded-lg border-2 border-gray-200 cursor-pointer hover:border-gabriola-green transition"
                     style={{ maxHeight: '400px' }}
+                    title="Click to view full size"
                   />
                 </div>
               )}
@@ -321,6 +325,15 @@ export default function ReplyList({ postId, onRefresh }: Props) {
           recipientName={messagingUser.name}
           currentUserId={user.id}
           onClose={() => setMessagingUser(null)}
+        />
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <ImageLightbox
+          src={lightboxImage}
+          alt="Reply image"
+          onClose={() => setLightboxImage(null)}
         />
       )}
     </>

@@ -8,7 +8,6 @@ import { useUser } from '@/components/AuthProvider';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ArrowLeft, Send, Image as ImageIcon, Link2, X, Loader2 } from 'lucide-react';
-import ImageLightbox from '@/components/ImageLightbox';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -22,7 +21,6 @@ export default function ConversationPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const otherUserId = params.userId as string;
@@ -193,10 +191,8 @@ export default function ConversationPage() {
                     <img
                       src={msg.image_url}
                       alt="Attachment"
-                      onClick={() => setLightboxImage(msg.image_url)}
-                      className="mb-2 rounded-lg max-w-full cursor-pointer hover:opacity-90 transition"
+                      className="mb-2 rounded-lg max-w-full"
                       style={{ maxHeight: '300px' }}
-                      title="Click to view full size"
                     />
                   )}
                   <p className="whitespace-pre-wrap break-words">{msg.message}</p>
@@ -273,15 +269,6 @@ export default function ConversationPage() {
           </div>
         </form>
       </div>
-
-      {/* Image Lightbox */}
-      {lightboxImage && (
-        <ImageLightbox
-          src={lightboxImage}
-          alt="Message image"
-          onClose={() => setLightboxImage(null)}
-        />
-      )}
     </div>
   );
 }
