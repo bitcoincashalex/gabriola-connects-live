@@ -1,6 +1,6 @@
 // Path: components/ThreadList.tsx
-// Version: 4.0.0 - Added search filtering for threads and replies
-// Date: 2025-12-11
+// Version: 4.1.0 - Added avatars and resident badges to thread preview
+// Date: 2024-12-13
 
 'use client';
 
@@ -37,10 +37,15 @@ export default function ThreadList({
   const fetchThreads = async () => {
     setLoading(true);
 
-    // Base query
+    // Base query - include author data
     let query = supabase
       .from('bbs_posts')
-      .select('*, reply_count, vote_score')
+      .select(`
+        *, 
+        reply_count, 
+        vote_score,
+        author:users!bbs_posts_user_id_fkey(avatar_url, is_resident)
+      `)
       .eq('is_active', true);
 
     // Category filter

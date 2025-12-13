@@ -1,6 +1,6 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 3.0.0 - Updated to use upvote/downvote system, preserved messaging
-// Date: 2025-12-11
+// Version: 3.1.0 - Added avatars and resident badges, hidden admin roles from public view
+// Date: 2024-12-13
 
 'use client';
 
@@ -56,7 +56,10 @@ export default function ThreadPage() {
   const fetchThread = async () => {
     const { data, error } = await supabase
       .from('bbs_posts')
-      .select('*')
+      .select(`
+        *,
+        author:users!bbs_posts_user_id_fkey(avatar_url, is_resident)
+      `)
       .eq('id', params.id)
       .eq('is_active', true)
       .single();
@@ -151,31 +154,56 @@ export default function ThreadPage() {
               {/* Title */}
               <h1 className="text-4xl font-bold text-gray-900 mb-4">{thread.title}</h1>
 
-              {/* Meta Info with Send Message Button - PRESERVED */}
-              <div className="flex flex-wrap items-center gap-3 text-gray-600 mb-6 text-sm">
-                <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
-                
-                {/* Send Message Button - PRESERVED ✅ */}
-                {canMessageAuthor && (
-                  <button
-                    onClick={() => setShowMessageModal(true)}
-                    className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                    title="Send private message"
-                  >
-                    <Mail className="w-3 h-3" />
-                    Message
-                  </button>
+              {/* Meta Info with Avatar and Resident Badge */}
+              <div className="flex items-center gap-3 mb-6">
+                {/* Avatar */}
+                {!thread.is_anonymous && thread.author?.avatar_url ? (
+                  <img 
+                    src={thread.author.avatar_url} 
+                    alt={thread.display_name}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-500">
+                    {thread.is_anonymous ? '?' : (thread.display_name?.charAt(0) || '?')}
+                  </div>
                 )}
                 
-                {thread.is_anonymous && (
-                  <span className="bg-gray-200 px-2 py-1 rounded text-xs">🕶️ Anonymous</span>
-                )}
-                <span>•</span>
-                <time>{format(new Date(thread.created_at), 'PPP p')}</time>
-                <span>•</span>
-                <span className="bg-gabriola-green/10 text-gabriola-green px-3 py-1 rounded-full text-xs font-medium">
-                  {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                </span>
+                {/* Name and Badges */}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
+                  
+                  {/* Resident Badge - only if not anonymous */}
+                  {!thread.is_anonymous && thread.author?.is_resident && (
+                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                      🏝️ Resident
+                    </span>
+                  )}
+                  
+                  {/* Anonymous Badge */}
+                  {thread.is_anonymous && (
+                    <span className="bg-gray-200 px-2 py-1 rounded text-xs">🕶️ Anonymous</span>
+                  )}
+                  
+                  {/* Send Message Button */}
+                  {canMessageAuthor && (
+                    <button
+                      onClick={() => setShowMessageModal(true)}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                      title="Send private message"
+                    >
+                      <Mail className="w-3 h-3" />
+                      Message
+                    </button>
+                  )}
+                  
+                  <span className="text-gray-400">•</span>
+                  <time className="text-gray-600">{format(new Date(thread.created_at), 'PPP p')}</time>
+                  <span className="text-gray-400">•</span>
+                  <span className="bg-gabriola-green/10 text-gabriola-green px-3 py-1 rounded-full text-xs font-medium">
+                    {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                  </span>
+                </div>
               </div>
 
               {/* External Link */}

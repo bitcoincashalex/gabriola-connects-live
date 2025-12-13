@@ -1,6 +1,6 @@
 // Path: components/ThreadCard.tsx
-// Version: 4.0.0 - Added message button to summary view
-// Date: 2025-12-11
+// Version: 4.1.0 - Added avatars and resident badges, hidden admin roles from public view
+// Date: 2024-12-13
 
 'use client';
 
@@ -113,26 +113,52 @@ export default function ThreadCard({
               {thread.title}
             </h3>
 
-            <div className="flex items-center gap-4 text-gray-600 mb-4 flex-wrap">
-              <span className="font-medium">{thread.display_name || 'Anonymous'}</span>
-              
-              {/* Send Message Button */}
-              {canMessageAuthor && (
-                <button
-                  onClick={handleMessageClick}
-                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                  title="Send private message"
-                >
-                  <Mail className="w-3 h-3" />
-                  Message
-                </button>
+            {/* Author info with avatar and badges */}
+            <div className="flex items-center gap-3 mb-4">
+              {/* Avatar */}
+              {!thread.is_anonymous && thread.author?.avatar_url ? (
+                <img 
+                  src={thread.author.avatar_url} 
+                  alt={thread.display_name}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
+                  {thread.is_anonymous ? '?' : (thread.display_name?.charAt(0) || '?')}
+                </div>
               )}
               
-              {thread.is_anonymous && (
-                <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
-              )}
-              <span>•</span>
-              <span>{formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}</span>
+              {/* Name and badges */}
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">{thread.display_name || 'Anonymous'}</span>
+                
+                {/* Resident Badge - only if not anonymous */}
+                {!thread.is_anonymous && thread.author?.is_resident && (
+                  <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                    🏝️ Resident
+                  </span>
+                )}
+                
+                {/* Anonymous Badge */}
+                {thread.is_anonymous && (
+                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
+                )}
+                
+                {/* Send Message Button */}
+                {canMessageAuthor && (
+                  <button
+                    onClick={handleMessageClick}
+                    className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                    title="Send private message"
+                  >
+                    <Mail className="w-3 h-3" />
+                    Message
+                  </button>
+                )}
+                
+                <span className="text-gray-400">•</span>
+                <span>{formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}</span>
+              </div>
             </div>
 
             <div className="flex items-center gap-6 text-sm text-gray-600">

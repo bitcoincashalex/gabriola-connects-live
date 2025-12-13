@@ -1,6 +1,6 @@
 // Path: components/ReplyList.tsx
-// Version: 3.0.0 - Replaced likes with upvote/downvote system
-// Date: 2025-12-11
+// Version: 3.1.0 - Added avatars and resident badges to replies, hidden admin roles from public view
+// Date: 2024-12-13
 
 'use client';
 
@@ -28,6 +28,10 @@ interface Reply {
   is_active: boolean;
   created_at: string;
   children?: Reply[];
+  author?: {
+    avatar_url: string | null;
+    is_resident: boolean;
+  };
 }
 
 interface Props {
@@ -57,7 +61,10 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const fetchReplies = async () => {
     const { data } = await supabase
       .from('bbs_replies')
-      .select('*')
+      .select(`
+        *,
+        author:users!bbs_replies_user_id_fkey(avatar_url, is_resident)
+      `)
       .eq('post_id', postId)
       .eq('is_active', true)
       .order('created_at', { ascending: true });
@@ -164,35 +171,61 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                 </button>
               )}
 
-              {/* Author & Time with Send Message */}
-              <div className="flex items-center gap-3 text-sm text-gray-600 mb-3 flex-wrap">
-                <span className="font-medium text-gabriola-green">{reply.display_name}</span>
-                
-                {/* Send Message Button */}
-                {canMessage && (
-                  <button
-                    onClick={() => setMessagingUser({ id: reply.user_id, name: reply.display_name })}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                    title="Send private message"
-                  >
-                    <Mail className="w-3 h-3" />
-                    Message
-                  </button>
+              {/* Author & Time with Avatar and Badges */}
+              <div className="flex items-center gap-3 mb-3">
+                {/* Avatar */}
+                {!reply.is_anonymous && reply.author?.avatar_url ? (
+                  <img 
+                    src={reply.author.avatar_url} 
+                    alt={reply.display_name}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
+                    {reply.is_anonymous ? '?' : (reply.display_name?.charAt(0) || '?')}
+                  </div>
                 )}
                 
-                {reply.is_anonymous && (
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
-                )}
-                <span>•</span>
-                <time>{formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}</time>
-                {reply.reported_count > 0 && (
-                  <>
-                    <span>•</span>
-                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
-                      ⚠️ {reply.reported_count} reports
+                {/* Name and Badges */}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-gabriola-green">{reply.display_name}</span>
+                  
+                  {/* Resident Badge - only if not anonymous */}
+                  {!reply.is_anonymous && reply.author?.is_resident && (
+                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                      🏝️ Resident
                     </span>
-                  </>
-                )}
+                  )}
+                  
+                  {/* Anonymous Badge */}
+                  {reply.is_anonymous && (
+                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
+                  )}
+                  
+                  {/* Send Message Button */}
+                  {canMessage && (
+                    <button
+                      onClick={() => setMessagingUser({ id: reply.user_id, name: reply.display_name })}
+                      className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
+                      title="Send private message"
+                    >
+                      <Mail className="w-3 h-3" />
+                      Message
+                    </button>
+                  )}
+                  
+                  <span className="text-gray-400">•</span>
+                  <time className="text-gray-600">{formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}</time>
+                  
+                  {reply.reported_count > 0 && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
+                        ⚠️ {reply.reported_count} reports
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Link */}

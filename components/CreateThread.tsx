@@ -1,6 +1,6 @@
 // Path: components/CreateThread.tsx
-// Version: 3.0.0 - Use category_id from bbs_categories table
-// Date: 2024-12-10
+// Version: 3.1.0 - Removed role text suffixes from display_name (now using visual badges)
+// Date: 2024-12-13
 
 'use client';
 
@@ -63,20 +63,10 @@ export default function CreateThread({ currentUser, defaultCategoryId, onSuccess
     setLoadingCategories(false);
   };
 
-  // Build display name with badges
+  // Build display name - simple, no role suffixes (now using visual badges)
   const displayName = isAnonymous
     ? 'Island Neighbour'
-    : (() => {
-        let name = currentUser.full_name || currentUser.email || 'User';
-        const user = currentUser as any;
-        if (user.is_resident) name += ' (Resident)';
-        if (user.role === 'admin' || user.is_super_admin) name += ' (Admin)';
-        if (user.is_moderator) name += ' (Mod)';
-        if (user.is_fire) name += ' (Fire)';
-        if (user.is_police) name += ' (Police)';
-        if (user.is_medic) name += ' (Medic)';
-        return name;
-      })();
+    : currentUser.full_name || currentUser.email || 'User';
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
