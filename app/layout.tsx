@@ -1,9 +1,8 @@
 // app/layout.tsx
-// v4.1.0 - Added UpdateNotification component for auto-update system
+// v4.2.0 - Removed UpdateNotification (too complex) - PWAs update naturally on refresh
 // Date: 2024-12-13
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
-import UpdateNotification from '@/components/UpdateNotification';
 import './globals.css';
 
 export const metadata = {
@@ -55,7 +54,6 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           <main className="flex-1">{children}</main>
-          <UpdateNotification />
         </AuthProvider>
       </body>
     </html>
