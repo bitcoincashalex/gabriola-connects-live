@@ -55,29 +55,24 @@ export default function AdminUsersPage() {
   };
 
   const updatePermission = async (userId: string, field: string, value: any) => {
-    console.log(`[Admin] Updating ${field} = ${value} for user ${userId}`);
-    
     // Optimistic update - immediately update the local state
     setUsers(prevUsers => prevUsers.map(u => 
       u.id === userId ? { ...u, [field]: value } : u
     ));
 
     // Update database
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
       .update({ [field]: value })
       .eq('id', userId);
 
     if (error) {
-      console.error('[Admin] Database update failed:', error);
-      alert(`Failed to save: ${error.message}\n\nThis might be a permissions issue. Check Supabase RLS policies for the users table.`);
+      alert('Error updating permission: ' + error.message);
       // Revert on error
       await fetchUsers();
-    } else {
-      console.log('[Admin] Database update successful');
-      // Force a refresh after 1 second to confirm the save
-      setTimeout(() => fetchUsers(), 1000);
     }
+    // Note: We don't refetch on success to keep the optimistic update
+    // The next auto-refresh (every 30s) will sync with database
   };
 
   const forceLogout = async (userId: string, userName: string) => {
