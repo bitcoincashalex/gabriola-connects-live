@@ -1,5 +1,5 @@
 // Path: app/signin/page.tsx
-// Version: 2.2.1 - Fixed error messages with better user lookup and debugging
+// Version: 2.2.2 - Fixed user lookup using maybeSingle() instead of single()
 // Date: 2024-12-13
 
 'use client';
@@ -131,7 +131,7 @@ export default function SignInPage() {
             .from('users')
             .select('id')
             .ilike('email', email) // Case-insensitive match
-            .single();
+            .maybeSingle(); // Returns null instead of throwing error when not found
           
           console.log('[Sign In] User lookup:', userData ? 'Found' : 'Not found', lookupError);
           
