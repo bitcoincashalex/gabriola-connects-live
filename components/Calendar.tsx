@@ -349,9 +349,19 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     <div className="flex flex-col h-full bg-white">
       <div className="p-4 border-b border-gabriola-green/20">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-display font-bold text-gabriola-green">
-            Island Events
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-display font-bold text-gabriola-green">
+              Island Events
+            </h1>
+            <a 
+              href="https://directory.gabriolaevents.ca/gabriola-events/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-gray-600 hover:text-gabriola-green transition-colors"
+            >
+              Event data courtesy of Gabriola Chamber of Commerce
+            </a>
+          </div>
           <div className="flex items-center gap-2">
             {user ? (
               <>

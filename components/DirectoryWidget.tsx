@@ -1,6 +1,6 @@
 // components/DirectoryWidget.tsx
-// Shows business count - REDESIGNED to match Alerts widget style
-// Version: 4.0.0 - Big icon left, big title right (like Alerts)
+// Shows business count with simple invite - REDESIGNED to match Alerts widget style
+// Version: 4.0.0 - Big icon left, big title right (like Alerts) + invite message
 // Date: 2025-12-11
 
 'use client';
@@ -68,6 +68,11 @@ export function DirectoryWidget() {
       {/* Business Count - Large & Visible */}
       <div className="text-lg font-semibold text-white">
         {totalCount} local {totalCount === 1 ? 'business' : 'businesses'}
+      </div>
+      
+      {/* Simple Invite Message */}
+      <div className="text-base text-white/90 font-medium">
+        Support local • Shop Gabriola
       </div>
     </div>
   );
