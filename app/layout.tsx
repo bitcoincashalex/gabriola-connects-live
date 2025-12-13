@@ -1,8 +1,9 @@
 // app/layout.tsx
-// v4.2.0 - Removed UpdateNotification (too complex) - PWAs update naturally on refresh
+// v4.3.0 - Added Vercel Analytics
 // Date: 2024-12-13
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
+import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 
 export const metadata = {
@@ -55,6 +56,7 @@ export default function RootLayout({
           <Header />
           <main className="flex-1">{children}</main>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
