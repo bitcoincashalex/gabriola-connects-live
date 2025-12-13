@@ -1,6 +1,6 @@
 // components/LandingPage.tsx
-// v3.0.0 - Simplified cards: widgets now include their own icon/title/description
-// Date: 2025-12-11
+// v4.0.0 - Added PWA install functionality to share section
+// Date: 2024-12-13
 'use client';
 
 import Link from 'next/link';
@@ -15,6 +15,187 @@ import { AlertsWidget } from '@/components/AlertsWidget';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
+}
+
+// Share & Install Section Component
+function ShareAndInstallSection() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
+  useEffect(() => {
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then(() => console.log('Service Worker registered'))
+        .catch((error) => console.error('SW registration failed:', error));
+    }
+
+    // Detect iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(iOS);
+
+    // Detect if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    // Listen for install prompt (Android/Desktop Chrome)
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      
+      // Check if user previously dismissed
+      const dismissed = localStorage.getItem('pwa-install-dismissed');
+      if (!dismissed) {
+        setShowInstallButton(true);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Gabriola Connects',
+        text: 'Check out Gabriola Connects — our island community hub!',
+        url: 'https://gabriolaconnects.ca',
+      }).catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      });
+    } else {
+      navigator.clipboard.writeText('https://gabriolaconnects.ca').then(() => {
+        alert('Link copied to clipboard! Share it with your friends and family.');
+      });
+    }
+  };
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('User accepted install');
+      setIsInstalled(true);
+    }
+    
+    setDeferredPrompt(null);
+    setShowInstallButton(false);
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstallButton(false);
+    localStorage.setItem('pwa-install-dismissed', 'true');
+  };
+
+  return (
+    <div className="text-center mt-12">
+      <div className="inline-block bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+        
+        {/* SHARE BUTTON */}
+        <button
+          onClick={handleShare}
+          className="w-full px-8 py-4 hover:scale-105 transition-transform"
+        >
+          <div className="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            <div className="text-left">
+              <div className="font-semibold">Share this website with your Gabriola friends and family</div>
+            </div>
+          </div>
+        </button>
+
+        {/* DIVIDER - Only show if install is available */}
+        {(showInstallButton || (isIOS && !isInstalled)) && (
+          <div className="mx-8 border-t border-white/30" />
+        )}
+
+        {/* INSTALL BUTTON - Android/Desktop Chrome */}
+        {showInstallButton && !isInstalled && (
+          <div className="px-8 py-4">
+            <button
+              onClick={handleInstall}
+              className="w-full flex items-center gap-3 hover:scale-105 transition-transform"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <div className="text-left flex-1">
+                <div className="font-semibold">Install as Mobile App</div>
+                <div className="text-sm text-white/80">Quick access from your home screen</div>
+              </div>
+            </button>
+            <button
+              onClick={handleDismissInstall}
+              className="text-xs text-white/60 hover:text-white/80 mt-2 underline"
+            >
+              Not now
+            </button>
+          </div>
+        )}
+
+        {/* iOS INSTRUCTIONS */}
+        {isIOS && !isInstalled && (
+          <div className="px-8 py-4">
+            <button
+              onClick={() => setShowIOSInstructions(!showIOSInstructions)}
+              className="w-full flex items-center gap-3 hover:scale-105 transition-transform"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <div className="text-left flex-1">
+                <div className="font-semibold">Install on iPhone/iPad</div>
+                <div className="text-sm text-white/80">Tap to see how</div>
+              </div>
+            </button>
+
+            {showIOSInstructions && (
+              <div className="mt-3 text-left bg-white/10 rounded-lg p-4 text-sm">
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>Tap the Share button <span className="inline-block">□↑</span> at the bottom of Safari</li>
+                  <li>Scroll down and tap "Add to Home Screen"</li>
+                  <li>Tap "Add" in the top right</li>
+                  <li>Find the Gabriola Connects icon on your home screen!</li>
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ALREADY INSTALLED MESSAGE */}
+        {isInstalled && (
+          <div className="px-8 py-4">
+            <div className="flex items-center gap-3 text-white/90">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div className="text-left">
+                <div className="font-semibold">App Installed!</div>
+                <div className="text-sm text-white/80">Thank you for using Gabriola Connects</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 }
 
 export default function LandingPage({ onNavigate }: LandingPageProps) {
@@ -304,39 +485,8 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </p>
         </div>
 
-        {/* Share Section */}
-        <div className="text-center mt-12">
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: 'Gabriola Connects',
-                  text: 'Check out Gabriola Connects — our island community hub!',
-                  url: 'https://gabriolaconnects.ca',
-                }).catch((error) => {
-                  if (error.name !== 'AbortError') {
-                    console.error('Error sharing:', error);
-                  }
-                });
-              } else {
-                navigator.clipboard.writeText('https://gabriolaconnects.ca').then(() => {
-                  alert('Link copied to clipboard! Share it with your friends and family.');
-                });
-              }
-            }}
-            className="inline-block bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white rounded-xl px-8 py-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              <div className="text-left">
-                <div className="font-semibold">Share this website with your Gabriola friends and family</div>
-                <div className="text-sm text-white/80">Mobile app coming soon</div>
-              </div>
-            </div>
-          </button>
-        </div>
+        {/* Share & Install Section */}
+        <ShareAndInstallSection />
 
         {/* Community Stats */}
         {!statsLoading && (

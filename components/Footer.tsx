@@ -1,12 +1,12 @@
 // components/Footer.tsx
-// v2.4 - Updated: 2025-12-11 - Added Alerts tab between Directory and Search
-// Date: 2025-12-11
+// v3.0.0 - Added PWA install link (always accessible if app not installed)
+// Date: 2024-12-13
 
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { CalendarDays, MessageSquare, BookOpen, Anchor, Bell, Search } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { CalendarDays, MessageSquare, BookOpen, Anchor, Bell, Search, Download } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 
 interface FooterProps {
@@ -16,6 +16,46 @@ interface FooterProps {
 
 export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
   const { user } = useUser();
+  
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Detect if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    // Listen for install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstall(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+    }
+    
+    setDeferredPrompt(null);
+    setCanInstall(false);
+  };
 
   const handleTabClick = (tab: string) => {
     if (onNavigate) {
@@ -125,6 +165,18 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
             <Link href="/strachan" className="hover:underline">
               About
             </Link>
+            {canInstall && !isInstalled && (
+              <>
+                {' '}•{' '}
+                <button
+                  onClick={handleInstallClick}
+                  className="hover:underline inline-flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  Install App
+                </button>
+              </>
+            )}
           </p>
         </div>
       </div>
