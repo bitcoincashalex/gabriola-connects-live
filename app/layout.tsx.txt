@@ -1,10 +1,9 @@
 // app/layout.tsx
-// v4.4.0 - Added both Vercel Analytics and Google Analytics 4
+// v4.3.0 - Added Vercel Analytics
 // Date: 2024-12-13
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
 import { Analytics } from '@vercel/analytics/react';
-import GoogleAnalytics from '@/components/GoogleAnalytics';
 import './globals.css';
 
 export const metadata = {
@@ -32,9 +31,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Get Google Analytics ID from environment variable
-  const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-
   return (
     <html lang="en">
       <head>
@@ -56,15 +52,10 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
       </head>
       <body className="min-h-screen flex flex-col bg-gray-50">
-        {/* Google Analytics - only loads if ID is set */}
-        {GA_MEASUREMENT_ID && <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />}
-        
         <AuthProvider>
           <Header />
           <main className="flex-1">{children}</main>
         </AuthProvider>
-        
-        {/* Vercel Analytics */}
         <Analytics />
       </body>
     </html>

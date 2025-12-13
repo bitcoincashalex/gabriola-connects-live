@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v3.2.0 - Fixed React hydration error by removing useMemo from tabs array
+// v3.3.0 - Added Privacy link with hover tooltip (no extra page needed)
 // Date: 2024-12-13
 
 'use client';
@@ -161,6 +161,16 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
             <Link href="/roadmap" className="hover:underline">
               Roadmap
             </Link>{' '}
+            •{' '}
+            <span className="relative inline-block group">
+              <button className="hover:underline cursor-help">
+                Privacy
+              </button>
+              <span className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 shadow-lg">
+                This site uses analytics to help improve our community platform. No personal information is collected.
+                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+              </span>
+            </span>{' '}
             •{' '}
             <Link href="/strachan" className="hover:underline">
               About

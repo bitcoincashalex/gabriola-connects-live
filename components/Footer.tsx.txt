@@ -1,11 +1,11 @@
 // components/Footer.tsx
-// v3.0.0 - Added PWA install link (always accessible if app not installed)
+// v3.2.0 - Fixed React hydration error by removing useMemo from tabs array
 // Date: 2024-12-13
 
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CalendarDays, MessageSquare, BookOpen, Anchor, Bell, Search, Download } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 
@@ -67,8 +67,8 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     }
   };
 
-  // Build tabs array - hide forum for banned users - memoized to prevent re-renders
-  const tabs = useMemo(() => [
+  // Build tabs array - hide forum for banned users
+  const tabs = [
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
     // Only show forum if user is not banned
     ...(user?.is_banned ? [] : [{ id: 'forum', label: 'Forum', icon: MessageSquare }]),
@@ -76,7 +76,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'alerts', label: 'Alerts', icon: Bell, isSpecial: true }, // Navigate to /alerts page
     { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search
-  ], [user?.is_banned]);
+  ];
 
   return (
     <footer>
@@ -173,7 +173,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
                   className="hover:underline inline-flex items-center gap-1"
                 >
                   <Download className="w-3 h-3" />
-                  Install App
+                  Add Quick Access
                 </button>
               </>
             )}
