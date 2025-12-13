@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v3.0.0 - Simplified cards: widgets now include their own icon/title/description
+// v2.9.0 - Added AlertsWidget to show top alert summary in banner
 // Date: 2025-12-11
 'use client';
 
@@ -230,11 +230,42 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 `}
               >
                 <div className={`relative z-10 ${card.textColor}`}>
-                  {/* Widgets now include their own icon, title, and description */}
-                  {card.id === 'calendar' && <NextEventWidget />}
-                  {card.id === 'forum' && <ForumWidget />}
-                  {card.id === 'ferry' && <NextFerryWidget />}
-                  {card.id === 'directory' && <DirectoryWidget />}
+                  <div className="mb-4 transform transition-transform duration-300 group-hover:scale-110">
+                    <Icon className="w-12 h-12" />
+                  </div>
+
+                  <h3 className="text-2xl font-bold mb-2">
+                    {card.title}
+                  </h3>
+
+                  <p className="text-sm opacity-90 mb-4">
+                    {card.description}
+                  </p>
+
+                  {/* Add widgets for each card */}
+                  {card.id === 'calendar' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <NextEventWidget />
+                    </div>
+                  )}
+                  
+                  {card.id === 'forum' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <ForumWidget />
+                    </div>
+                  )}
+                  
+                  {card.id === 'directory' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <DirectoryWidget />
+                    </div>
+                  )}
+                  
+                  {card.id === 'ferry' && (
+                    <div className="mt-3 pt-3 border-t border-white/30">
+                      <NextFerryWidget />
+                    </div>
+                  )}
                 </div>
 
                 <div className={`
