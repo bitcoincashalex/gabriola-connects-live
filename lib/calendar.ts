@@ -1,5 +1,5 @@
 // Path: lib/calendar.ts
-// Version: 1.2.1 - Use window.open for mobile calendar to avoid download prompts
+// Version: 1.2.2 - Fixed Google Calendar URL (use www.google.com/calendar)
 // Date: 2024-12-13
 
 export interface EventData {
@@ -49,7 +49,9 @@ export function generateGoogleCalendarURL(event: EventData): string {
     params.append('sprop', `website:${event.url}`);
   }
   
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  // Use the current Google Calendar URL format
+  // This works better on mobile and desktop
+  return `https://www.google.com/calendar/render?${params.toString()}`;
 }
 
 /**
