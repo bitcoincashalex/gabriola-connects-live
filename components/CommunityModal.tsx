@@ -16,30 +16,29 @@ export default function CommunityModal({ isOpen, onClose }: CommunityModalProps)
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-50 animate-fadeIn"
+        className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
       
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
-          {/* Header */}
-          <div className="sticky top-0 bg-gabriola-green text-white p-6 rounded-t-2xl flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold">Community Hub</h2>
-              <p className="text-white/90 mt-1">Your gateway to Gabriola resources</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-full transition"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
+      {/* Modal Content */}
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-gabriola-green text-white p-6 rounded-t-2xl flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-3xl font-bold">Community Hub</h2>
+            <p className="text-white/90 mt-1">Your gateway to Gabriola resources</p>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/20 rounded-full transition"
+            aria-label="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
 
           {/* Content */}
           <div className="p-6 space-y-4">
@@ -163,32 +162,6 @@ export default function CommunityModal({ isOpen, onClose }: CommunityModalProps)
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-        
-        .animate-slideUp {
-          animation: slideUp 0.3s ease-out;
-        }
-      `}</style>
-    </>
+    </div>
   );
 }
