@@ -1,5 +1,5 @@
 // Path: app/admin/users/page.tsx
-// Version: 3.1.2 - Using updated user_admin_stats view with all admin fields
+// Version: 3.1.1 - Fixed: Fetch from users table instead of outdated view
 // Date: 2024-12-13
 
 'use client';
@@ -42,9 +42,10 @@ export default function AdminUsersPage() {
   }, [user, authLoading, router]);
 
   const fetchUsers = async () => {
-    // Fetch from the view that includes activity stats AND all admin fields
+    // Fetch directly from users table to get all current fields
+    // (user_admin_stats view might be outdated and missing new admin fields)
     const { data, error } = await supabase
-      .from('user_admin_stats')
+      .from('users')
       .select('*')
       .order('created_at', { ascending: false });
     
