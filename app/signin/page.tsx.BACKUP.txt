@@ -1,5 +1,5 @@
 // Path: app/signin/page.tsx
-// Version: 2.2.1 - Fixed error messages with better user lookup and debugging
+// Version: 2.2.0 - Improved error messages for better user feedback
 // Date: 2024-12-13
 
 'use client';
@@ -123,26 +123,26 @@ export default function SignInPage() {
         });
         
         if (error) {
-          console.log('[Sign In] Error:', error.message);
-          
-          // Supabase returns "Invalid login credentials" for both wrong email AND wrong password
-          // We need to check if the account actually exists
-          const { data: userData, error: lookupError } = await supabase
-            .from('users')
-            .select('id')
-            .ilike('email', email) // Case-insensitive match
-            .single();
-          
-          console.log('[Sign In] User lookup:', userData ? 'Found' : 'Not found', lookupError);
-          
-          if (userData) {
-            // User exists, so it must be wrong password
-            setError('Incorrect password. Please try again or use "Forgot password?" to reset it.');
+          // Better error messages based on Supabase error codes
+          if (error.message.includes('Invalid login credentials')) {
+            // Check if account exists to provide better feedback
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', email.toLowerCase())
+              .single();
+            
+            if (userData) {
+              setError('Incorrect password. Please try again or use "Forgot password?" to reset it.');
+            } else {
+              setError('No account found with this email address. Please check your email or sign up.');
+            }
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please check your email and click the confirmation link before signing in.');
           } else {
-            // User doesn't exist
-            setError('No account found with this email address. Please check your email or sign up.');
+            // Generic fallback
+            setError(error.message);
           }
-          
           setLoading(false);
         } else {
           // Redirect immediately - AuthProvider will handle the rest
