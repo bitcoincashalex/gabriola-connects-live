@@ -1,6 +1,6 @@
 // components/NextEventWidget.tsx
-// Shows next upcoming event for landing page calendar card
-// Version: 1.0.0
+// Shows next upcoming event - REDESIGNED for readability
+// Version: 2.0.0 - Larger, more balanced text
 // Date: 2025-12-11
 
 'use client';
@@ -79,7 +79,7 @@ export function NextEventWidget() {
 
   if (isLoading) {
     return (
-      <div className="text-xs text-white/70">
+      <div className="text-sm text-white/70">
         Loading...
       </div>
     );
@@ -87,7 +87,7 @@ export function NextEventWidget() {
 
   if (!nextEvent) {
     return (
-      <div className="text-xs text-white/70">
+      <div className="text-sm text-white/70">
         No upcoming events
       </div>
     );
@@ -110,26 +110,31 @@ export function NextEventWidget() {
     ? format(parseISO(`2000-01-01T${nextEvent.start_time}`), 'h:mm a')
     : 'All day';
 
-  // Truncate title if too long
-  const displayTitle = nextEvent.title.length > 35 
-    ? nextEvent.title.substring(0, 32) + '...'
+  // Truncate title if too long - allow more characters with bigger text
+  const displayTitle = nextEvent.title.length > 40 
+    ? nextEvent.title.substring(0, 37) + '...'
     : nextEvent.title;
 
   // Truncate location if too long
-  const displayLocation = nextEvent.location.length > 25
-    ? nextEvent.location.substring(0, 22) + '...'
+  const displayLocation = nextEvent.location.length > 30
+    ? nextEvent.location.substring(0, 27) + '...'
     : nextEvent.location;
 
   return (
-    <div className="text-xs space-y-1">
-      <div className="text-white font-semibold">
+    <div className="space-y-2">
+      {/* Event Title - Readable & Bold */}
+      <div className="text-base font-semibold text-white line-clamp-2">
         {displayTitle}
       </div>
-      <div className="text-white/90">
+      
+      {/* Date & Time - Medium & Visible */}
+      <div className="text-lg font-medium text-white/90">
         {dateDisplay} • {timeDisplay}
       </div>
+      
+      {/* Location - Supporting Info */}
       {nextEvent.location && (
-        <div className="text-white/80 text-[10px]">
+        <div className="text-sm text-white/80">
           📍 {displayLocation}
         </div>
       )}

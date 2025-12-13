@@ -1,6 +1,6 @@
 // components/NextEventWidget.tsx
-// Shows next upcoming event - REDESIGNED for readability
-// Version: 2.0.0 - Larger, more balanced text
+// Shows next upcoming event - REDESIGNED
+// Version: 3.0.0 - Icon and title on same line
 // Date: 2025-12-11
 
 'use client';
@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
+import { Calendar } from 'lucide-react';
 
 interface EventInfo {
   id: string;
@@ -87,8 +88,24 @@ export function NextEventWidget() {
 
   if (!nextEvent) {
     return (
-      <div className="text-sm text-white/70">
-        No upcoming events
+      <div className="space-y-2">
+        {/* Icon + Title on same line */}
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-white" />
+          <h3 className="text-lg font-bold text-white">Calendar</h3>
+        </div>
+        
+        {/* Description */}
+        <div className="text-sm text-white/90">
+          Island events & activities
+        </div>
+        
+        {/* Divider */}
+        <div className="border-t border-white/20 pt-2">
+          <div className="text-sm text-white/70">
+            No upcoming events
+          </div>
+        </div>
       </div>
     );
   }
@@ -110,7 +127,7 @@ export function NextEventWidget() {
     ? format(parseISO(`2000-01-01T${nextEvent.start_time}`), 'h:mm a')
     : 'All day';
 
-  // Truncate title if too long - allow more characters with bigger text
+  // Truncate title if too long
   const displayTitle = nextEvent.title.length > 40 
     ? nextEvent.title.substring(0, 37) + '...'
     : nextEvent.title;
@@ -122,22 +139,36 @@ export function NextEventWidget() {
 
   return (
     <div className="space-y-2">
-      {/* Event Title - Readable & Bold */}
-      <div className="text-base font-semibold text-white line-clamp-2">
-        {displayTitle}
+      {/* Icon + Title on same line */}
+      <div className="flex items-center gap-2">
+        <Calendar className="w-5 h-5 text-white" />
+        <h3 className="text-lg font-bold text-white">Calendar</h3>
       </div>
       
-      {/* Date & Time - Medium & Visible */}
-      <div className="text-lg font-medium text-white/90">
-        {dateDisplay} • {timeDisplay}
+      {/* Description */}
+      <div className="text-sm text-white/90">
+        Island events & activities
       </div>
       
-      {/* Location - Supporting Info */}
-      {nextEvent.location && (
-        <div className="text-sm text-white/80">
-          📍 {displayLocation}
+      {/* Divider */}
+      <div className="border-t border-white/20 pt-2 space-y-2">
+        {/* Event Title - Readable & Bold */}
+        <div className="text-base font-semibold text-white line-clamp-2">
+          {displayTitle}
         </div>
-      )}
+        
+        {/* Date & Time - Medium & Visible */}
+        <div className="text-lg font-medium text-white/90">
+          {dateDisplay} • {timeDisplay}
+        </div>
+        
+        {/* Location - Supporting Info */}
+        {nextEvent.location && (
+          <div className="text-sm text-white/80">
+            📍 {displayLocation}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

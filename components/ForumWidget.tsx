@@ -1,12 +1,13 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 2.0.0 - Larger, more readable text
+// Version: 3.0.0 - Icon and title on same line
 // Date: 2025-12-11
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { MessageSquare } from 'lucide-react';
 
 interface LatestPost {
   id: string;
@@ -56,24 +57,38 @@ export function ForumWidget() {
     );
   }
 
-  // Truncate title if too long - allow more characters now with bigger text
+  // Truncate title if too long
   const displayTitle = latestPost && latestPost.title.length > 40
     ? latestPost.title.substring(0, 37) + '...'
     : latestPost?.title;
 
   return (
     <div className="space-y-2">
-      {/* Active Count - Medium Size */}
-      <div className="text-lg font-semibold text-white">
-        {activeCount} active {activeCount === 1 ? 'discussion' : 'discussions'}
+      {/* Icon + Title on same line */}
+      <div className="flex items-center gap-2">
+        <MessageSquare className="w-5 h-5 text-white" />
+        <h3 className="text-lg font-bold text-white">Forum</h3>
       </div>
       
-      {/* Latest Thread - Readable Size */}
-      {latestPost && (
-        <div className="text-base font-medium text-white/90 line-clamp-2">
-          Latest: {displayTitle}
+      {/* Description */}
+      <div className="text-sm text-white/90">
+        Real conversations. Real neighbours.
+      </div>
+      
+      {/* Divider */}
+      <div className="border-t border-white/20 pt-2 space-y-2">
+        {/* Active Count - Medium Size */}
+        <div className="text-lg font-semibold text-white">
+          {activeCount} active {activeCount === 1 ? 'discussion' : 'discussions'}
         </div>
-      )}
+        
+        {/* Latest Thread - Readable Size */}
+        {latestPost && (
+          <div className="text-base font-medium text-white/90 line-clamp-2">
+            Latest: {displayTitle}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,12 +1,13 @@
 // components/DirectoryWidget.tsx
-// Shows business count - REDESIGNED for better readability
-// Version: 2.0.0 - Larger text for mobile
+// Shows business count - REDESIGNED with icon + title layout
+// Version: 3.0.0 - Icon and title on same line
 // Date: 2025-12-11
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Book } from 'lucide-react';
 
 export function DirectoryWidget() {
   const [totalCount, setTotalCount] = useState(0);
@@ -46,9 +47,23 @@ export function DirectoryWidget() {
 
   return (
     <div className="space-y-2">
-      {/* Business Count - Large & Visible */}
-      <div className="text-lg font-semibold text-white">
-        {totalCount} local {totalCount === 1 ? 'business' : 'businesses'}
+      {/* Icon + Title on same line */}
+      <div className="flex items-center gap-2">
+        <Book className="w-5 h-5 text-white" />
+        <h3 className="text-lg font-bold text-white">Directory</h3>
+      </div>
+      
+      {/* Description */}
+      <div className="text-sm text-white/90">
+        Local businesses & services
+      </div>
+      
+      {/* Divider */}
+      <div className="border-t border-white/20 pt-2">
+        {/* Business Count - Large & Visible */}
+        <div className="text-lg font-semibold text-white">
+          {totalCount} local {totalCount === 1 ? 'business' : 'businesses'}
+        </div>
       </div>
     </div>
   );
