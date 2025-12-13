@@ -1,5 +1,5 @@
 // Path: lib/calendar.ts
-// Version: 1.1.0 - Added Google Calendar direct link support
+// Version: 1.2.0 - Added openInMobileCalendar for direct calendar app opening
 // Date: 2024-12-13
 
 export interface EventData {
@@ -135,7 +135,23 @@ export function generateICS(event: EventData): string {
 }
 
 /**
- * Downloads an .ics file in the browser
+ * Opens .ics file directly in mobile calendar app (no download prompt)
+ */
+export function openInMobileCalendar(event: EventData): void {
+  const icsContent = generateICS(event);
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  
+  // On mobile, navigating to the blob URL makes the OS open it in the calendar app
+  // No download dialog - calendar app opens directly!
+  window.location.href = blobUrl;
+  
+  // Clean up blob URL after a delay
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
+
+/**
+ * Downloads an .ics file in the browser (desktop)
  */
 export function downloadICS(icsContent: string, filename: string): void {
   const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
@@ -149,7 +165,7 @@ export function downloadICS(icsContent: string, filename: string): void {
 }
 
 /**
- * Generates and downloads an .ics file for an event
+ * Generates and downloads an .ics file for an event (desktop)
  */
 export function exportEventToCalendar(event: EventData, filename?: string): void {
   const icsContent = generateICS(event);

@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.6.0 - Smart calendar handling: web for desktop, native app for mobile
+// Version: 3.7.0 - Proper mobile calendar: opens app directly (no file download!)
 // Date: 2024-12-13
 
 'use client';
@@ -11,7 +11,7 @@ import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
 import { format, isAfter, isBefore, isSameDay } from 'date-fns';
 import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download, ChevronDown } from 'lucide-react';
-import { exportEventToCalendar, generateGoogleCalendarURL } from '@/lib/calendar';
+import { exportEventToCalendar, generateGoogleCalendarURL, openInMobileCalendar } from '@/lib/calendar';
 
 interface Venue {
   id: string;
@@ -800,19 +800,84 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
     setShowCalendarMenu(!showCalendarMenu);
   };
   
-  // Detect if user is on mobile
+  // Detect if user is on mobile (improved detection)
   const isMobile = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Check user agent
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    
+    // Check screen size as backup
+    const isMobileScreen = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+    
+    // Check touch support
+    const isTouchDevice = typeof window !== 'undefined' ? 'ontouchstart' in window || navigator.maxTouchPoints > 0 : false;
+    
+    const result = isMobileUA || (isMobileScreen && isTouchDevice);
+    
+    // Debug logging
+    console.log('🔍 Mobile detection:', {
+      userAgent,
+      isMobileUA,
+      isMobileScreen,
+      isTouchDevice,
+      result
+    });
+    
+    return result;
   };
   
   // Handle Google Calendar - smart behavior for mobile vs desktop
   const handleGoogleCalendar = () => {
-    if (isMobile()) {
-      // On mobile, download .ics file which opens in native calendar app
-      onExport.downloadICS();
+    const mobile = isMobile();
+    console.log('📅 Google Calendar clicked, isMobile:', mobile);
+    
+    if (mobile) {
+      console.log('📱 Mobile detected - opening calendar app directly');
+      handleMobileCalendar();
     } else {
+      console.log('🖥️ Desktop detected - opening Google Calendar web');
       // On desktop, open Google Calendar web interface
       window.open(onExport.googleUrl, '_blank');
+    }
+    setShowCalendarMenu(false);
+  };
+  
+  // Handle opening calendar on mobile (works for all calendar types)
+  const handleMobileCalendar = () => {
+    const eventStartDate = new Date(event.start_date);
+    if (event.start_time) {
+      const [hours, minutes] = event.start_time.split(':');
+      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
+    }
+
+    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
+    if (eventEndDate && event.end_time) {
+      const [hours, minutes] = event.end_time.split(':');
+      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
+    }
+
+    openInMobileCalendar({
+      title: event.title,
+      description: event.description,
+      location: event.venue_name || event.location,
+      startDate: eventStartDate,
+      endDate: eventEndDate,
+      url: `https://gabriolaconnects.ca/events#${event.id}`,
+      organizer: event.contact_email ? {
+        name: event.organizer_name || 'Event Organizer',
+        email: event.contact_email
+      } : undefined
+    });
+  };
+  
+  // Handle all other calendar options (Apple, Outlook, etc.)
+  const handleOtherCalendar = () => {
+    if (isMobile()) {
+      console.log('📱 Mobile - opening calendar app directly');
+      handleMobileCalendar();
+    } else {
+      console.log('🖥️ Desktop - downloading .ics file');
+      onExport.downloadICS();
     }
     setShowCalendarMenu(false);
   };
@@ -917,8 +982,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onExport.downloadICS();
-                        setShowCalendarMenu(false);
+                        handleOtherCalendar();
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
@@ -930,8 +994,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onExport.downloadICS();
-                        setShowCalendarMenu(false);
+                        handleOtherCalendar();
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
@@ -945,8 +1008,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, canEd
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onExport.downloadICS();
-                        setShowCalendarMenu(false);
+                        handleOtherCalendar();
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 transition-colors"
                     >
