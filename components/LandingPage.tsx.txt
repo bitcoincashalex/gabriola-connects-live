@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.5.0 - Changed install wording: "Add to Home Screen" → "Add Shortcut" (more accurate)
+// v4.6.0 - Community card now navigates to /community-hub page
 // Date: 2024-12-13
 'use client';
 
@@ -393,6 +393,40 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
 
+            // Community card goes to dedicated page, others use hash navigation
+            if (card.id === 'forum') {
+              return (
+                <Link
+                  key={card.id}
+                  href="/community-hub"
+                  onMouseEnter={() => setHoveredCard(card.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  className={`
+                    relative overflow-hidden
+                    bg-gradient-to-br ${card.color}
+                    rounded-3xl p-8
+                    shadow-xl hover:shadow-2xl
+                    transform transition-all duration-300
+                    ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
+                    cursor-pointer
+                    group
+                    block
+                  `}
+                >
+                  <div className={`relative z-10 ${card.textColor}`}>
+                    <ForumWidget />
+                  </div>
+
+                  <div className={`
+                    absolute -bottom-12 -right-12 w-48 h-48 
+                    rounded-full bg-white/10
+                    transform transition-transform duration-500
+                    ${isHovered ? 'scale-150' : 'scale-100'}
+                  `} />
+                </Link>
+              );
+            }
+
             return (
               <button
                 key={card.id}
@@ -413,7 +447,6 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                 <div className={`relative z-10 ${card.textColor}`}>
                   {/* Widgets now include their own icon, title, and description */}
                   {card.id === 'calendar' && <NextEventWidget />}
-                  {card.id === 'forum' && <ForumWidget />}
                   {card.id === 'ferry' && <NextFerryWidget />}
                   {card.id === 'directory' && <DirectoryWidget />}
                 </div>

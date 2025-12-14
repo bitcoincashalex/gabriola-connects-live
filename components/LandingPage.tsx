@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.6.0 - Community card now navigates to /community-hub page
+// v4.6.1 - Fixed: Strachan family link opens in same window (not new tab)
 // Date: 2024-12-13
 'use client';
 
@@ -507,14 +507,12 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </p>
           <p className="text-gray-500 text-xs text-center">
             Brought to you by the{' '}
-            <a 
-              href="https://gabriolaconnects.ca/strachan" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <Link 
+              href="/strachan" 
               className="text-gabriola-green hover:text-gabriola-green-dark underline font-medium transition-colors"
             >
               Strachan family
-            </a>
+            </Link>
           </p>
         </div>
 
