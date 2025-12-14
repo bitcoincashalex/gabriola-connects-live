@@ -1,6 +1,6 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.1.0 - Navigate to /community-hub page instead of modal
+// Version: 5.1.1 - Removed unused useRouter import (was causing React error)
 // Date: 2024-12-13
 
 'use client';
@@ -8,7 +8,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MessageSquare } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 interface LatestPost {
   id: string;
@@ -20,7 +19,6 @@ export function ForumWidget() {
   const [activeCount, setActiveCount] = useState(0);
   const [latestPost, setLatestPost] = useState<LatestPost | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     const loadStats = async () => {
