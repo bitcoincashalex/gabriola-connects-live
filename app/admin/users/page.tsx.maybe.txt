@@ -1,5 +1,5 @@
 // Path: app/admin/users/page.tsx
-// Version: 3.1.1 - Fixed: Fetch from users table instead of outdated view
+// Version: 3.1.2 - Using updated user_admin_stats view with all admin fields
 // Date: 2024-12-13
 
 'use client';
@@ -42,10 +42,9 @@ export default function AdminUsersPage() {
   }, [user, authLoading, router]);
 
   const fetchUsers = async () => {
-    // Fetch directly from users table to get all current fields
-    // (user_admin_stats view might be outdated and missing new admin fields)
+    // Fetch from the view that includes activity stats AND all admin fields
     const { data, error } = await supabase
-      .from('users')
+      .from('user_admin_stats')
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -209,7 +208,15 @@ export default function AdminUsersPage() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    // Show date AND time for older logins
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const isUserOnline = (lastActivity: string | null) => {

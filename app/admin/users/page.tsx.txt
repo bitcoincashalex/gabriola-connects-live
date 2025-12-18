@@ -1,6 +1,6 @@
 // Path: app/admin/users/page.tsx
-// Version: 3.0.5 - All TypeScript fixes (profile_photo, icon title, email undefined)
-// Date: 2024-12-10
+// Version: 3.1.2 - Using updated user_admin_stats view with all admin fields
+// Date: 2024-12-13
 
 'use client';
 
@@ -42,7 +42,7 @@ export default function AdminUsersPage() {
   }, [user, authLoading, router]);
 
   const fetchUsers = async () => {
-    // Fetch from the view that includes activity stats
+    // Fetch from the view that includes activity stats AND all admin fields
     const { data, error } = await supabase
       .from('user_admin_stats')
       .select('*')
@@ -55,15 +55,28 @@ export default function AdminUsersPage() {
   };
 
   const updatePermission = async (userId: string, field: string, value: any) => {
-    const { error } = await supabase
+    console.log(`[Admin] Updating ${field} = ${value} for user ${userId}`);
+    
+    // Optimistic update - immediately update the local state
+    setUsers(prevUsers => prevUsers.map(u => 
+      u.id === userId ? { ...u, [field]: value } : u
+    ));
+
+    // Update database
+    const { data, error } = await supabase
       .from('users')
       .update({ [field]: value })
       .eq('id', userId);
 
-    if (!error) {
+    if (error) {
+      console.error('[Admin] Database update failed:', error);
+      alert(`Failed to save: ${error.message}\n\nThis might be a permissions issue. Check Supabase RLS policies for the users table.`);
+      // Revert on error
       await fetchUsers();
     } else {
-      alert('Error updating permission: ' + error.message);
+      console.log('[Admin] Database update successful');
+      // Force a refresh after 1 second to confirm the save
+      setTimeout(() => fetchUsers(), 1000);
     }
   };
 

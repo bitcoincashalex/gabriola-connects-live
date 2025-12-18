@@ -1,6 +1,6 @@
 // Path: app/admin/users/page.tsx
-// Version: 3.1.2 - Using updated user_admin_stats view with all admin fields
-// Date: 2024-12-13
+// Version: 3.2.0 - Added date+time display for last login timestamps
+// Date: 2024-12-18
 
 'use client';
 
@@ -208,7 +208,15 @@ export default function AdminUsersPage() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    // Show date AND time for older logins
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   const isUserOnline = (lastActivity: string | null) => {
