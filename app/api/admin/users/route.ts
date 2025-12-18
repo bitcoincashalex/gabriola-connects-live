@@ -1,7 +1,7 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 1.0.4 - Fixed table name (removed public. prefix - it was creating public.public.users)
+// Version: 2.0.0 - Full feature restoration with ALL admin columns
 // Created: 2025-12-18
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
@@ -25,7 +25,6 @@ interface AdminUser {
   is_super_admin: boolean;
   admin_events: boolean;
   admin_bbs: boolean;
-  admin_users: boolean;
   
   // Status
   is_banned: boolean;
@@ -216,15 +215,39 @@ export async function GET(request: NextRequest) {
         full_name,
         username,
         avatar_url,
+        bio,
+        postal_code,
+        created_at,
+        
+        role,
         is_super_admin,
+        
         admin_events,
         admin_bbs,
+        admin_forum,
+        admin_directory,
+        admin_alerts,
+        admin_ferry,
         admin_users,
+        
         is_banned,
+        is_suspended,
         account_locked,
-        created_at,
+        forum_read_only,
+        forum_banned,
+        
+        can_post,
+        can_create_events,
+        can_issue_alerts,
+        alert_level_permission,
+        
+        is_resident,
+        
         last_sign_in_at,
-        last_activity_at
+        last_activity_at,
+        
+        profile_photo,
+        phone_number
       `, { count: 'exact' });
 
     // ========================================================================
@@ -245,7 +268,7 @@ export async function GET(request: NextRequest) {
     
     switch (filter) {
       case 'admins':
-        query = query.or('is_super_admin.eq.true,admin_events.eq.true,admin_bbs.eq.true,admin_users.eq.true');
+        query = query.or('is_super_admin.eq.true,admin_events.eq.true,admin_bbs.eq.true,admin_users.eq.true,admin_forum.eq.true,admin_directory.eq.true,admin_alerts.eq.true,admin_ferry.eq.true');
         break;
       
       case 'banned':
