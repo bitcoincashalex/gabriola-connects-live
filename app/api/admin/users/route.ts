@@ -1,7 +1,7 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 1.0.2 - Fixed schema ambiguity (auth.users vs public.users)
+// Version: 1.0.3 - Added debug logging for auth troubleshooting
 // Created: 2025-12-18
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
@@ -85,18 +85,31 @@ async function checkAdminAuth(request: NextRequest): Promise<string | null> {
     
     // Get session from cookies
     const authHeader = request.headers.get('authorization');
+    console.log('[Admin API] Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.log('[Admin API] ❌ No auth header');
       return null;
     }
 
     const token = authHeader.replace('Bearer ', '');
+    console.log('[Admin API] Token extracted, length:', token.length);
     
     // Verify token and get user
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
     
+    console.log('[Admin API] getUser result:', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      error: error?.message 
+    });
+    
     if (error || !user) {
+      console.log('[Admin API] ❌ Token verification failed:', error?.message);
       return null;
     }
+
+    console.log('[Admin API] ✅ User authenticated:', user.id);
 
     // Check if user is super admin
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -105,10 +118,18 @@ async function checkAdminAuth(request: NextRequest): Promise<string | null> {
       .eq('id', user.id)
       .single();
 
+    console.log('[Admin API] Profile check:', {
+      hasProfile: !!profile,
+      isSuperAdmin: profile?.is_super_admin,
+      error: profileError?.message
+    });
+
     if (profileError || !profile?.is_super_admin) {
+      console.log('[Admin API] ❌ Not super admin');
       return null;
     }
 
+    console.log('[Admin API] ✅ Super admin verified');
     return user.id;
   } catch (error) {
     console.error('[Admin API] Auth error:', error);
