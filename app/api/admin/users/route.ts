@@ -1,7 +1,7 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 1.0.3 - Added debug logging for auth troubleshooting
+// Version: 1.0.4 - Fixed table name (removed public. prefix - it was creating public.public.users)
 // Created: 2025-12-18
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
@@ -113,7 +113,7 @@ async function checkAdminAuth(request: NextRequest): Promise<string | null> {
 
     // Check if user is super admin
     const { data: profile, error: profileError } = await supabaseAdmin
-      .from('public.users')
+      .from('users')
       .select('is_super_admin')
       .eq('id', user.id)
       .single();
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
     // ========================================================================
     
     let query = supabaseAdmin
-      .from('public.users')
+      .from('users')
       .select(`
         id,
         email,
