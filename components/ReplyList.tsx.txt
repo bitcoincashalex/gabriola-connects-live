@@ -1,6 +1,6 @@
 // Path: components/ReplyList.tsx
-// Version: 4.0.0 - Support anonymous browsing, hide vote/reply buttons for non-logged-in users
-// Date: 2025-12-18
+// Version: 3.2.1 - Added authorId to VoteButtons to prevent self-voting
+// Date: 2024-12-13
 
 'use client';
 
@@ -150,28 +150,16 @@ export default function ReplyList({ postId, onRefresh }: Props) {
       <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200' : ''}`}>
         <div className="bg-white rounded-xl shadow-sm p-5 mb-4 relative group">
           <div className="flex gap-4">
-            {/* Vote Buttons - Left side (only for logged-in users) */}
-            {user ? (
-              <div className="flex-shrink-0">
-                <VoteButtons
-                  itemId={reply.id}
-                  itemType="reply"
-                  initialScore={reply.vote_score || 0}
-                  authorId={reply.user_id}
-                  onScoreChange={() => fetchReplies()}
-                />
-              </div>
-            ) : (
-              // Show score for anonymous users (no voting)
-              <div className="flex-shrink-0 flex flex-col items-center gap-1 py-1">
-                <div className="text-lg font-bold text-gray-600">
-                  {reply.vote_score || 0}
-                </div>
-                <div className="text-xs text-gray-500">
-                  votes
-                </div>
-              </div>
-            )}
+            {/* Vote Buttons - Left side */}
+            <div className="flex-shrink-0">
+              <VoteButtons
+                itemId={reply.id}
+                itemType="reply"
+                initialScore={reply.vote_score || 0}
+                authorId={reply.user_id}
+                onScoreChange={() => fetchReplies()}
+              />
+            </div>
 
             {/* Content - Right side */}
             <div className="flex-1 min-w-0">
@@ -283,20 +271,13 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                   <Flag className="w-4 h-4" />
                   Report
                 </button>
-                {user ? (
-                  <button
-                    onClick={() => setReplyingTo(isReplying ? null : reply.id)}
-                    className="flex items-center gap-1 hover:text-gabriola-green transition"
-                  >
-                    <Reply className="w-4 h-4" />
-                    Reply
-                  </button>
-                ) : (
-                  <span className="flex items-center gap-1 text-gray-400 cursor-not-allowed" title="Sign in to reply">
-                    <Reply className="w-4 h-4" />
-                    Sign in to reply
-                  </span>
-                )}
+                <button
+                  onClick={() => setReplyingTo(isReplying ? null : reply.id)}
+                  className="flex items-center gap-1 hover:text-gabriola-green transition"
+                >
+                  <Reply className="w-4 h-4" />
+                  Reply
+                </button>
               </div>
             </div>
           </div>

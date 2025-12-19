@@ -1,6 +1,6 @@
 // Path: components/BBS.tsx
-// Version: 5.0.0 - Allow anonymous browsing, only registered users can post/reply
-// Date: 2025-12-18
+// Version: 4.0.0 - Added forum search bar with real-time filtering
+// Date: 2025-12-11
 
 'use client';
 
@@ -63,11 +63,16 @@ export default function BBS() {
     setIsSearching(false);
   };
 
-  // Track anonymous users (allow them to browse but not post)
-  const isAnonymous = !user;
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-2xl text-gray-600">Sign in to join the conversation</p>
+      </div>
+    );
+  }
 
-  // COMPLETE BAN CHECK - Block entire forum access (only for logged-in users)
-  if (user && user.is_banned) {
+  // COMPLETE BAN CHECK - Block entire forum access
+  if (user.is_banned) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
@@ -104,36 +109,34 @@ export default function BBS() {
     );
   }
 
-  // Build role badges in priority order (only for logged-in users)
+  // Build role badges in priority order
   const roles = [];
   const u = user as any;
   
-  if (user) {
-    if (u.is_super_admin) {
-      roles.push({ label: 'Super Admin', color: 'bg-red-700' });
-    }
-    
-    if (u.admin_forum && !u.is_super_admin) {
-      roles.push({ label: 'Forum Admin', color: 'bg-red-600' });
-    }
-    
-    if (u.forum_moderator && !u.admin_forum && !u.is_super_admin) {
-      roles.push({ label: 'Moderator', color: 'bg-purple-600' });
-    }
-    
-    if (u.is_fire) roles.push({ label: 'Fire Dept', color: 'bg-orange-600' });
-    if (u.is_police) roles.push({ label: 'RCMP', color: 'bg-blue-700' });
-    if (u.is_medic) roles.push({ label: 'Medic', color: 'bg-red-700' });
-    if (u.is_coast_guard) roles.push({ label: 'Coast Guard', color: 'bg-blue-800' });
-    
-    if (u.is_resident) roles.push({ label: 'Resident', color: 'bg-green-600' });
-    
-    if (u.forum_read_only) {
-      roles.push({ label: 'Read Only', color: 'bg-yellow-500' });
-    }
+  if (u.is_super_admin) {
+    roles.push({ label: 'Super Admin', color: 'bg-red-700' });
+  }
+  
+  if (u.admin_forum && !u.is_super_admin) {
+    roles.push({ label: 'Forum Admin', color: 'bg-red-600' });
+  }
+  
+  if (u.forum_moderator && !u.admin_forum && !u.is_super_admin) {
+    roles.push({ label: 'Moderator', color: 'bg-purple-600' });
+  }
+  
+  if (u.is_fire) roles.push({ label: 'Fire Dept', color: 'bg-orange-600' });
+  if (u.is_police) roles.push({ label: 'RCMP', color: 'bg-blue-700' });
+  if (u.is_medic) roles.push({ label: 'Medic', color: 'bg-red-700' });
+  if (u.is_coast_guard) roles.push({ label: 'Coast Guard', color: 'bg-blue-800' });
+  
+  if (u.is_resident) roles.push({ label: 'Resident', color: 'bg-green-600' });
+  
+  if (u.forum_read_only) {
+    roles.push({ label: 'Read Only', color: 'bg-yellow-500' });
   }
 
-  const canCreatePost = user && !u.is_banned && !u.forum_read_only && u.can_post;
+  const canCreatePost = !u.is_banned && !u.forum_read_only && u.can_post;
 
   const handlePostCreated = () => {
     setShowCreateModal(false);
@@ -177,57 +180,28 @@ export default function BBS() {
               <h1 className="text-5xl font-bold text-gabriola-green">Community Forum</h1>
               <p className="text-xl text-gray-600 mt-2">Real conversations. Real neighbours. Real Gabriola.</p>
 
-              {isAnonymous ? (
-                // Anonymous user - show signup CTA
-                <div className="mt-4 bg-gabriola-green/10 border-2 border-gabriola-green rounded-lg p-4">
-                  <p className="text-lg font-medium text-gabriola-green mb-2">
-                    👋 Browsing as a guest
+              <div className="flex flex-wrap items-center gap-3 mt-4 text-lg">
+                <span className="font-medium">Logged in as</span>
+                <span className="font-bold text-gabriola-green">
+                  {user.full_name || user.email}
+                </span>
+
+                {roles.map(role => (
+                  <span
+                    key={role.label}
+                    className={`${role.color} text-white px-3 py-1 rounded-full text-sm font-bold`}
+                  >
+                    {role.label}
+                  </span>
+                ))}
+              </div>
+
+              {u.forum_read_only && (
+                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Notice:</strong> Your account is in read-only mode. You can view posts but cannot create new ones or reply.
                   </p>
-                  <p className="text-gray-700 mb-3">
-                    Sign up to join the conversation, post threads, and reply to your neighbours!
-                  </p>
-                  <div className="flex gap-3">
-                    <Link
-                      href="/signup"
-                      className="bg-gabriola-green text-white px-6 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark transition"
-                    >
-                      Sign Up Free
-                    </Link>
-                    <Link
-                      href="/signin"
-                      className="bg-white text-gabriola-green border-2 border-gabriola-green px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition"
-                    >
-                      Sign In
-                    </Link>
-                  </div>
                 </div>
-              ) : (
-                // Logged-in user - show user info
-                <>
-                  <div className="flex flex-wrap items-center gap-3 mt-4 text-lg">
-                    <span className="font-medium">Logged in as</span>
-                    <span className="font-bold text-gabriola-green">
-                      {user.full_name || user.email}
-                    </span>
-
-                    {roles.map(role => (
-                      <span
-                        key={role.label}
-                        className={`${role.color} text-white px-3 py-1 rounded-full text-sm font-bold`}
-                      >
-                        {role.label}
-                      </span>
-                    ))}
-                  </div>
-
-                  {u.forum_read_only && (
-                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Notice:</strong> Your account is in read-only mode. You can view posts but cannot create new ones or reply.
-                      </p>
-                    </div>
-                  )}
-                </>
               )}
             </div>
 
@@ -319,7 +293,7 @@ export default function BBS() {
         <ThreadList 
           key={refreshKey} 
           category={activeCategory} 
-          currentUser={user || null}
+          currentUser={user}
           searchQuery={searchQuery}
           onSearchResults={handleSearchResults}
         />
