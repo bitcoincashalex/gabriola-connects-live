@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 5.0.0 - HYBRID: Pagination + Activity Tracking + All Admin Features
+// Version: 5.0.1 - Performance: Removed auto-refresh, added manual refresh, debounced search
 // Created: 2025-12-18
 // ============================================================================
 
@@ -120,20 +120,28 @@ export default function AdminUsersPage() {
         alert('Access denied: Super Admin only');
       } else {
         fetchUsers();
-        
-        // Auto-refresh every 30 seconds
-        const interval = setInterval(fetchUsers, 30000);
-        return () => clearInterval(interval);
+        // Manual refresh only - no auto-refresh
       }
     }
   }, [user, authLoading, router]);
 
-  // Refetch when page/search/filter changes
+  // Debounced search - only fetch after user stops typing for 500ms
+  useEffect(() => {
+    if (user?.is_super_admin) {
+      const timeoutId = setTimeout(() => {
+        fetchUsers();
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [search]);
+
+  // Immediate fetch when page or filter changes
   useEffect(() => {
     if (user?.is_super_admin) {
       fetchUsers();
     }
-  }, [pagination.page, search, filter]);
+  }, [pagination.page, filter]);
 
   // ========================================================================
   // FETCH USERS VIA API ROUTE
@@ -354,12 +362,34 @@ export default function AdminUsersPage() {
             {pagination.total} total users • Page {pagination.page} of {pagination.totalPages}
           </p>
         </div>
-        <button
-          onClick={() => router.push('/')}
-          className="text-blue-600 hover:underline"
-        >
-          ← Back to Home
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchUsers();
+            }}
+            disabled={loading}
+            className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark disabled:opacity-50 flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <Activity className="w-4 h-4" />
+                Refresh
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="text-blue-600 hover:underline"
+          >
+            ← Back to Home
+          </button>
+        </div>
       </div>
 
       {/* Quick Stats */}
