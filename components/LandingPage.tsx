@@ -1,6 +1,6 @@
 // components/LandingPage.tsx
-// v4.6.1 - Fixed: Strachan family link opens in same window (not new tab)
-// Date: 2024-12-13
+// v4.7.0 - Fixed stats loading by using public API (bypasses RLS)
+// Date: 2025-12-18
 'use client';
 
 import Link from 'next/link';
@@ -232,35 +232,20 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
 
   const fetchCommunityStats = async () => {
     try {
-      // Count verified residents
-      const { count: residentCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resident', true);
-
-      // Count total members
-      const { count: memberCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-
-      // Count upcoming events (future events only)
-      const today = new Date().toISOString().split('T')[0];
-      const { count: eventCount } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_approved', true)
-        .gte('start_date', today);
-
-      // Count businesses in directory
-      const { count: businessCount } = await supabase
-        .from('directory_businesses')
-        .select('*', { count: 'exact', head: true });
-
+      // Fetch stats from public API (bypasses RLS)
+      const response = await fetch('/api/stats');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      
+      const data = await response.json();
+      
       setStats({
-        residents: residentCount || 0,
-        totalMembers: memberCount || 0,
-        upcomingEvents: eventCount || 0,
-        businesses: businessCount || 0,
+        residents: data.residents || 0,
+        totalMembers: data.totalMembers || 0,
+        upcomingEvents: data.upcomingEvents || 0,
+        businesses: data.businesses || 0,
       });
       setStatsLoading(false);
     } catch (error) {
