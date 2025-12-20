@@ -1,7 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 2.4.0 - Prominent Chamber of Commerce attribution with link
-// Date: 2024-12-13
-// components/Calendar.tsx — FULLY RESTORED, FULLY WORKING, NO GAPS
+// Version: 2.6.0 - Fixed navigation crashes with proper loading state and safe date handling
+// Date: 2025-12-20
+// CRITICAL FIX: Early return on loading prevents useMemo crashes during navigation
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -141,22 +141,37 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   };
 
   const calendarEvents = useMemo(() => {
+    // Safety: Return empty array if events is not a valid array
+    if (!Array.isArray(events) || events.length === 0) {
+      return [];
+    }
+    
     return events
-      .filter(event => event.start_date) // Only include events with valid start_date
+      .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .map(event => ({
-        title: event.title,
+        title: event.title || 'Untitled Event',
         start: ensureDate(event.start_date),
-        end: ensureDate(event.start_date),
+        end: ensureDate(event.end_date || event.start_date),
         resource: event,
       }));
   }, [events]);
 
   const eventsForSelectedDate = useMemo(() => {
+    // Safety: Return empty array if events is not a valid array
+    if (!Array.isArray(events) || events.length === 0) {
+      return [];
+    }
+    
     return events
-      .filter(event => event.start_date) // Only include events with valid start_date
-      .filter(event => 
-        ensureDate(event.start_date).toDateString() === selectedDate.toDateString()
-      )
+      .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
+      .filter(event => {
+        try {
+          return ensureDate(event.start_date).toDateString() === selectedDate.toDateString();
+        } catch (e) {
+          console.error('Error filtering event by date:', e);
+          return false;
+        }
+      })
       .sort((a, b) => {
         // Sort by time - handle all-day events and missing times
         const timeA = a.start_time || '00:00:00';
@@ -305,7 +320,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       const body = encodeURIComponent(
         `Hi,\n\nI would like to RSVP for the following event:\n\n` +
         `Event: ${event.title}\n` +
-        `Date: ${format(event.start_date, 'MMMM d, yyyy')}\n` +
+        `Date: ${format(ensureDate(event.start_date), 'MMMM d, yyyy')}\n` +
         `Time: ${event.start_time}\n` +
         `Location: ${event.location}\n\n` +
         `Please confirm my attendance.\n\nThank you!`
@@ -607,9 +622,9 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                       <span className="font-medium">{selectedEvent.start_time}</span>
                       {selectedEvent.end_time && <span className="text-gray-500">- {selectedEvent.end_time}</span>}
                       <span className="text-gray-500">
-                        on {format(selectedEvent.start_date, 'MMMM d, yyyy')}
+                        on {format(ensureDate(selectedEvent.start_date), 'MMMM d, yyyy')}
                         {selectedEvent.end_date && selectedEvent.end_date.getTime() !== selectedEvent.start_date.getTime() && 
-                          ` - ${format(selectedEvent.end_date, 'MMMM d, yyyy')}`
+                          ` - ${format(ensureDate(selectedEvent.end_date), 'MMMM d, yyyy')}`
                         }
                       </span>
                       <button
@@ -617,7 +632,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                           const eventTitle = encodeURIComponent(selectedEvent.title);
                           const eventDetails = encodeURIComponent(selectedEvent.description);
                           const eventLocation = encodeURIComponent(selectedEvent.location);
-                          const eventDate = format(selectedEvent.start_date, 'yyyyMMdd');
+                          const eventDate = format(ensureDate(selectedEvent.start_date), 'yyyyMMdd');
                           const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${eventTitle}&dates=${eventDate}/${eventDate}&details=${eventDetails}&location=${eventLocation}`;
                           window.open(googleCalUrl, '_blank');
                         }}
