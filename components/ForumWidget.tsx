@@ -1,7 +1,7 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.1.1 - Removed unused useRouter import (was causing React error)
-// Date: 2024-12-13
+// Version: 5.2.0 - Changed heading text
+// Date: 2024-12-20
 
 'use client';
 
@@ -79,7 +79,7 @@ export function ForumWidget() {
       
       {/* Subtitle */}
       <div className="text-sm text-white/90 font-medium">
-        Discussion Emergency Map News
+        Forum Emergency Map News Volunteer
       </div>
       
       {/* Active Count - Medium Size */}
