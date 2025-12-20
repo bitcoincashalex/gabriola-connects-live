@@ -34,7 +34,7 @@ export default function CommunityHubPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Forum & Discussions
+                    Forum
                   </h3>
                   <p className="text-gray-600">
                     Connect with your community, ask questions, share information

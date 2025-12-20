@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v5.0.0 - Fixed navigation: Community card → /community-hub, Forum emoji → /community
+// v4.10.0 - Removed dead code (onNavigate prop) - all navigation uses direct routes
 // Date: 2025-12-20
 'use client';
 
@@ -264,9 +264,9 @@ export default function LandingPage() {
       textColor: 'text-white',
     },
     {
-      id: 'community',
-      title: 'Community',
-      description: 'Forum, contacts & resources',
+      id: 'forum',
+      title: 'Forum',
+      description: 'Real conversations. Real neighbours.',
       icon: MessageSquare,
       color: 'from-gabriola-ocean to-blue-700',
       textColor: 'text-white',
@@ -329,7 +329,7 @@ export default function LandingPage() {
             </button>
 
             <button
-              onClick={() => window.location.href = '/community'}
+              onClick={() => window.location.href = '/community-hub'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">💬</span>
@@ -381,7 +381,7 @@ export default function LandingPage() {
             // Determine the route for each card
             let href = '/';
             if (card.id === 'calendar') href = '/calendar';
-            else if (card.id === 'community') href = '/community-hub';
+            else if (card.id === 'forum') href = '/community-hub';
             else if (card.id === 'ferry') href = '/ferry';
             else if (card.id === 'directory') href = '/directory';
 
@@ -406,7 +406,7 @@ export default function LandingPage() {
                 <div className={`relative z-10 ${card.textColor}`}>
                   {/* Widgets now include their own icon, title, and description */}
                   {card.id === 'calendar' && <NextEventWidget />}
-                  {card.id === 'community' && <ForumWidget />}
+                  {card.id === 'forum' && <ForumWidget />}
                   {card.id === 'ferry' && <NextFerryWidget />}
                   {card.id === 'directory' && <DirectoryWidget />}
                 </div>

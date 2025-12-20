@@ -1,5 +1,5 @@
 // components/Header.tsx
-// Version: 2.2.0 - Added Ferry Admin navigation link
+// Version: 2.3.0 - Changed "Discussion" to "Forum" for clarity
 // Date: 2025-12-20
 'use client';
 
@@ -137,7 +137,7 @@ export default function Header() {
   const navItems = [
     { label: 'Home', onClick: goHome },
     { label: 'Events', href: '/events' },
-    { label: 'Discussion', href: '/community' },
+    { label: 'Forum', href: '/community' },
     { label: 'Ferry', href: '/ferry' },
     { label: 'Directory', href: '/directory/business' },
     { label: 'Alerts', href: '/alerts' },

@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v3.7.0 - Removed dead code (handleTabClick, onNavigate) - all tabs use Link components
+// v3.8.0 - Fixed Forum to go to /community (not /community-hub)
 // Date: 2025-12-20
 
 'use client';
@@ -97,7 +97,7 @@ export default function Footer({ activeTab = '' }: FooterProps) {
             // Determine the route for each tab
             let href = '/';
             if (tab.id === 'calendar') href = '/calendar';
-            else if (tab.id === 'forum') href = '/community-hub';
+            else if (tab.id === 'forum') href = '/community';
             else if (tab.id === 'ferry') href = '/ferry';
             else if (tab.id === 'directory') href = '/directory';
             else if (tab.id === 'alerts') href = '/alerts';
