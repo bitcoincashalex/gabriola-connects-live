@@ -1,6 +1,6 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.1 - Added missing permission fields (can_post, can_reply, etc)
+// Version: 1.0.2 - Added alert_level_permission field
 // Date: 2025-12-20
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -65,10 +65,11 @@ export async function PATCH(
       // Permissions
       'can_create_events',
       'can_issue_alerts',
-      'can_post',              // Forum posting
-      'can_create_posts',      // BBS posting
-      'can_reply',             // Forum replies
-      'can_comment',           // Comments
+      'alert_level_permission',  // Alert level (emergency, critical, etc)
+      'can_post',                // Forum posting
+      'can_create_posts',        // BBS posting
+      'can_reply',               // Forum replies
+      'can_comment',             // Comments
       // Account status
       'is_banned',
       'is_suspended',
