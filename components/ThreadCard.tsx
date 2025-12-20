@@ -1,13 +1,13 @@
 // Path: components/ThreadCard.tsx
-// Version: 4.1.0 - Added avatars and resident badges, hidden admin roles from public view
-// Date: 2024-12-13
+// Version: 4.2.0 - Added view count to thread summary stats
+// Date: 2025-12-18
 
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, Pin, Trash2, ChevronUp, Mail } from 'lucide-react';
+import { MessageSquare, Pin, Trash2, ChevronUp, Mail, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
@@ -166,6 +166,12 @@ export default function ThreadCard({
               <span className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4" />
                 {thread.reply_count || 0}
+              </span>
+
+              {/* View count */}
+              <span className="flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                {thread.view_count || 0}
               </span>
 
               {/* Vote score with colored number and upvote icon */}

@@ -1,6 +1,6 @@
 // Path: components/ThreadList.tsx
-// Version: 4.1.0 - Added avatars and resident badges to thread preview
-// Date: 2024-12-13
+// Version: 4.2.0 - Added view_count to query for thread summary display
+// Date: 2025-12-18
 
 'use client';
 
@@ -44,6 +44,7 @@ export default function ThreadList({
         *, 
         reply_count, 
         vote_score,
+        view_count,
         author:users!bbs_posts_user_id_fkey(avatar_url, is_resident)
       `)
       .eq('is_active', true);
@@ -102,7 +103,7 @@ export default function ThreadList({
           // Fetch additional threads
           let additionalQuery = supabase
             .from('bbs_posts')
-            .select('*, reply_count, vote_score')
+            .select('*, reply_count, vote_score, view_count')
             .eq('is_active', true)
             .in('id', additionalPostIds);
 
