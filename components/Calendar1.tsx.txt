@@ -37,14 +37,6 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-// CRITICAL FIX: Helper to safely handle Date objects from page.tsx
-// page.tsx already converts dates to Date objects, not strings!
-const ensureDate = (dateValue: Date | string): Date => {
-  if (dateValue instanceof Date) return dateValue;
-  return new Date(dateValue);
-};
-
-
 export default function Calendar({ events = [], loading = false }: { events?: Event[], loading?: boolean }) {
   const { user, loading: authLoading } = useUser();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -136,8 +128,8 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const calendarEvents = useMemo(() => {
     return events.map(event => ({
       title: event.title,
-      start: ensureDate(event.start_date),
-      end: ensureDate(event.start_date),
+      start: new Date(event.start_date),  // ✅ Convert string to Date
+      end: new Date(event.start_date),     // ✅ Convert string to Date
       resource: event,
     }));
   }, [events]);
@@ -145,7 +137,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const eventsForSelectedDate = useMemo(() => {
     return events
       .filter(event => 
-        ensureDate(event.start_date).toDateString() === selectedDate.toDateString()
+        new Date(event.start_date).toDateString() === selectedDate.toDateString()  // ✅ Convert to Date first
       )
       .sort((a, b) => {
         // Sort by time - handle all-day events and missing times
