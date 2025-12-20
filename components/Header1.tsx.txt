@@ -1,5 +1,5 @@
 // components/Header.tsx
-// Version: 2.2.0 - Added Ferry Admin navigation link
+// Version: 2.1.0 - Added event and business detail modals for search
 // Date: 2025-12-20
 'use client';
 
@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship } from 'lucide-react';
+import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown } from 'lucide-react';
 import HeaderSearch from './HeaderSearch';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
@@ -26,8 +26,7 @@ export default function Header() {
   const isForumAdmin = (user as any)?.admin_forum;
   const isEventAdmin = (user as any)?.admin_events;
   const isDirectoryAdmin = (user as any)?.admin_directory;
-  const isFerryAdmin = (user as any)?.admin_ferry;
-  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin || isFerryAdmin;
+  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -320,18 +319,6 @@ export default function Header() {
                           >
                             <Shield className="w-5 h-5" />
                             <span>Directory Management</span>
-                          </Link>
-                        )}
-                        
-                        {/* Ferry Admin - Ferry Admin or Super Admin */}
-                        {(isFerryAdmin || isSuperAdmin) && (
-                          <Link
-                            href="/admin/ferry"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
-                          >
-                            <Ship className="w-5 h-5" />
-                            <span>Ferry Admin</span>
                           </Link>
                         )}
                       </>

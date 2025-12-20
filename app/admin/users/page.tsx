@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 5.0.3 - Fixed: Removed refresh on every toggle, optimistic updates only
+// Version: 5.0.4 - Added Ferry Admin toggle and badge
 // Created: 2025-12-18
 // Updated: 2025-12-20
 // ============================================================================
@@ -596,6 +596,11 @@ export default function AdminUsersPage() {
                         Directory Admin
                       </span>
                     )}
+                    {(u as any).admin_ferry && (
+                      <span className="px-3 py-1 bg-blue-700 text-white rounded-full text-sm">
+                        Ferry Admin
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -915,6 +920,16 @@ export default function AdminUsersPage() {
                       className="w-5 h-5 cursor-pointer"
                     />
                     <label htmlFor="admin-directory" className="cursor-pointer">Directory Admin</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-ferry"
+                      checked={(selectedUser as any).admin_ferry || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_ferry', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-ferry" className="cursor-pointer">Ferry Admin</label>
                   </div>
                 </div>
               </div>
