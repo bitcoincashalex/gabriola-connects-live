@@ -1,6 +1,6 @@
 // components/EventDetailModal.tsx
 // Reusable event detail modal - extracted from Calendar.tsx
-// Version: 1.0.0
+// Version: 1.0.1 - Fixed date type error (ensureDate on both dates)
 // Date: 2025-12-20
 
 'use client';
@@ -99,7 +99,7 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
                   {event.end_time && <span className="text-gray-500">- {event.end_time}</span>}
                   <span className="text-gray-500">
                     on {format(ensureDate(event.start_date), 'MMMM d, yyyy')}
-                    {event.end_date && event.end_date.getTime() !== event.start_date.getTime() && 
+                    {event.end_date && ensureDate(event.end_date).getTime() !== ensureDate(event.start_date).getTime() && 
                       ` - ${format(ensureDate(event.end_date), 'MMMM d, yyyy')}`
                     }
                   </span>
