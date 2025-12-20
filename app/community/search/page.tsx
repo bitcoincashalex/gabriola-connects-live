@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.2.2 - Fixed ferry search returning all schedules + enhanced directory search
+// Version: 2.2.3 - Fixed filter-only search (no search text required)
 // Date: 2025-12-20
 
 'use client';
@@ -159,8 +159,14 @@ export default function CommunitySearchPage() {
         let eventsQuery = supabase
           .from('events')
           .select('*')
-          .gte('start_date', today) // Only future events
-          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+          .gte('start_date', today); // Only future events
+        
+        // Only apply search filter if there's a search query
+        if (query.trim()) {
+          eventsQuery = eventsQuery.or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
+        }
+        
+        eventsQuery = eventsQuery
           .order('start_date', { ascending: true }) // Chronological order
           .order('start_time', { ascending: true })
           .limit(50);
@@ -174,8 +180,14 @@ export default function CommunitySearchPage() {
         let postsQuery = supabase
           .from('bbs_posts')
           .select('*')
-          .or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`)
-          .eq('is_active', true)
+          .eq('is_active', true);
+        
+        // Only apply search filter if there's a search query
+        if (query.trim()) {
+          postsQuery = postsQuery.or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`);
+        }
+        
+        postsQuery = postsQuery
           .order('created_at', { ascending: false })
           .limit(50);
 
@@ -188,8 +200,14 @@ export default function CommunitySearchPage() {
         let directoryQuery = supabase
           .from('directory_businesses')
           .select('*')
-          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`)
-          .eq('is_active', true)
+          .eq('is_active', true);
+        
+        // Only apply search filter if there's a search query
+        if (query.trim()) {
+          directoryQuery = directoryQuery.or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`);
+        }
+        
+        directoryQuery = directoryQuery
           .order('name', { ascending: true })
           .limit(50);
 
@@ -202,8 +220,14 @@ export default function CommunitySearchPage() {
         let ferryQuery = supabase
           .from('ferry_schedule')
           .select('*')
-          .eq('is_active', true)
-          .or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`)
+          .eq('is_active', true);
+        
+        // Only apply search filter if there's a search query
+        if (query.trim()) {
+          ferryQuery = ferryQuery.or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`);
+        }
+        
+        ferryQuery = ferryQuery
           .order('departure_time', { ascending: true })
           .limit(50);
 
@@ -215,8 +239,14 @@ export default function CommunitySearchPage() {
       if (activeModule === 'all' || activeModule === 'alerts') {
         let alertsQuery = supabase
           .from('alerts')
-          .select('*')
-          .or(`title.ilike.${searchTerm},message.ilike.${searchTerm}`)
+          .select('*');
+        
+        // Only apply search filter if there's a search query
+        if (query.trim()) {
+          alertsQuery = alertsQuery.or(`title.ilike.${searchTerm},message.ilike.${searchTerm}`);
+        }
+        
+        alertsQuery = alertsQuery
           .order('created_at', { ascending: false })
           .limit(50);
 
