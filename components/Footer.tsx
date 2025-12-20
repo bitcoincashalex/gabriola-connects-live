@@ -1,6 +1,6 @@
 // components/Footer.tsx
-// v3.4.0 - Made search context-aware (forum/events/directory/ferry/alerts)
-// Date: 2025-12-18
+// v3.5.0 - Calendar navigates to /calendar page (eliminates flash navigation)
+// Date: 2025-12-20
 
 'use client';
 
@@ -104,6 +104,26 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            
+            // Special handling for calendar - navigate to /calendar page
+            if (tab.id === 'calendar') {
+              return (
+                <Link
+                  key={tab.id}
+                  href="/calendar"
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
             
             // Special handling for search and alerts - navigate to dedicated pages
             if (tab.id === 'search') {

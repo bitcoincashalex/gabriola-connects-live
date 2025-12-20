@@ -1,7 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 2.7.0 - Fixed React Hooks violation (early return moved to end)
+// Version: 2.6.0 - Fixed navigation crashes with proper loading state and safe date handling
 // Date: 2025-12-20
-// CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
+// CRITICAL FIX: Early return on loading prevents useMemo crashes during navigation
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -101,6 +101,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     };
     loadVenues();
   }, []);
+  
+  // Only show loading while auth is loading
+  if (authLoading) {
+    return (
+      <div className="max-w-4xl mx-auto p-8 text-center py-32">
+        <p className="text-2xl text-gray-600">Loading calendar...</p>
+      </div>
+    );
+  }
 
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,15 +377,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
 
     return `${location}, Gabriola Island, BC`;
   };
-
-  // Check loading state AFTER all hooks have run (Rules of Hooks compliance)
-  if (authLoading) {
-    return (
-      <div className="max-w-4xl mx-auto p-8 text-center py-32">
-        <p className="text-2xl text-gray-600">Loading calendar...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-full bg-white">

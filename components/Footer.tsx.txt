@@ -1,6 +1,6 @@
 // components/Footer.tsx
-// v3.2.0 - Fixed React hydration error by removing useMemo from tabs array
-// Date: 2024-12-13
+// v3.4.0 - Made search context-aware (forum/events/directory/ferry/alerts)
+// Date: 2025-12-18
 
 'use client';
 
@@ -78,6 +78,24 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search
   ];
 
+  // Context-aware search URL based on current tab
+  const getSearchUrl = () => {
+    switch (activeTab) {
+      case 'forum':
+        return '/community/search'; // Forum advanced search
+      case 'calendar':
+        return '/search?scope=events'; // Events search
+      case 'directory':
+        return '/search?scope=directory'; // Directory search
+      case 'ferry':
+        return '/search?scope=ferry'; // Ferry search
+      case 'alerts':
+        return '/search?scope=alerts'; // Alerts search
+      default:
+        return '/search'; // General search (all)
+    }
+  };
+
   return (
     <footer>
       {/* Bottom Navigation Bar */}
@@ -92,7 +110,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
               return (
                 <Link
                   key={tab.id}
-                  href="/search"
+                  href={getSearchUrl()}
                   className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
                     isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
                   }`}
@@ -161,6 +179,16 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
             <Link href="/roadmap" className="hover:underline">
               Roadmap
             </Link>{' '}
+            •{' '}
+            <span className="relative inline-block group">
+              <button className="hover:underline cursor-help">
+                Privacy
+              </button>
+              <span className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 shadow-lg">
+                This site uses analytics to help improve our community platform. No personal information is collected.
+                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+              </span>
+            </span>{' '}
             •{' '}
             <Link href="/strachan" className="hover:underline">
               About
