@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.2.2 - Fixed ferry search returning all schedules + enhanced directory search
+// Version: 2.2.1 - Fixed event ordering and added date filtering
 // Date: 2025-12-20
 
 'use client';
@@ -188,9 +188,8 @@ export default function CommunitySearchPage() {
         let directoryQuery = supabase
           .from('directory_businesses')
           .select('*')
-          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`)
+          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
           .eq('is_active', true)
-          .order('name', { ascending: true })
           .limit(50);
 
         const { data } = await directoryQuery;
@@ -203,7 +202,6 @@ export default function CommunitySearchPage() {
           .from('ferry_schedule')
           .select('*')
           .eq('is_active', true)
-          .or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`)
           .order('departure_time', { ascending: true })
           .limit(50);
 
