@@ -103,7 +103,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   }, []);
   
   // Only show loading while auth is loading
-  if (authLoading || loading) { 
+  if (authLoading) {
     return (
       <div className="max-w-4xl mx-auto p-8 text-center py-32">
         <p className="text-2xl text-gray-600">Loading calendar...</p>
