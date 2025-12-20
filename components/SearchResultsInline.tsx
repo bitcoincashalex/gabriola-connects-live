@@ -1,6 +1,6 @@
 // components/SearchResultsInline.tsx
 // Mobile-optimized inline search results dropdown
-// Version: 2.1.0 - Fixed date timezone bug and event links
+// Version: 2.2.0 - Added modal support for events and businesses
 // Date: 2025-12-20
 
 'use client';
@@ -25,13 +25,17 @@ interface SearchResultsInlineProps {
   loading: boolean;
   query: string;
   onClose: () => void;
+  onSelectEvent?: (event: any) => void;
+  onSelectBusiness?: (business: any) => void;
 }
 
 export default function SearchResultsInline({ 
   results, 
   loading, 
   query,
-  onClose 
+  onClose,
+  onSelectEvent,
+  onSelectBusiness
 }: SearchResultsInlineProps) {
   
   if (loading) {
@@ -71,11 +75,13 @@ export default function SearchResultsInline({
             </div>
             <div className="space-y-2">
               {results.events.slice(0, 3).map(event => (
-                <Link
+                <button
                   key={event.id}
-                  href="/calendar"
-                  onClick={onClose}
-                  className="block p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => {
+                    if (onSelectEvent) onSelectEvent(event);
+                    onClose();
+                  }}
+                  className="block w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
                 >
                   <div className="font-medium text-gray-900">{event.title}</div>
                   <div className="text-sm text-gray-600 mt-1">
@@ -88,7 +94,7 @@ export default function SearchResultsInline({
                       {event.location}
                     </div>
                   )}
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -103,11 +109,13 @@ export default function SearchResultsInline({
             </div>
             <div className="space-y-2">
               {results.directory.slice(0, 3).map(business => (
-                <Link
+                <button
                   key={business.id}
-                  href={`/directory#${business.id}`}
-                  onClick={onClose}
-                  className="block p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => {
+                    if (onSelectBusiness) onSelectBusiness(business);
+                    onClose();
+                  }}
+                  className="block w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
                 >
                   <div className="font-medium text-gray-900">{business.name}</div>
                   <div className="text-sm text-gray-600 mt-1">{business.category}</div>
@@ -116,7 +124,7 @@ export default function SearchResultsInline({
                       {business.description}
                     </div>
                   )}
-                </Link>
+                </button>
               ))}
             </div>
           </div>

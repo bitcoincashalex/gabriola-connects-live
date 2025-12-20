@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.1.0 - Fixed date timezone bug and event links
+// Version: 2.2.0 - Added event and business detail modals
 // Date: 2025-12-20
 
 'use client';
@@ -10,6 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { Search, Calendar, MessageSquare, MapPin, Ship, AlertTriangle, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import EventDetailModal from '@/components/EventDetailModal';
+import BusinessDetailModal from '@/components/BusinessDetailModal';
 import {
   eventCategories,
   directoryCategories,
@@ -54,6 +56,10 @@ export default function CommunitySearchPage() {
     alerts: [] as any[],
     totalCount: 0
   });
+
+  // Modal state
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
 
   // Filter panel state
   const [showFilters, setShowFilters] = useState(false);
@@ -917,10 +923,10 @@ export default function CommunitySearchPage() {
             </h2>
             <div className="space-y-4">
               {filteredResults.events.map((event: any) => (
-                <Link
+                <button
                   key={event.id}
-                  href="/calendar"
-                  className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
+                  onClick={() => setSelectedEvent(event)}
+                  className="block w-full text-left p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition cursor-pointer"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{event.title}</h3>
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{event.description}</p>
@@ -938,7 +944,7 @@ export default function CommunitySearchPage() {
                       </span>
                     )}
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -952,10 +958,10 @@ export default function CommunitySearchPage() {
             </h2>
             <div className="space-y-4">
               {filteredResults.directory.map((business: any) => (
-                <Link
+                <button
                   key={business.id}
-                  href={`/directory/${business.id}`}
-                  className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
+                  onClick={() => setSelectedBusiness(business)}
+                  className="block w-full text-left p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition cursor-pointer"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{business.name}</h3>
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{business.description}</p>
@@ -968,7 +974,7 @@ export default function CommunitySearchPage() {
                       </span>
                     )}
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -1036,6 +1042,18 @@ export default function CommunitySearchPage() {
           </div>
         )}
       </div>
+
+      {/* Event Detail Modal */}
+      <EventDetailModal 
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+
+      {/* Business Detail Modal */}
+      <BusinessDetailModal 
+        business={selectedBusiness}
+        onClose={() => setSelectedBusiness(null)}
+      />
     </div>
   );
 }

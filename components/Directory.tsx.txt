@@ -1,6 +1,6 @@
 // components/Directory.tsx
-// Version: 2.1.0 - Added business detail modal
-// Date: 2025-12-20
+// Version: 2.0.0 - With Chamber of Commerce Thank You Banner
+// Date: 2024-12-10
 
 'use client';
 
@@ -8,7 +8,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import FileUploader from './FileUploader';
-import BusinessDetailModal from '@/components/BusinessDetailModal';
 import { MapPin, Phone, Mail, Globe, Plus, X, Search } from 'lucide-react';
 
 interface DirectoryListing {
@@ -38,7 +37,6 @@ export default function Directory() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [customCategory, setCustomCategory] = useState('');
   const [files, setFiles] = useState<string[]>([]);
-  const [selectedBusiness, setSelectedBusiness] = useState<DirectoryListing | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -211,7 +209,7 @@ export default function Directory() {
             <div
               key={listing.id}
               className="bg-white rounded-2xl shadow hover:shadow-xl transition-all p-6 border border-gray-100 hover:border-gabriola-green/30 cursor-pointer"
-              onClick={() => setSelectedBusiness(listing)}
+              onClick={() => alert('Details coming soon!')} // replace with modal later
             >
               {listing.image ? (
                 <img src={listing.image} alt={listing.name} className="w-full h-40 object-cover rounded-xl mb-4" />
@@ -238,12 +236,6 @@ export default function Directory() {
           ))}
         </div>
       </div>
-
-      {/* Business Detail Modal */}
-      <BusinessDetailModal 
-        business={selectedBusiness}
-        onClose={() => setSelectedBusiness(null)}
-      />
     </div>
   );
 }

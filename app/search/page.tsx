@@ -1,6 +1,6 @@
 // app/search/page.tsx
 // Mobile-first search with simple progressive filters
-// Version: 3.1.0 - Fixed date timezone bug and event links
+// Version: 3.2.0 - Added event and business detail modals
 // Date: 2025-12-20
 
 'use client';
@@ -11,6 +11,8 @@ import { useSearch, SearchScope } from '@/lib/useSearch';
 import { Calendar, MapPin, Ship, AlertTriangle, Search as SearchIcon, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import EventDetailModal from '@/components/EventDetailModal';
+import BusinessDetailModal from '@/components/BusinessDetailModal';
 import {
   eventCategories,
   directoryCategories,
@@ -47,6 +49,10 @@ function SearchPageContent() {
   const [query, setQuery] = useState(initialQuery);
   const [activeScope, setActiveScope] = useState<SearchScope>(scopeParam || 'all');
   const { search, results, loading } = useSearch();
+  
+  // Modal state
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
   
   // Filter panel state
   const [showFilters, setShowFilters] = useState(false);
@@ -712,10 +718,10 @@ function SearchPageContent() {
             </h2>
             <div className="space-y-4">
               {filteredResults.events.map((event: any) => (
-                <Link
+                <button
                   key={event.id}
-                  href="/calendar"
-                  className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
+                  onClick={() => setSelectedEvent(event)}
+                  className="block w-full text-left p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition cursor-pointer"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{event.title}</h3>
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{event.description}</p>
@@ -733,7 +739,7 @@ function SearchPageContent() {
                       </span>
                     )}
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -748,10 +754,10 @@ function SearchPageContent() {
             </h2>
             <div className="space-y-4">
               {filteredResults.directory.map((business: any) => (
-                <Link
+                <button
                   key={business.id}
-                  href={`/directory/${business.id}`}
-                  className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
+                  onClick={() => setSelectedBusiness(business)}
+                  className="block w-full text-left p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition cursor-pointer"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{business.name}</h3>
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{business.description}</p>
@@ -764,7 +770,7 @@ function SearchPageContent() {
                       </span>
                     )}
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -839,6 +845,18 @@ function SearchPageContent() {
           </div>
         )}
       </div>
+
+      {/* Event Detail Modal */}
+      <EventDetailModal 
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+
+      {/* Business Detail Modal */}
+      <BusinessDetailModal 
+        business={selectedBusiness}
+        onClose={() => setSelectedBusiness(null)}
+      />
     </div>
   );
 }
