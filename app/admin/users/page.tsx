@@ -2,8 +2,9 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 5.0.1 - Performance: Removed auto-refresh, added manual refresh, debounced search
+// Version: 5.0.2 - Fixed: Use API for updates to ensure consistency with reads
 // Created: 2025-12-18
+// Updated: 2025-12-20
 // ============================================================================
 
 'use client';
@@ -207,19 +208,33 @@ export default function AdminUsersPage() {
         u.id === userId ? { ...u, [field]: value } : u
       ));
 
-      // Update database
-      const { error } = await supabase
-        .from('users')
-        .update({ [field]: value })
-        .eq('id', userId);
+      // Update via API to ensure consistency with fetch
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Not authenticated');
+        await fetchUsers();
+        return;
+      }
 
-      if (error) {
-        console.error('[Admin] Update failed:', error);
-        alert(`Failed to save: ${error.message}`);
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [field]: value })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[Admin] Update failed:', errorData);
+        alert(`Failed to save: ${errorData.error || 'Unknown error'}`);
         // Revert
         await fetchUsers();
       } else {
         console.log('[Admin] ✅ Update successful');
+        // Refresh to get server state
+        await fetchUsers();
       }
     } catch (err) {
       console.error('[Admin] Unexpected error:', err);
