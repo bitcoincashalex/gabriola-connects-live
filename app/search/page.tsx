@@ -1,7 +1,7 @@
 // app/search/page.tsx
-// Comprehensive search page with filters, date ranges, and advanced options
-// Version: 2.0.0
-// Date: 2025-12-11
+// Comprehensive search page with conditional filters based on scope
+// Version: 2.1.0
+// Date: 2025-12-18
 
 'use client';
 
@@ -225,91 +225,127 @@ function SearchPageContent() {
         {showFilters && (
           <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 space-y-6">
             
-            {/* Date Range */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Date Range (Events)
-              </h3>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">From</label>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
-                  />
+            {/* Date Range - Show for ALL, Events */}
+            {(activeScope === 'all' || activeScope === 'events') && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Date Range {activeScope === 'all' && '(Events)'}
+                </h3>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-600 mb-1">From</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm text-gray-600 mb-1">To</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">To</label>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
-                  />
+              </div>
+            )}
+
+            {/* Event Categories - Show ONLY for Events scope */}
+            {activeScope === 'events' && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Event Categories</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {categories.events.map(category => (
+                    <label key={category} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(category)}
+                        onChange={() => toggleCategory(category)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">{category}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Categories */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Categories</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {[...categories.events, ...categories.directory].map(category => (
-                  <label key={category} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category)}
-                      onChange={() => toggleCategory(category)}
-                      className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
-                    />
-                    <span className="text-sm text-gray-700">{category}</span>
-                  </label>
-                ))}
+            {/* Directory Categories - Show ONLY for Directory scope */}
+            {activeScope === 'directory' && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Business Categories</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {categories.directory.map(category => (
+                    <label key={category} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(category)}
+                        onChange={() => toggleCategory(category)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">{category}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Locations */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Location
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {locations.map(location => (
-                  <label key={location} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedLocations.includes(location)}
-                      onChange={() => toggleLocation(location)}
-                      className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
-                    />
-                    <span className="text-sm text-gray-700">{location}</span>
-                  </label>
-                ))}
+            {/* Locations - Show for ALL, Events, Directory */}
+            {(activeScope === 'all' || activeScope === 'events' || activeScope === 'directory') && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Location
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {locations.map(location => (
+                    <label key={location} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedLocations.includes(location)}
+                        onChange={() => toggleLocation(location)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">{location}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Sort */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Sort By</h3>
-              <div className="flex gap-4">
-                {(['relevance', 'date', 'name'] as const).map(option => (
-                  <label key={option} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="sortBy"
-                      checked={sortBy === option}
-                      onChange={() => setSortBy(option)}
-                      className="w-4 h-4 text-gabriola-green focus:ring-gabriola-green"
-                    />
-                    <span className="text-sm text-gray-700 capitalize">{option}</span>
-                  </label>
-                ))}
+            {/* Sort - Show for ALL, Events, Directory (not Ferry or Alerts) */}
+            {(activeScope === 'all' || activeScope === 'events' || activeScope === 'directory') && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Sort By</h3>
+                <div className="flex gap-4">
+                  {(['relevance', 'date', 'name'] as const).map(option => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="sortBy"
+                        checked={sortBy === option}
+                        onChange={() => setSortBy(option)}
+                        className="w-4 h-4 text-gabriola-green focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700 capitalize">{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Ferry & Alerts have no filters currently - show helpful message */}
+            {(activeScope === 'ferry' || activeScope === 'alerts') && (
+              <div className="text-center py-4 text-gray-500">
+                <p className="text-sm">No additional filters available for {activeScope}.</p>
+                <p className="text-xs mt-1">Try searching by keywords.</p>
+              </div>
+            )}
 
             {/* Clear Filters */}
             {hasActiveFilters && (

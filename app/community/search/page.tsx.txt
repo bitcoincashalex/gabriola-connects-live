@@ -1,5 +1,5 @@
 // app/community/search/page.tsx
-// Version: 2.1.0 - Added location filter, fixed anonymous user loading screen
+// Version: 2.0.0 - Enabled anonymous user access for forum search
 // Date: 2025-12-18
 
 'use client';
@@ -51,10 +51,6 @@ export default function CommunitySearchPage() {
   // Alerts-specific filters
   const [alertSeverity, setAlertSeverity] = useState('all');
   const [alertStatus, setAlertStatus] = useState('all');
-
-  // Shared location filter (for events, directory, forum)
-  const [selectedLocation, setSelectedLocation] = useState('all');
-  const locations = ['North End', 'South End', 'Central', 'Village', 'Silva Bay', 'Descanso Bay'];
 
   // Date range (shared)
   const [dateFrom, setDateFrom] = useState('');
@@ -109,11 +105,6 @@ export default function CommunitySearchPage() {
 
         if (eventLocation) {
           eventsQuery = eventsQuery.ilike('location', `%${eventLocation}%`);
-        }
-
-        // Shared location filter
-        if (selectedLocation !== 'all') {
-          eventsQuery = eventsQuery.ilike('location', `%${selectedLocation}%`);
         }
 
         if (dateFrom) {
@@ -213,11 +204,6 @@ export default function CommunitySearchPage() {
           directoryQuery = directoryQuery.eq('category', directoryCategory);
         }
 
-        // Shared location filter
-        if (selectedLocation !== 'all') {
-          directoryQuery = directoryQuery.ilike('address', `%${selectedLocation}%`);
-        }
-
         const { data } = await directoryQuery.order('name', { ascending: true }).limit(50);
         searchResults.directory = data || [];
       }
@@ -296,8 +282,11 @@ export default function CommunitySearchPage() {
     setDirectoryCategory('all');
     setAlertSeverity('all');
     setAlertStatus('all');
-    setSelectedLocation('all'); // Added location filter
   };
+
+  if (!user) {
+    return <div className="text-center py-20">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -574,27 +563,6 @@ export default function CommunitySearchPage() {
               </div>
             </div>
           )}
-
-          {/* Location Filter - Show for all modules (events, directory, forum) */}
-          <div className="bg-white rounded-lg p-4 border-2 border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              Location Filter
-            </h3>
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
-            >
-              <option value="all">All Locations</option>
-              {locations.map(location => (
-                <option key={location} value={location}>{location}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-2">
-              Filter events and businesses by location
-            </p>
-          </div>
 
           {/* Clear Filters Button */}
           <div className="pt-4 flex justify-end">
