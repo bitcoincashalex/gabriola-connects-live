@@ -39,16 +39,9 @@ const localizer = dateFnsLocalizer({
 
 // CRITICAL FIX: Helper to safely handle Date objects from page.tsx
 // page.tsx already converts dates to Date objects, not strings!
-// Also handles undefined/null by returning current date as fallback
-const ensureDate = (dateValue: Date | string | undefined | null): Date => {
-  if (!dateValue) return new Date(); // Handle undefined/null
-  if (dateValue instanceof Date) {
-    // Check if it's a valid Date object
-    return isNaN(dateValue.getTime()) ? new Date() : dateValue;
-  }
-  const parsed = new Date(dateValue);
-  // Check if parsing resulted in valid date
-  return isNaN(parsed.getTime()) ? new Date() : parsed;
+const ensureDate = (dateValue: Date | string): Date => {
+  if (dateValue instanceof Date) return dateValue;
+  return new Date(dateValue);
 };
 
 
@@ -141,19 +134,16 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   };
 
   const calendarEvents = useMemo(() => {
-    return events
-      .filter(event => event.start_date) // Only include events with valid start_date
-      .map(event => ({
-        title: event.title,
-        start: ensureDate(event.start_date),
-        end: ensureDate(event.start_date),
-        resource: event,
-      }));
+    return events.map(event => ({
+      title: event.title,
+      start: ensureDate(event.start_date),
+      end: ensureDate(event.start_date),
+      resource: event,
+    }));
   }, [events]);
 
   const eventsForSelectedDate = useMemo(() => {
     return events
-      .filter(event => event.start_date) // Only include events with valid start_date
       .filter(event => 
         ensureDate(event.start_date).toDateString() === selectedDate.toDateString()
       )
