@@ -1,6 +1,7 @@
 // components/HeaderSearch.tsx
-// Context-aware search that changes based on current page
-// Date: 2025-12-11
+// Context-aware search with forum advanced search link
+// Version: 2.0.0
+// Date: 2025-12-18
 
 'use client';
 
@@ -19,6 +20,8 @@ export default function HeaderSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Determine search scope based on current page
+  const isOnForum = pathname.includes('/community');
+  
   const scope: SearchScope = 
     pathname === '/' ? 'all' :
     pathname.includes('/events') ? 'events' :
@@ -29,6 +32,7 @@ export default function HeaderSearch() {
 
   // Get placeholder text based on scope
   const placeholder = 
+    isOnForum ? 'Search forum... (or use Advanced Search →)' :
     scope === 'all' ? 'Search everything...' :
     scope === 'events' ? 'Search events...' :
     scope === 'directory' ? 'Search directory...' :
@@ -105,6 +109,18 @@ export default function HeaderSearch() {
           </button>
         )}
       </div>
+
+      {/* Advanced Forum Search Link - Show when on community page */}
+      {isOnForum && (
+        <div className="mt-1">
+          <a
+            href="/community/search"
+            className="text-xs text-white/80 hover:text-white hover:underline flex items-center gap-1"
+          >
+            Advanced Forum Search →
+          </a>
+        </div>
+      )}
 
       {showResults && (
         <SearchResultsInline

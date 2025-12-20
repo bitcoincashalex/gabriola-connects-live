@@ -1,6 +1,6 @@
 // components/Footer.tsx
-// v3.4.0 - Made search context-aware (forum/events/directory/ferry/alerts)
-// Date: 2025-12-18
+// v3.3.0 - Added Privacy link with hover tooltip (no extra page needed)
+// Date: 2024-12-13
 
 'use client';
 
@@ -78,24 +78,6 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
     { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search
   ];
 
-  // Context-aware search URL based on current tab
-  const getSearchUrl = () => {
-    switch (activeTab) {
-      case 'forum':
-        return '/community/search'; // Forum advanced search
-      case 'calendar':
-        return '/search?scope=events'; // Events search
-      case 'directory':
-        return '/search?scope=directory'; // Directory search
-      case 'ferry':
-        return '/search?scope=ferry'; // Ferry search
-      case 'alerts':
-        return '/search?scope=alerts'; // Alerts search
-      default:
-        return '/search'; // General search (all)
-    }
-  };
-
   return (
     <footer>
       {/* Bottom Navigation Bar */}
@@ -110,7 +92,7 @@ export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
               return (
                 <Link
                   key={tab.id}
-                  href={getSearchUrl()}
+                  href="/search"
                   className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
                     isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
                   }`}

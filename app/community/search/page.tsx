@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
-// Version: 1.0.0 - Advanced platform-wide search for authenticated users
-// Date: 2025-12-11
+// Version: 2.0.0 - Enabled anonymous user access for forum search
+// Date: 2025-12-18
 
 'use client';
 
@@ -59,14 +59,7 @@ export default function CommunitySearchPage() {
   // Categories
   const [forumCategories, setForumCategories] = useState<any[]>([]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!user) {
-      window.location.href = '/';
-    }
-  }, [user]);
-
-  // Fetch forum categories
+  // Fetch forum categories on mount
   useEffect(() => {
     fetchForumCategories();
   }, []);
