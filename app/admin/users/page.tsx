@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 5.0.2 - Fixed: Use API for updates to ensure consistency with reads
+// Version: 5.0.3 - Fixed: Removed refresh on every toggle, optimistic updates only
 // Created: 2025-12-18
 // Updated: 2025-12-20
 // ============================================================================
@@ -229,12 +229,11 @@ export default function AdminUsersPage() {
         const errorData = await response.json();
         console.error('[Admin] Update failed:', errorData);
         alert(`Failed to save: ${errorData.error || 'Unknown error'}`);
-        // Revert
+        // Revert on error
         await fetchUsers();
       } else {
         console.log('[Admin] ✅ Update successful');
-        // Refresh to get server state
-        await fetchUsers();
+        // Don't refresh - optimistic update is enough!
       }
     } catch (err) {
       console.error('[Admin] Unexpected error:', err);

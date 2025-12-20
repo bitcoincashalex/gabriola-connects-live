@@ -1,6 +1,6 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.0
+// Version: 1.0.1 - Added missing permission fields (can_post, can_reply, etc)
 // Date: 2025-12-20
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -53,6 +53,7 @@ export async function PATCH(
 
     // Validate that we're only updating allowed fields
     const allowedFields = [
+      // Admin roles
       'is_super_admin',
       'admin_events',
       'admin_forum',
@@ -61,12 +62,20 @@ export async function PATCH(
       'admin_alerts',
       'admin_ferry',
       'admin_users',
+      // Permissions
       'can_create_events',
       'can_issue_alerts',
+      'can_post',              // Forum posting
+      'can_create_posts',      // BBS posting
+      'can_reply',             // Forum replies
+      'can_comment',           // Comments
+      // Account status
       'is_banned',
       'is_suspended',
       'account_locked',
-      'forum_read_only'
+      'forum_read_only',
+      'is_verified',
+      'email_verified'
     ];
 
     const updateData: any = {};
