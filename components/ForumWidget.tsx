@@ -79,7 +79,7 @@ export function ForumWidget() {
       
       {/* Subtitle */}
       <div className="text-sm text-white/90 font-medium">
-        Forum/Emergency/Map/News/Volunteer
+        Forum*Emergency*Map*News*Volunteer
       </div>
       
       {/* Active Count - Medium Size */}
