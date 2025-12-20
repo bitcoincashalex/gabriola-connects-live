@@ -1,6 +1,6 @@
 // lib/useSearch.ts
 // Search hook with complete types from lib/types/search.ts
-// Version: 2.1.0 - Direct queries with full fields, ordering, and date filtering
+// Version: 2.2.0 - Enhanced search to include schedule/recurrence fields
 // Date: 2025-12-20
 
 'use client';
@@ -56,7 +56,7 @@ export function useSearch() {
           .select('*') // SELECT ALL FIELDS
           .eq('is_approved', true)
           .gte('start_date', today) // ONLY FUTURE EVENTS
-          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm}`)
+          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm}`)
           .order('start_date', { ascending: true }) // CHRONOLOGICAL
           .order('start_time', { ascending: true });
         
@@ -80,7 +80,7 @@ export function useSearch() {
         const { data } = await supabase
           .from('ferry_schedules')
           .select('*') // SELECT ALL FIELDS
-          .or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`)
+          .or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm},day_of_week.ilike.${searchTerm},operating_days.ilike.${searchTerm},route_name.ilike.${searchTerm}`)
           .order('departure_time', { ascending: true });
         
         searchResults.ferry = (data || []) as FerrySchedule[];

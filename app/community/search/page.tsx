@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.2.3 - Fixed filter-only search (no search text required)
+// Version: 2.2.4 - Enhanced search to include schedule/recurrence fields
 // Date: 2025-12-20
 
 'use client';
@@ -163,7 +163,7 @@ export default function CommunitySearchPage() {
         
         // Only apply search filter if there's a search query
         if (query.trim()) {
-          eventsQuery = eventsQuery.or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`);
+          eventsQuery = eventsQuery.or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm}`);
         }
         
         eventsQuery = eventsQuery
@@ -224,7 +224,7 @@ export default function CommunitySearchPage() {
         
         // Only apply search filter if there's a search query
         if (query.trim()) {
-          ferryQuery = ferryQuery.or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`);
+          ferryQuery = ferryQuery.or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm},day_of_week.ilike.${searchTerm},operating_days.ilike.${searchTerm},route_name.ilike.${searchTerm}`);
         }
         
         ferryQuery = ferryQuery
