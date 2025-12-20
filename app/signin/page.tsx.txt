@@ -1,19 +1,14 @@
 // Path: app/signin/page.tsx
-// Version: 2.3.1 - Fixed Suspense boundary for useSearchParams
-// Date: 2025-12-18
+// Version: 2.2.2 - Fixed user lookup using maybeSingle() instead of single()
+// Date: 2024-12-13
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, CheckCircle, AlertCircle, Mail, Lock, User, MapPin, Loader2 } from 'lucide-react';
 
-// Separate component that uses useSearchParams (must be wrapped in Suspense)
-function SignInForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  
+export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -26,14 +21,6 @@ function SignInForm() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
-  // Check URL param to default to signup mode
-  useEffect(() => {
-    const mode = searchParams.get('mode');
-    if (mode === 'signup') {
-      setIsSignup(true);
-    }
-  }, [searchParams]);
 
   // Weak passwords list
   const weakPasswords = [
@@ -460,18 +447,5 @@ function SignInForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-// Main component with Suspense wrapper (required for useSearchParams)
-export default function SignInPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-gabriola-green animate-spin" />
-      </div>
-    }>
-      <SignInForm />
-    </Suspense>
   );
 }
