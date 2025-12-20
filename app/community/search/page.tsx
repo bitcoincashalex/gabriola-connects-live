@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.2.0 - Added event and business detail modals
+// Version: 2.2.1 - Fixed event ordering and added date filtering
 // Date: 2025-12-20
 
 'use client';
@@ -154,11 +154,15 @@ export default function CommunitySearchPage() {
 
       // Search Events
       if (activeModule === 'all' || activeModule === 'events') {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
         let eventsQuery = supabase
           .from('events')
           .select('*')
+          .gte('start_date', today) // Only future events
           .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
-          .order('start_date', { ascending: false })
+          .order('start_date', { ascending: true }) // Chronological order
+          .order('start_time', { ascending: true })
           .limit(50);
 
         const { data } = await eventsQuery;
