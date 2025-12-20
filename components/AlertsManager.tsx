@@ -1,11 +1,12 @@
 // components/AlertsManager.tsx
-// v3.1 - Dec 11, 2025 - FIXED: Filter expired alerts, don't show in active view
+// v4.0.0 - ENHANCED: Organization locking, templates, categories, expired alerts tab
+// Date: 2025-12-20
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { AlertTriangle, Plus, X, Bell, AlertCircle, Info, Edit2, Archive } from 'lucide-react';
+import { AlertTriangle, Plus, X, Bell, AlertCircle, Info, Edit2, Archive, Clock, Building2, FileText } from 'lucide-react';
 import { AlertSeverity } from '@/lib/types';
 
 interface Alert {
@@ -13,36 +14,65 @@ interface Alert {
   severity: AlertSeverity;
   title: string;
   message: string;
-  issued_by?: string | null;  // UUID of actual creator
-  on_behalf_of_name?: string | null;  // Optional "on behalf of"
-  on_behalf_of_organization?: string | null;  // Optional organization
+  issued_by?: string | null;
+  on_behalf_of_name?: string | null;
+  on_behalf_of_organization?: string | null;
   created_at: string;
   expires_at?: string | null;
-  active: boolean;  // Match SQL column name
+  active: boolean;
   affected_areas?: string[] | null;
   category?: string | null;
   contact_info?: string | null;
   action_required?: string | null;
-  // Join data from users table
-  creator_name?: string;  // From users.full_name
-  creator_email?: string;  // From users.email
+  creator_name?: string;
+  creator_email?: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  display_name: string;
+  max_severity: string;
+  description?: string;
+  is_active: boolean;
+}
+
+interface Template {
+  id: string;
+  organization_id: string;
+  name: string;
+  title_template: string;
+  message_template: string;
+  default_severity: string;
+  default_affected_area?: string;
+  is_active: boolean;
+  usage_count: number;
 }
 
 export default function AlertsManager() {
   const { user } = useUser();
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [expiredAlerts, setExpiredAlerts] = useState<Alert[]>([]);
   const [archivedAlerts, setArchivedAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAlert, setEditingAlert] = useState<Alert | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<'active' | 'expired' | 'archived'>('active');
+  
+  // Organization and template data
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [userOrganization, setUserOrganization] = useState<Organization | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [availableTemplates, setAvailableTemplates] = useState<Template[]>([]);
 
   const [form, setForm] = useState({
     title: '',
     message: '',
     severity: 'info' as AlertSeverity,
-    on_behalf_of_name: '',  // Optional "on behalf of"
-    on_behalf_of_organization: '',  // Optional organization
+    on_behalf_of_name: '',
+    on_behalf_of_organization: '',
     affected_areas: '',
     category: '',
     contact_info: '',
@@ -51,15 +81,55 @@ export default function AlertsManager() {
   });
 
   useEffect(() => {
+    fetchOrganizationsAndTemplates();
     fetchAlerts();
   }, []);
+
+  // Fetch organizations and templates
+  const fetchOrganizationsAndTemplates = async () => {
+    // Fetch organizations
+    const { data: orgsData } = await supabase
+      .from('alert_organizations')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_name');
+    
+    if (orgsData) {
+      setOrganizations(orgsData);
+    }
+
+    // Fetch templates
+    const { data: templatesData } = await supabase
+      .from('alert_templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+    
+    if (templatesData) {
+      setTemplates(templatesData);
+    }
+
+    // Check if user is assigned to an organization
+    if ((user as any)?.alert_organization) {
+      const userOrg = orgsData?.find(o => o.id === (user as any).alert_organization);
+      if (userOrg) {
+        setUserOrganization(userOrg);
+        setSelectedOrgId(userOrg.id);
+        // Filter templates for user's org
+        const orgTemplates = templatesData?.filter(t => t.organization_id === userOrg.id) || [];
+        setAvailableTemplates(orgTemplates);
+      }
+    } else {
+      // User not assigned, show all templates
+      setAvailableTemplates(templatesData || []);
+    }
+  };
 
   const fetchAlerts = async () => {
     setLoading(true);
 
-    // FIXED: Fetch active alerts with creator info - EXCLUDE EXPIRED
-    // Filter: active = true AND (expires_at IS NULL OR expires_at >= NOW())
-    const { data: activeData, error: activeError } = await supabase
+    // Fetch ACTIVE alerts (not expired)
+    const { data: activeData } = await supabase
       .from('alerts')
       .select(`
         *,
@@ -69,8 +139,7 @@ export default function AlertsManager() {
       .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
       .order('created_at', { ascending: false });
 
-    if (!activeError && activeData) {
-      // Flatten creator data into alert object
+    if (activeData) {
       const formattedActive = activeData.map(alert => ({
         ...alert,
         creator_name: alert.creator?.full_name,
@@ -84,8 +153,28 @@ export default function AlertsManager() {
       setAlerts(sorted);
     }
 
-    // Fetch archived alerts with creator info
-    const { data: archivedData, error: archivedError } = await supabase
+    // Fetch EXPIRED alerts (active=true but past expiry)
+    const { data: expiredData } = await supabase
+      .from('alerts')
+      .select(`
+        *,
+        creator:users!issued_by(full_name, email)
+      `)
+      .eq('active', true)
+      .lt('expires_at', new Date().toISOString())
+      .order('expires_at', { ascending: false });
+
+    if (expiredData) {
+      const formattedExpired = expiredData.map(alert => ({
+        ...alert,
+        creator_name: alert.creator?.full_name,
+        creator_email: alert.creator?.email,
+      }));
+      setExpiredAlerts(formattedExpired);
+    }
+
+    // Fetch ARCHIVED alerts
+    const { data: archivedData } = await supabase
       .from('alerts')
       .select(`
         *,
@@ -95,7 +184,7 @@ export default function AlertsManager() {
       .order('created_at', { ascending: false })
       .limit(50);
 
-    if (!archivedError && archivedData) {
+    if (archivedData) {
       const formattedArchived = archivedData.map(alert => ({
         ...alert,
         creator_name: alert.creator?.full_name,
@@ -111,8 +200,86 @@ export default function AlertsManager() {
 
   const canEditAlert = (alert: Alert) => {
     if (!user) return false;
-    // Super admin can edit anything, or creator can edit their own
     return user.is_super_admin || alert.issued_by === user.id;
+  };
+
+  // Get max severity based on user assignment
+  const getMaxSeverity = () => {
+    if (userOrganization) {
+      return userOrganization.max_severity;
+    }
+    return (user as any)?.alert_level_permission || 'info';
+  };
+
+  // Get allowed severities based on max
+  const getAllowedSeverities = () => {
+    const maxSeverity = getMaxSeverity();
+    const severityLevels: { [key: string]: number } = {
+      'info': 1,
+      'advisory': 2,
+      'warning': 3,
+      'important': 3,
+      'emergency': 4,
+      'critical': 4,
+    };
+    
+    const maxLevel = severityLevels[maxSeverity] || 1;
+    return Object.keys(severityLevels)
+      .filter(sev => severityLevels[sev] <= maxLevel)
+      .filter((sev, index, arr) => {
+        // Remove duplicates (warning/important, emergency/critical)
+        if (sev === 'important') return !arr.includes('warning');
+        if (sev === 'critical') return !arr.includes('emergency');
+        return true;
+      });
+  };
+
+  // Handle organization selection (for non-assigned users)
+  const handleOrgSelection = (orgId: string) => {
+    setSelectedOrgId(orgId);
+    
+    if (orgId) {
+      const org = organizations.find(o => o.id === orgId);
+      const orgTemplates = templates.filter(t => t.organization_id === orgId);
+      setAvailableTemplates(orgTemplates);
+      setForm({
+        ...form,
+        on_behalf_of_organization: org?.display_name || '',
+      });
+    } else {
+      setAvailableTemplates(templates);
+      setForm({
+        ...form,
+        on_behalf_of_organization: '',
+      });
+    }
+    
+    // Reset template selection
+    setSelectedTemplateId('');
+  };
+
+  // Handle template selection
+  const handleTemplateSelection = async (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    
+    if (templateId) {
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        setForm({
+          ...form,
+          title: template.title_template,
+          message: template.message_template,
+          severity: template.default_severity as AlertSeverity,
+          affected_areas: template.default_affected_area || '',
+        });
+        
+        // Increment usage count
+        await supabase
+          .from('alert_templates')
+          .update({ usage_count: template.usage_count + 1 })
+          .eq('id', templateId);
+      }
+    }
   };
 
   const openEditForm = (alert: Alert) => {
@@ -134,18 +301,38 @@ export default function AlertsManager() {
 
   const openNewForm = () => {
     setEditingAlert(null);
-    setForm({
-      title: '',
-      message: '',
-      severity: 'info' as AlertSeverity,
-      on_behalf_of_name: '',
-      on_behalf_of_organization: '',
-      affected_areas: '',
-      category: '',
-      contact_info: '',
-      action_required: '',
-      expiresInHours: 24,
-    });
+    
+    // If user is assigned to org, pre-fill organization
+    if (userOrganization) {
+      setForm({
+        title: '',
+        message: '',
+        severity: 'info' as AlertSeverity,
+        on_behalf_of_name: '',
+        on_behalf_of_organization: userOrganization.display_name,
+        affected_areas: '',
+        category: '',
+        contact_info: '',
+        action_required: '',
+        expiresInHours: 24,
+      });
+    } else {
+      setForm({
+        title: '',
+        message: '',
+        severity: 'info' as AlertSeverity,
+        on_behalf_of_name: '',
+        on_behalf_of_organization: '',
+        affected_areas: '',
+        category: '',
+        contact_info: '',
+        action_required: '',
+        expiresInHours: 24,
+      });
+      setSelectedOrgId('');
+    }
+    
+    setSelectedTemplateId('');
     setShowForm(true);
   };
 
@@ -176,7 +363,6 @@ export default function AlertsManager() {
     };
 
     if (editingAlert) {
-      // UPDATE existing alert
       const { error } = await supabase
         .from('alerts')
         .update(payload)
@@ -191,12 +377,11 @@ export default function AlertsManager() {
         fetchAlerts();
       }
     } else {
-      // CREATE new alert - automatically set issued_by to current user
       const { error } = await supabase
         .from('alerts')
         .insert({
           ...payload,
-          issued_by: user?.id,  // Automatically set to current user
+          issued_by: user?.id,
         });
 
       if (error) {
@@ -210,17 +395,17 @@ export default function AlertsManager() {
   };
 
   const archiveAlert = async (alertId: string) => {
-    if (!confirm('Archive this alert? It will still be viewable in the archive.')) return;
+    if (!confirm('Archive this alert? It will be viewable in the archive tab.')) return;
 
-    const { error } = await supabase
-      .from('alerts')
-      .update({ active: false })
-      .eq('id', alertId);
+    // Use API route with service role to bypass RLS
+    const response = await fetch(`/api/admin/alerts/${alertId}/archive`, {
+      method: 'POST',
+    });
 
-    if (error) {
-      alert('Error archiving: ' + error.message);
-    } else {
+    if (response.ok) {
       fetchAlerts();
+    } else {
+      alert('Error archiving alert');
     }
   };
 
@@ -239,7 +424,7 @@ export default function AlertsManager() {
     }
   };
 
-  const renderAlert = (alert: Alert, isArchived: boolean) => {
+  const renderAlert = (alert: Alert, isArchived: boolean, isExpired: boolean) => {
     const severityColors = {
       emergency: 'bg-red-50 border-red-300',
       warning: 'bg-orange-50 border-orange-300',
@@ -248,138 +433,82 @@ export default function AlertsManager() {
     };
 
     const severityIcons = {
-      emergency: <AlertTriangle className="w-8 h-8 text-red-600" />,
-      warning: <AlertCircle className="w-8 h-8 text-orange-600" />,
-      advisory: <Bell className="w-8 h-8 text-yellow-600" />,
-      info: <Info className="w-8 h-8 text-blue-600" />,
+      emergency: AlertTriangle,
+      warning: AlertCircle,
+      advisory: Bell,
+      info: Info,
     };
 
-    const isExpired = alert.expires_at && new Date(alert.expires_at) < new Date();
+    const Icon = severityIcons[alert.severity as AlertSeverity] || Info;
 
     return (
       <div
         key={alert.id}
-        className={`rounded-xl border-2 p-6 shadow-md transition-all hover:shadow-lg ${
-          isArchived || isExpired ? 'opacity-75' : ''
-        } ${severityColors[alert.severity]}`}
+        className={`border-2 rounded-lg p-4 ${severityColors[alert.severity as AlertSeverity]}`}
       >
         <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-4 flex-1">
-            <div className="flex-shrink-0">
-              {severityIcons[alert.severity]}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {alert.title}
-                  {isExpired && !isArchived && (
-                    <span className="ml-2 text-sm text-gray-500">(Expired)</span>
-                  )}
-                </h3>
-              </div>
-              <p className="text-gray-700 text-lg mb-3 whitespace-pre-wrap">{alert.message}</p>
-
-              {/* Affected areas */}
-              {alert.affected_areas && alert.affected_areas.length > 0 && (
-                <div className="mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Affected Areas: </span>
-                  <span className="text-sm text-gray-600">{alert.affected_areas.join(', ')}</span>
-                </div>
-              )}
-
-              {/* Category badge */}
-              {alert.category && (
-                <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm font-medium mb-2">
-                  {alert.category}
-                </span>
-              )}
-
-              {/* Action required */}
-              {alert.action_required && (
-                <div className="bg-white/50 border-l-4 border-gray-400 pl-4 py-2 mb-2">
-                  <p className="text-sm font-semibold text-gray-700">Action Required:</p>
-                  <p className="text-sm text-gray-600">{alert.action_required}</p>
-                </div>
-              )}
-
-              {/* Contact info */}
-              {alert.contact_info && (
-                <div className="mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Contact: </span>
-                  <span className="text-sm text-gray-600">{alert.contact_info}</span>
-                </div>
-              )}
-
-              {/* Attribution info */}
-              <div className="flex items-center gap-4 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-300">
-                <div>
-                  <span className="font-semibold">Posted: </span>
-                  {new Date(alert.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </div>
-                {alert.expires_at && (
-                  <div>
-                    <span className="font-semibold">Expires: </span>
-                    {new Date(alert.expires_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Show attribution */}
-              <div className="text-sm text-gray-600 mt-2">
+          <div className="flex items-start gap-3 flex-1">
+            <Icon className="w-6 h-6 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-lg mb-1">{alert.title}</h3>
+              <p className="text-gray-700 whitespace-pre-wrap mb-3">{alert.message}</p>
+              
+              <div className="text-sm text-gray-600 space-y-1">
                 {alert.on_behalf_of_name || alert.on_behalf_of_organization ? (
-                  <>
-                    <span className="font-semibold">Issued by: </span>
-                    {alert.on_behalf_of_name}
-                    {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
-                    {' '}via {alert.creator_name || alert.creator_email}
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold">Issued by: </span>
-                    {alert.creator_name || alert.creator_email}
-                  </>
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4" />
+                    <span>
+                      {alert.on_behalf_of_name}
+                      {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
+                    </span>
+                  </div>
+                ) : null}
+                
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    Created: {new Date(alert.created_at).toLocaleString()}
+                    {alert.expires_at && (
+                      <> • Expires: {new Date(alert.expires_at).toLocaleString()}</>
+                    )}
+                  </span>
+                </div>
+
+                {alert.category && (
+                  <div className="inline-block px-2 py-0.5 bg-gray-200 rounded text-xs">
+                    {alert.category}
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Action buttons (only for authorized users) */}
           {canEditAlert(alert) && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => openEditForm(alert)}
-                className="p-2 hover:bg-white/50 rounded-lg transition"
-                title="Edit alert"
-              >
-                <Edit2 className="w-5 h-5 text-gray-700" />
-              </button>
-              {isArchived ? (
+            <div className="flex gap-2 flex-shrink-0">
+              {!isArchived && !isExpired && (
                 <button
-                  onClick={() => restoreAlert(alert.id)}
-                  className="p-2 hover:bg-white/50 rounded-lg transition"
-                  title="Restore alert"
+                  onClick={() => openEditForm(alert)}
+                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                  title="Edit"
                 >
-                  <Archive className="w-5 h-5 text-green-600" />
+                  <Edit2 className="w-5 h-5" />
+                </button>
+              )}
+              {!isArchived ? (
+                <button
+                  onClick={() => archiveAlert(alert.id)}
+                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                  title="Archive"
+                >
+                  <Archive className="w-5 h-5" />
                 </button>
               ) : (
                 <button
-                  onClick={() => archiveAlert(alert.id)}
-                  className="p-2 hover:bg-white/50 rounded-lg transition"
-                  title="Archive alert"
+                  onClick={() => restoreAlert(alert.id)}
+                  className="p-2 hover:bg-white rounded-lg transition-colors text-green-600"
+                  title="Restore"
                 >
-                  <Archive className="w-5 h-5 text-gray-700" />
+                  <Archive className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -389,266 +518,329 @@ export default function AlertsManager() {
     );
   };
 
+  if (!canManageAlerts) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6 text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-yellow-600" />
+          <p className="text-gray-700">
+            You don't have permission to manage alerts.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-gabriola-green mb-2">Community Alerts</h1>
-            <p className="text-gray-600">Stay informed about important updates and notices</p>
-          </div>
-          {canManageAlerts && (
-            <button
-              onClick={openNewForm}
-              className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-              Create Alert
-            </button>
-          )}
-        </div>
-
-        {/* Toggle between active and archived */}
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setShowArchived(false)}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              !showArchived
-                ? 'bg-gabriola-green text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Active Alerts ({alerts.length})
-          </button>
-          {canManageAlerts && (
-            <button
-              onClick={() => setShowArchived(true)}
-              className={`px-6 py-3 rounded-lg font-semibold transition ${
-                showArchived
-                  ? 'bg-gabriola-green text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Archived ({archivedAlerts.length})
-            </button>
-          )}
-        </div>
-
-        {/* Alerts list */}
-        <div className="space-y-6">
-          {loading ? (
-            <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gabriola-green mb-4"></div>
-              <p className="text-gray-600">Loading alerts...</p>
+    <div className="max-w-6xl mx-auto p-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gabriola-green mb-2">
+            Manage Alerts
+          </h1>
+          {userOrganization && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Building2 className="w-4 h-4" />
+              <span>Authorized for: <strong>{userOrganization.display_name}</strong></span>
+              <span className="px-2 py-0.5 bg-gabriola-green text-white rounded text-xs">
+                {userOrganization.max_severity} level
+              </span>
             </div>
-          ) : !showArchived ? (
-            // Active alerts
-            alerts.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center">
-                <Bell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-xl text-gray-600">No active alerts at this time</p>
-                <p className="text-gray-500 mt-2">Check back later for updates</p>
-              </div>
-            ) : (
-              alerts.map(alert => renderAlert(alert, false))
-            )
-          ) : (
-            // Archived alerts
-            archivedAlerts.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-md p-12 text-center">
-                <Archive className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-xl text-gray-600">No archived alerts</p>
-              </div>
-            ) : (
-              archivedAlerts.map(alert => renderAlert(alert, true))
-            )
           )}
         </div>
+        <button
+          onClick={openNewForm}
+          className="bg-gabriola-green text-white px-6 py-3 rounded-lg hover:bg-gabriola-green-dark transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Create Alert
+        </button>
+      </div>
 
-        {/* Create/Edit Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-bold text-gabriola-green">
-                  {editingAlert ? 'Edit Alert' : 'Create New Alert'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingAlert(null);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+      {/* Tabs */}
+      <div className="mb-6 flex gap-2 border-b">
+        <button
+          onClick={() => setViewMode('active')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            viewMode === 'active'
+              ? 'text-gabriola-green border-b-2 border-gabriola-green'
+              : 'text-gray-600 hover:text-gabriola-green'
+          }`}
+        >
+          Active ({alerts.length})
+        </button>
+        <button
+          onClick={() => setViewMode('expired')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            viewMode === 'expired'
+              ? 'text-gabriola-green border-b-2 border-gabriola-green'
+              : 'text-gray-600 hover:text-gabriola-green'
+          }`}
+        >
+          Expired ({expiredAlerts.length})
+        </button>
+        <button
+          onClick={() => setViewMode('archived')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            viewMode === 'archived'
+              ? 'text-gabriola-green border-b-2 border-gabriola-green'
+              : 'text-gray-600 hover:text-gabriola-green'
+          }`}
+        >
+          Archived ({archivedAlerts.length})
+        </button>
+      </div>
 
-              <form onSubmit={createOrUpdate} className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Alert Title *</label>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                    placeholder="e.g., Ferry Service Disruption"
-                    required
-                  />
-                </div>
+      {/* Alerts List */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gabriola-green mx-auto"></div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {viewMode === 'active' && alerts.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No active alerts
+            </div>
+          )}
+          {viewMode === 'active' && alerts.map(alert => renderAlert(alert, false, false))}
 
-                {/* Message */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Message *</label>
-                  <textarea
-                    value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                    rows={4}
-                    placeholder="Detailed information about the alert..."
-                    required
-                  />
-                </div>
+          {viewMode === 'expired' && expiredAlerts.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No expired alerts
+            </div>
+          )}
+          {viewMode === 'expired' && expiredAlerts.map(alert => renderAlert(alert, false, true))}
 
-                {/* Severity */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Severity Level *</label>
-                  <select
-                    value={form.severity}
-                    onChange={(e) => setForm({ ...form, severity: e.target.value as AlertSeverity })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                  >
-                    <option value="info">Info (Blue) - General information</option>
-                    <option value="advisory">Advisory (Yellow) - Be aware</option>
-                    <option value="warning">Warning (Orange) - Take action</option>
-                    <option value="emergency">Emergency (Red) - Immediate action required</option>
-                  </select>
-                </div>
+          {viewMode === 'archived' && archivedAlerts.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              No archived alerts
+            </div>
+          )}
+          {viewMode === 'archived' && archivedAlerts.map(alert => renderAlert(alert, true, false))}
+        </div>
+      )}
 
-                {/* Attribution Notice */}
+      {/* Create/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold">
+                {editingAlert ? 'Edit Alert' : 'Create Alert'}
+              </h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={createOrUpdate} className="p-6 space-y-4">
+              {/* Organization Selection */}
+              {userOrganization ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-900">
-                    <strong>📝 Attribution:</strong> This alert will be automatically attributed to you ({user?.full_name || user?.email}).
-                    {' '}If you're issuing this on behalf of someone else or an organization, fill in the fields below.
-                  </p>
-                </div>
-
-                {/* Two column layout - "On behalf of" fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* On behalf of name */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      On Behalf Of - Name (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={form.on_behalf_of_name}
-                      onChange={(e) => setForm({ ...form, on_behalf_of_name: e.target.value })}
-                      className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                      placeholder="e.g., Chief Mike Stevens"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Only fill if issuing for someone else
-                    </p>
+                  <div className="flex items-center gap-2 text-sm font-medium text-blue-900 mb-1">
+                    <Building2 className="w-4 h-4" />
+                    Representing Organization (Locked)
                   </div>
-
-                  {/* On behalf of organization */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      On Behalf Of - Organization (Optional)
-                    </label>
+                  <div className="text-lg font-bold text-blue-900">
+                    {userOrganization.display_name}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    You are authorized to issue alerts up to <strong>{userOrganization.max_severity}</strong> level
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    On behalf of (optional)
+                  </label>
+                  <select
+                    value={selectedOrgId}
+                    onChange={(e) => handleOrgSelection(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  >
+                    <option value="">Personal alert / Custom organization</option>
+                    {organizations.map(org => (
+                      <option key={org.id} value={org.id}>
+                        {org.display_name}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {!selectedOrgId && (
                     <input
                       type="text"
+                      placeholder="Or type custom organization name"
                       value={form.on_behalf_of_organization}
                       onChange={(e) => setForm({ ...form, on_behalf_of_organization: e.target.value })}
-                      className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                      placeholder="e.g., Fire Department"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent mt-2"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Organization you're representing
-                    </p>
-                  </div>
+                  )}
                 </div>
+              )}
 
-                {/* Affected areas */}
+              {/* Template Selection */}
+              {availableTemplates.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">Affected Areas (Optional)</label>
-                  <input
-                    type="text"
-                    value={form.affected_areas}
-                    onChange={(e) => setForm({ ...form, affected_areas: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                    placeholder="e.g., North End, South End (comma separated)"
-                  />
-                </div>
-
-                {/* Action required */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Action Required (Optional)</label>
-                  <input
-                    type="text"
-                    value={form.action_required}
-                    onChange={(e) => setForm({ ...form, action_required: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                    placeholder="What should people do?"
-                  />
-                </div>
-
-                {/* Contact info */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Contact Info (Optional)</label>
-                  <input
-                    type="text"
-                    value={form.contact_info}
-                    onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
-                    placeholder="Phone or email for more information"
-                  />
-                </div>
-
-                {/* Expires in */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Expires In</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Use Template (optional)
+                  </label>
                   <select
-                    value={form.expiresInHours}
-                    onChange={(e) => setForm({ ...form, expiresInHours: Number(e.target.value) })}
-                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-gabriola-green"
+                    value={selectedTemplateId}
+                    onChange={(e) => handleTemplateSelection(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
                   >
-                    <option value={6}>6 hours</option>
-                    <option value={12}>12 hours</option>
-                    <option value={24}>24 hours</option>
-                    <option value={48}>2 days</option>
-                    <option value={72}>3 days</option>
-                    <option value={168}>1 week</option>
+                    <option value="">Start from blank</option>
+                    {availableTemplates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.default_severity})
+                      </option>
+                    ))}
                   </select>
                 </div>
+              )}
 
-                {/* Buttons */}
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition"
-                  >
-                    {editingAlert ? 'Update Alert' : 'Create Alert'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingAlert(null);
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alert Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  placeholder="Brief, clear title"
+                />
+              </div>
+
+              {/* Message */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Message *
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={form.message}
+                  onChange={(e) => setForm({ ...form, message: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  placeholder="Detailed information about the alert"
+                />
+              </div>
+
+              {/* Severity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Severity Level *
+                </label>
+                <select
+                  value={form.severity}
+                  onChange={(e) => setForm({ ...form, severity: e.target.value as AlertSeverity })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                >
+                  {getAllowedSeverities().map(sev => (
+                    <option key={sev} value={sev}>
+                      {sev.charAt(0).toUpperCase() + sev.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Your maximum severity: {getMaxSeverity()}
+                </p>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                >
+                  <option value="">General</option>
+                  <option value="fire">Fire</option>
+                  <option value="power">Power/Utilities</option>
+                  <option value="water">Water</option>
+                  <option value="roads">Roads/Transportation</option>
+                  <option value="ferry">Ferry</option>
+                  <option value="wildlife">Wildlife</option>
+                  <option value="weather">Weather</option>
+                  <option value="medical">Medical/Emergency</option>
+                  <option value="community">Community Event</option>
+                </select>
+              </div>
+
+              {/* Affected Areas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Affected Areas (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={form.affected_areas}
+                  onChange={(e) => setForm({ ...form, affected_areas: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  placeholder="e.g., North End, Taylor Bay Road"
+                />
+              </div>
+
+              {/* Contact Info */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contact Information
+                </label>
+                <input
+                  type="text"
+                  value={form.contact_info}
+                  onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  placeholder="Phone number or email for inquiries"
+                />
+              </div>
+
+              {/* Expires In */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Expires in (hours)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.expiresInHours}
+                  onChange={(e) => setForm({ ...form, expiresInHours: parseInt(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gabriola-green text-white py-3 rounded-lg hover:bg-gabriola-green-dark transition-colors font-medium"
+                >
+                  {editingAlert ? 'Update Alert' : 'Create Alert'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

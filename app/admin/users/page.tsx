@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 5.0.4 - Added Ferry Admin toggle and badge
+// Version: 6.0.0 - Added Alert Organization assignment (locked org feature)
 // Created: 2025-12-18
 // Updated: 2025-12-20
 // ============================================================================
@@ -55,6 +55,7 @@ interface AdminUser {
   can_create_events?: boolean;
   can_issue_alerts?: boolean;
   alert_level_permission?: string;
+  alert_organization?: string | null;
   
   is_resident?: boolean;
   
@@ -109,6 +110,9 @@ export default function AdminUsersPage() {
   
   // Modal
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  
+  // Alert Organizations
+  const [alertOrganizations, setAlertOrganizations] = useState<any[]>([]);
 
   // ========================================================================
   // AUTH CHECK
@@ -121,6 +125,7 @@ export default function AdminUsersPage() {
         alert('Access denied: Super Admin only');
       } else {
         fetchUsers();
+        fetchAlertOrganizations();
         // Manual refresh only - no auto-refresh
       }
     }
@@ -192,6 +197,26 @@ export default function AdminUsersPage() {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ========================================================================
+  // FETCH ALERT ORGANIZATIONS
+  // ========================================================================
+
+  const fetchAlertOrganizations = async () => {
+    try {
+      const { data } = await supabase
+        .from('alert_organizations')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_name');
+      
+      if (data) {
+        setAlertOrganizations(data);
+      }
+    } catch (err) {
+      console.error('Error fetching organizations:', err);
     }
   };
 
@@ -569,6 +594,11 @@ export default function AdminUsersPage() {
                     {u.can_issue_alerts && (
                       <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-sm">
                         Can Issue Alerts ({u.alert_level_permission})
+                      </span>
+                    )}
+                    {u.alert_organization && (
+                      <span className="px-3 py-1 bg-yellow-600 text-white rounded-full text-sm">
+                        🔒 {alertOrganizations.find((org: any) => org.id === u.alert_organization)?.display_name || 'Org Assigned'}
                       </span>
                     )}
                     {u.can_create_events && (
@@ -962,6 +992,27 @@ export default function AdminUsersPage() {
                         <option value="warning">Warning</option>
                         <option value="emergency">Emergency</option>
                       </select>
+                    </div>
+                  )}
+                  {selectedUser.can_issue_alerts && (
+                    <div className="ml-8 mt-3">
+                      <label className="block text-sm mb-1">Assign to Organization:</label>
+                      <select
+                        value={selectedUser.alert_organization || ''}
+                        onChange={(e) => updatePermission(selectedUser.id, 'alert_organization', e.target.value || null)}
+                        className="px-4 py-2 border rounded-lg w-full"
+                      >
+                        <option value="">None (Flexible - Personal alerts)</option>
+                        {alertOrganizations.map((org: any) => (
+                          <option key={org.id} value={org.id}>
+                            {org.display_name} (Max: {org.max_severity})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        If assigned: User can only issue alerts on behalf of this organization.
+                        If not assigned: User can choose any organization or create personal alerts.
+                      </p>
                     </div>
                   )}
                 </div>
