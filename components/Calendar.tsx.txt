@@ -1,6 +1,6 @@
 // Path: components/Calendar.tsx
-// Version: 2.3.0 - Integrated venues table for dynamic location selection with auto-fill
-// Date: 2025-12-11
+// Version: 2.4.0 - Prominent Chamber of Commerce attribution with link
+// Date: 2024-12-13
 // components/Calendar.tsx — FULLY RESTORED, FULLY WORKING, NO GAPS
 'use client';
 
@@ -349,19 +349,9 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     <div className="flex flex-col h-full bg-white">
       <div className="p-4 border-b border-gabriola-green/20">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-display font-bold text-gabriola-green">
-              Island Events
-            </h1>
-            <a 
-              href="https://directory.gabriolaevents.ca/gabriola-events/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-xs text-gray-600 hover:text-gabriola-green transition-colors"
-            >
-              Event data courtesy of Gabriola Chamber of Commerce
-            </a>
-          </div>
+          <h1 className="text-2xl font-display font-bold text-gabriola-green">
+            Island Events
+          </h1>
           <div className="flex items-center gap-2">
             {user ? (
               <>
@@ -394,6 +384,22 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
             )}
           </div>
         </div>
+        
+        {/* Prominent Attribution */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3">
+          <a 
+            href="https://directory.gabriolaevents.ca/gabriola-events/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-blue-700 hover:text-blue-900 transition-colors inline-flex items-center gap-1"
+          >
+            <span>Sample events data from Gabriola Chamber of Commerce</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+        
         <p className="text-sm text-gray-600">
           {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} on {format(selectedDate, 'MMMM d, yyyy')}
         </p>

@@ -128,8 +128,8 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const calendarEvents = useMemo(() => {
     return events.map(event => ({
       title: event.title,
-      start: event.start_date,
-      end: event.start_date,
+      start: new Date(event.start_date),  // ✅ Convert string to Date
+      end: new Date(event.start_date),     // ✅ Convert string to Date
       resource: event,
     }));
   }, [events]);
@@ -137,7 +137,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const eventsForSelectedDate = useMemo(() => {
     return events
       .filter(event => 
-        event.start_date.toDateString() === selectedDate.toDateString()
+        new Date(event.start_date).toDateString() === selectedDate.toDateString()  // ✅ Convert to Date first
       )
       .sort((a, b) => {
         // Sort by time - handle all-day events and missing times
