@@ -1,14 +1,13 @@
-// app/search/page.tsx
-// Mobile-first search with simple progressive filters
-// Version: 3.1.0 - Fixed date timezone bug and event links
-// Date: 2025-12-20
+// app/community/search/page.tsx
+// Mobile-first advanced search with simple progressive filters (matches /search)
+// Version: 2.0.0 - Simple Mobile-First
+// Date: 2025-12-18
 
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useSearch, SearchScope } from '@/lib/useSearch';
-import { Calendar, MapPin, Ship, AlertTriangle, Search as SearchIcon, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Search, Calendar, MessageSquare, MapPin, Ship, AlertTriangle, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import {
@@ -22,32 +21,30 @@ import {
   directoryAdvancedFilters,
   ferryAdvancedFilters,
   alertAdvancedFilters,
+  forumFilters,
   isEventFree,
   isAlertActive,
   operatesOnDay
 } from '@/lib/filters/simpleFilters';
 
-// CRITICAL: Parse dates in local timezone to prevent day-shift
-// Database stores dates as YYYY-MM-DD strings
-const parseLocalDate = (dateStr: string | Date): Date => {
-  if (!dateStr) return new Date();
-  if (dateStr instanceof Date) return dateStr;
-  
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
+type SearchModule = 'all' | 'events' | 'forum' | 'directory' | 'ferry' | 'alerts';
 
-function SearchPageContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const initialQuery = searchParams.get('q') || '';
-  const scopeParam = searchParams.get('scope') as SearchScope | null;
-  
+export default function CommunitySearchPage() {
   // Search state
-  const [query, setQuery] = useState(initialQuery);
-  const [activeScope, setActiveScope] = useState<SearchScope>(scopeParam || 'all');
-  const { search, results, loading } = useSearch();
+  const [query, setQuery] = useState('');
+  const [activeModule, setActiveModule] = useState<SearchModule>('all');
+  const [loading, setLoading] = useState(false);
   
+  // Results
+  const [results, setResults] = useState({
+    events: [] as any[],
+    forum: [] as any[],
+    directory: [] as any[],
+    ferry: [] as any[],
+    alerts: [] as any[],
+    totalCount: 0
+  });
+
   // Filter panel state
   const [showFilters, setShowFilters] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -58,7 +55,7 @@ function SearchPageContent() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   
-  // Events core
+  // Events/Directory core
   const [islanderOwned, setIslanderOwned] = useState(false);
   
   // Ferry core
@@ -68,6 +65,10 @@ function SearchPageContent() {
   // Alerts core
   const [alertSeverity, setAlertSeverity] = useState('all');
   const [activeAlertsOnly, setActiveAlertsOnly] = useState(false);
+  
+  // Forum core
+  const [forumCategory, setForumCategory] = useState('all');
+  const [forumCategories, setForumCategories] = useState<any[]>([]);
   
   // Advanced filters (behind toggle)
   const [registrationRequired, setRegistrationRequired] = useState(false);
@@ -83,124 +84,219 @@ function SearchPageContent() {
   const [offersDelivery, setOffersDelivery] = useState(false);
   
   const [ferryActiveOnly, setFerryActiveOnly] = useState(false);
-  const [ferryUpcomingOnly, setFerryUpcomingOnly] = useState(false);
   
   const [officialOrgOnly, setOfficialOrgOnly] = useState(false);
   const [actionRequiredOnly, setActionRequiredOnly] = useState(false);
+  
+  const [hasReplies, setHasReplies] = useState(false);
+  const [pinnedOnly, setPinnedOnly] = useState(false);
 
-  // Perform search
-  const performSearch = () => {
-    if (query.trim().length >= 2) {
-      search(query, activeScope);
-      
-      // Update URL
-      const params = new URLSearchParams();
-      params.set('q', query);
-      if (activeScope !== 'all') params.set('scope', activeScope);
-      router.push(`/search?${params.toString()}`);
+  // Fetch forum categories on mount
+  useEffect(() => {
+    fetchForumCategories();
+  }, []);
+
+  const fetchForumCategories = async () => {
+    const { data } = await supabase
+      .from('bbs_categories')
+      .select('*')
+      .eq('is_active', true)
+      .eq('is_archived', false)
+      .order('display_order', { ascending: true });
+
+    if (data) {
+      setForumCategories(data);
     }
   };
 
-  // Auto-search when query or scope changes
+  // Perform search
+  const performSearch = async () => {
+    if (!query || query.trim().length < 2) {
+      setResults({
+        events: [],
+        forum: [],
+        directory: [],
+        ferry: [],
+        alerts: [],
+        totalCount: 0,
+      });
+      return;
+    }
+
+    setLoading(true);
+    const searchTerm = `%${query.trim()}%`;
+
+    try {
+      const searchResults: any = {
+        events: [],
+        forum: [],
+        directory: [],
+        ferry: [],
+        alerts: [],
+        totalCount: 0,
+      };
+
+      // Search Events
+      if (activeModule === 'all' || activeModule === 'events') {
+        let eventsQuery = supabase
+          .from('events')
+          .select('*')
+          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
+          .order('start_date', { ascending: false })
+          .limit(50);
+
+        const { data } = await eventsQuery;
+        searchResults.events = data || [];
+      }
+
+      // Search Forum Posts
+      if (activeModule === 'all' || activeModule === 'forum') {
+        let postsQuery = supabase
+          .from('bbs_posts')
+          .select('*')
+          .or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        const { data } = await postsQuery;
+        searchResults.forum = data || [];
+      }
+
+      // Search Directory
+      if (activeModule === 'all' || activeModule === 'directory') {
+        let directoryQuery = supabase
+          .from('directory_businesses')
+          .select('*')
+          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
+          .eq('is_active', true)
+          .limit(50);
+
+        const { data } = await directoryQuery;
+        searchResults.directory = data || [];
+      }
+
+      // Search Ferry
+      if (activeModule === 'all' || activeModule === 'ferry') {
+        let ferryQuery = supabase
+          .from('ferry_schedule')
+          .select('*')
+          .eq('is_active', true)
+          .order('departure_time', { ascending: true })
+          .limit(50);
+
+        const { data } = await ferryQuery;
+        searchResults.ferry = data || [];
+      }
+
+      // Search Alerts
+      if (activeModule === 'all' || activeModule === 'alerts') {
+        let alertsQuery = supabase
+          .from('alerts')
+          .select('*')
+          .or(`title.ilike.${searchTerm},message.ilike.${searchTerm}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        const { data } = await alertsQuery;
+        searchResults.alerts = data || [];
+      }
+
+      searchResults.totalCount =
+        searchResults.events.length +
+        searchResults.forum.length +
+        searchResults.directory.length +
+        searchResults.ferry.length +
+        searchResults.alerts.length;
+
+      setResults(searchResults);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-search when query changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query.trim().length >= 2) {
-        performSearch();
-      }
+      performSearch();
     }, 300);
     return () => clearTimeout(timer);
-  }, [query, activeScope]);
+  }, [query, activeModule]);
 
   // Filter results
   const filterResults = () => {
     let filtered = { ...results };
 
     // Event filters
-    if (activeScope === 'all' || activeScope === 'events') {
+    if (activeModule === 'all' || activeModule === 'events') {
       filtered.events = filtered.events.filter(event => {
-        // Category filter
         if (category !== 'all' && event.category !== category) return false;
-        
-        // Location filter
         if (location !== 'all' && event.location && !event.location.includes(location)) return false;
-        
-        // Date range filter
         if (dateFrom && event.start_date && new Date(event.start_date) < new Date(dateFrom)) return false;
         if (dateTo && event.start_date && new Date(event.start_date) > new Date(dateTo)) return false;
-        
-        // Advanced filters
         if (registrationRequired && !event.registration_required) return false;
         if (recurringOnly && !event.is_recurring) return false;
         if (weatherDependent && !event.weather_dependent) return false;
         if (freeOnly && !isEventFree(event.fees)) return false;
-        
+        return true;
+      });
+    }
+
+    // Forum filters
+    if (activeModule === 'all' || activeModule === 'forum') {
+      filtered.forum = filtered.forum.filter(post => {
+        if (forumCategory !== 'all' && post.category_id !== forumCategory) return false;
+        if (dateFrom && post.created_at && new Date(post.created_at) < new Date(dateFrom)) return false;
+        if (dateTo && post.created_at && new Date(post.created_at) > new Date(dateTo)) return false;
+        if (hasReplies && post.reply_count === 0) return false;
+        if (pinnedOnly && !post.is_pinned && !post.global_pinned) return false;
         return true;
       });
     }
 
     // Directory filters
-    if (activeScope === 'all' || activeScope === 'directory') {
+    if (activeModule === 'all' || activeModule === 'directory') {
       filtered.directory = filtered.directory.filter(business => {
-        // Category filter
         if (category !== 'all' && business.category !== category) return false;
-        
-        // Location filter
         if (location !== 'all' && business.address && !business.address.includes(location)) return false;
-        
-        // Islander Owned (core filter)
         if (islanderOwned && !business.islander_owned) return false;
-        
-        // Advanced filters
         if (localBusiness && !business.local_business) return false;
         if (wheelchairAccessible && !business.wheelchair_accessible) return false;
         if (parkingAvailable && !business.parking_available) return false;
         if (acceptsCash && !business.accepts_cash) return false;
         if (acceptsCredit && !business.accepts_credit) return false;
         if (offersDelivery && !business.offers_delivery) return false;
-        
         return true;
       });
     }
 
     // Ferry filters
-    if (activeScope === 'all' || activeScope === 'ferry') {
+    if (activeModule === 'all' || activeModule === 'ferry') {
       filtered.ferry = filtered.ferry.filter(schedule => {
-        // Day filter
         if (ferryDay !== 'all' && !operatesOnDay(schedule, ferryDay)) return false;
-        
-        // Route filter
         if (ferryRoute !== 'all' && !schedule.departure_terminal?.includes(ferryRoute)) return false;
-        
-        // Advanced filters
         if (ferryActiveOnly && !schedule.is_active) return false;
-        
         return true;
       });
     }
 
     // Alert filters
-    if (activeScope === 'all' || activeScope === 'alerts') {
+    if (activeModule === 'all' || activeModule === 'alerts') {
       filtered.alerts = filtered.alerts.filter(alert => {
-        // Severity filter
         if (alertSeverity !== 'all' && alert.severity !== alertSeverity) return false;
-        
-        // Active only
         if (activeAlertsOnly && !isAlertActive(alert.active, alert.expires_at)) return false;
-        
-        // Date range
         if (dateFrom && alert.created_at && new Date(alert.created_at) < new Date(dateFrom)) return false;
         if (dateTo && alert.created_at && new Date(alert.created_at) > new Date(dateTo)) return false;
-        
-        // Advanced filters
         if (actionRequiredOnly && !alert.action_required) return false;
-        
         return true;
       });
     }
 
-    // Update total count
     filtered.totalCount =
       filtered.events.length +
+      filtered.forum.length +
       filtered.directory.length +
       filtered.ferry.length +
       filtered.alerts.length;
@@ -221,8 +317,8 @@ function SearchPageContent() {
     setFerryRoute('all');
     setAlertSeverity('all');
     setActiveAlertsOnly(false);
+    setForumCategory('all');
     
-    // Advanced filters
     setRegistrationRequired(false);
     setRecurringOnly(false);
     setWeatherDependent(false);
@@ -234,9 +330,10 @@ function SearchPageContent() {
     setAcceptsCredit(false);
     setOffersDelivery(false);
     setFerryActiveOnly(false);
-    setFerryUpcomingOnly(false);
     setOfficialOrgOnly(false);
     setActionRequiredOnly(false);
+    setHasReplies(false);
+    setPinnedOnly(false);
   };
 
   // Count active filters
@@ -250,8 +347,8 @@ function SearchPageContent() {
     if (ferryRoute !== 'all') count++;
     if (alertSeverity !== 'all') count++;
     if (activeAlertsOnly) count++;
+    if (forumCategory !== 'all') count++;
     
-    // Advanced
     if (registrationRequired) count++;
     if (recurringOnly) count++;
     if (weatherDependent) count++;
@@ -265,6 +362,8 @@ function SearchPageContent() {
     if (ferryActiveOnly) count++;
     if (officialOrgOnly) count++;
     if (actionRequiredOnly) count++;
+    if (hasReplies) count++;
+    if (pinnedOnly) count++;
     
     return count;
   };
@@ -275,14 +374,14 @@ function SearchPageContent() {
     <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Search Gabriola Connects</h1>
-        <p className="text-gray-600">Find events, businesses, ferry schedules, and alerts</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Advanced Search</h1>
+        <p className="text-gray-600">Search across events, forum, directory, ferry, and alerts</p>
       </div>
 
       {/* Search Input - Large on Mobile */}
       <div className="mb-6">
         <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={query}
@@ -293,20 +392,20 @@ function SearchPageContent() {
         </div>
       </div>
 
-      {/* Scope Tabs - Swipeable on Mobile */}
+      {/* Module Tabs - Swipeable on Mobile */}
       <div className="mb-6 overflow-x-auto -mx-4 px-4">
         <div className="flex gap-2 min-w-max">
-          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
+          {(['all', 'forum', 'events', 'directory', 'ferry', 'alerts'] as SearchModule[]).map((module) => (
             <button
-              key={scope}
-              onClick={() => setActiveScope(scope)}
+              key={module}
+              onClick={() => setActiveModule(module)}
               className={`px-4 py-3 rounded-lg font-medium whitespace-nowrap transition ${
-                activeScope === scope
+                activeModule === module
                   ? 'bg-gabriola-green text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {scope === 'all' ? 'ALL' : scope.toUpperCase()}
+              {module === 'all' ? 'ALL' : module.toUpperCase()}
             </button>
           ))}
         </div>
@@ -329,38 +428,25 @@ function SearchPageContent() {
         </button>
       </div>
 
-      {/* Filter Panel - Mobile Optimized */}
+      {/* Filter Panel - Mobile Optimized (IDENTICAL to /search) */}
       {showFilters && (
         <div className="mb-6 p-4 md:p-6 bg-white border-2 border-gray-200 rounded-lg">
-          {/* Events Filters */}
-          {(activeScope === 'all' || activeScope === 'events') && (
-            <div className="space-y-4 mb-6">
-              <h3 className="font-bold text-lg text-gray-900">Event Filters</h3>
+          {/* Forum Filters (Community Search Specific) */}
+          {(activeModule === 'all' || activeModule === 'forum') && (
+            <div className="space-y-4 mb-6 pb-6 border-b">
+              <h3 className="font-bold text-lg text-gray-900">Forum Filters</h3>
               
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={forumCategory}
+                  onChange={(e) => setForumCategory(e.target.value)}
                   className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
                 >
-                  {eventCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                <select
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
-                >
-                  {locations.map(loc => (
-                    <option key={loc.value} value={loc.value}>{loc.label}</option>
+                  <option value="all">All Categories</option>
+                  {forumCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -387,7 +473,92 @@ function SearchPageContent() {
                 </div>
               </div>
 
-              {/* Advanced Event Filters */}
+              {/* Advanced Forum Filters */}
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-2 text-gabriola-green font-medium"
+              >
+                {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                More Filters
+              </button>
+
+              {showAdvanced && (
+                <div className="grid grid-cols-1 gap-3 p-4 bg-gray-50 rounded-lg">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasReplies}
+                      onChange={(e) => setHasReplies(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">Has Replies</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pinnedOnly}
+                      onChange={(e) => setPinnedOnly(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">Pinned Posts</span>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Events Filters - SAME AS /search */}
+          {(activeModule === 'all' || activeModule === 'events') && (
+            <div className="space-y-4 mb-6 pb-6 border-b">
+              <h3 className="font-bold text-lg text-gray-900">Event Filters</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                >
+                  {eventCategories.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <select
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                >
+                  {locations.map(loc => (
+                    <option key={loc.value} value={loc.value}>{loc.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -439,12 +610,11 @@ function SearchPageContent() {
             </div>
           )}
 
-          {/* Directory Filters */}
-          {(activeScope === 'all' || activeScope === 'directory') && (
-            <div className="space-y-4 mb-6">
+          {/* Directory Filters - SAME AS /search */}
+          {(activeModule === 'all' || activeModule === 'directory') && (
+            <div className="space-y-4 mb-6 pb-6 border-b">
               <h3 className="font-bold text-lg text-gray-900">Directory Filters</h3>
               
-              {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                 <select
@@ -458,7 +628,6 @@ function SearchPageContent() {
                 </select>
               </div>
 
-              {/* Location */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
                 <select
@@ -472,7 +641,6 @@ function SearchPageContent() {
                 </select>
               </div>
 
-              {/* Islander Owned - Prominent */}
               <label className="flex items-center gap-3 cursor-pointer p-4 bg-green-50 border-2 border-green-200 rounded-lg">
                 <input
                   type="checkbox"
@@ -483,7 +651,6 @@ function SearchPageContent() {
                 <span className="text-base font-medium">Islander Owned</span>
               </label>
 
-              {/* Advanced Directory Filters */}
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -553,12 +720,11 @@ function SearchPageContent() {
             </div>
           )}
 
-          {/* Ferry Filters */}
-          {(activeScope === 'all' || activeScope === 'ferry') && (
-            <div className="space-y-4 mb-6">
+          {/* Ferry Filters - SAME AS /search */}
+          {(activeModule === 'all' || activeModule === 'ferry') && (
+            <div className="space-y-4 mb-6 pb-6 border-b">
               <h3 className="font-bold text-lg text-gray-900">Ferry Filters</h3>
               
-              {/* Day */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Day of Week</label>
                 <select
@@ -572,7 +738,6 @@ function SearchPageContent() {
                 </select>
               </div>
 
-              {/* Route */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Route</label>
                 <select
@@ -586,7 +751,6 @@ function SearchPageContent() {
                 </select>
               </div>
 
-              {/* Advanced Ferry Filters */}
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -611,12 +775,11 @@ function SearchPageContent() {
             </div>
           )}
 
-          {/* Alert Filters */}
-          {(activeScope === 'all' || activeScope === 'alerts') && (
+          {/* Alert Filters - SAME AS /search */}
+          {(activeModule === 'all' || activeModule === 'alerts') && (
             <div className="space-y-4 mb-6">
               <h3 className="font-bold text-lg text-gray-900">Alert Filters</h3>
               
-              {/* Severity */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
                 <select
@@ -630,7 +793,6 @@ function SearchPageContent() {
                 </select>
               </div>
 
-              {/* Active Only */}
               <label className="flex items-center gap-3 cursor-pointer p-4 bg-red-50 border-2 border-red-200 rounded-lg">
                 <input
                   type="checkbox"
@@ -641,7 +803,6 @@ function SearchPageContent() {
                 <span className="text-base font-medium">Active Alerts Only</span>
               </label>
 
-              {/* Advanced Alert Filters */}
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -695,7 +856,6 @@ function SearchPageContent() {
           </p>
         </div>
 
-        {/* Results Display */}
         {!loading && filteredResults.totalCount === 0 && query.trim().length >= 2 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No results found for "{query}"</p>
@@ -703,7 +863,42 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Event Results */}
+        {/* Forum Results */}
+        {filteredResults.forum.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <MessageSquare className="w-6 h-6 text-gabriola-green" />
+              Forum Posts ({filteredResults.forum.length})
+            </h2>
+            <div className="space-y-4">
+              {filteredResults.forum.map((post: any) => (
+                <Link
+                  key={post.id}
+                  href={`/community/${post.id}`}
+                  className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
+                >
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">{post.title}</h3>
+                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">{post.body}</p>
+                  <div className="flex flex-wrap gap-2 text-sm text-gray-500">
+                    <span>{post.reply_count || 0} replies</span>
+                    <span>•</span>
+                    <span>{format(new Date(post.created_at), 'MMM d, yyyy')}</span>
+                    {post.is_pinned && (
+                      <>
+                        <span>•</span>
+                        <span className="text-gabriola-green font-medium">Pinned</span>
+                      </>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Event, Directory, Ferry, Alert Results - SAME AS /search */}
+        {/* (Reusing same result display code from search-page-mobile-first.tsx) */}
+        
         {filteredResults.events.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -714,7 +909,7 @@ function SearchPageContent() {
               {filteredResults.events.map((event: any) => (
                 <Link
                   key={event.id}
-                  href="/calendar"
+                  href={`/events/${event.id}`}
                   className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{event.title}</h3>
@@ -723,7 +918,7 @@ function SearchPageContent() {
                     {event.start_date && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {format(parseLocalDate(event.start_date), 'MMM d, yyyy')}
+                        {format(new Date(event.start_date), 'MMM d, yyyy')}
                       </span>
                     )}
                     {event.location && (
@@ -739,7 +934,6 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Directory Results */}
         {filteredResults.directory.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -770,7 +964,6 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Ferry Results */}
         {filteredResults.ferry.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -786,15 +979,10 @@ function SearchPageContent() {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-medium text-gray-900">
-                        {schedule.from_location} → {schedule.to_location}
+                        {schedule.departure_terminal} → {schedule.arrival_terminal}
                       </p>
                       <p className="text-sm text-gray-600">{schedule.departure_time}</p>
                     </div>
-                    {schedule.day_of_week && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded">
-                        {schedule.day_of_week}
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
@@ -802,7 +990,6 @@ function SearchPageContent() {
           </div>
         )}
 
-        {/* Alert Results */}
         {filteredResults.alerts.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -840,13 +1027,5 @@ function SearchPageContent() {
         )}
       </div>
     </div>
-  );
-}
-
-export default function SearchPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
-      <SearchPageContent />
-    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.0.0 - Simple Mobile-First
-// Date: 2025-12-18
+// Version: 2.1.0 - Fixed date timezone bug and event links
+// Date: 2025-12-20
 
 'use client';
 
@@ -26,6 +26,16 @@ import {
   isAlertActive,
   operatesOnDay
 } from '@/lib/filters/simpleFilters';
+
+// CRITICAL: Parse dates in local timezone to prevent day-shift
+// Database stores dates as YYYY-MM-DD strings
+const parseLocalDate = (dateStr: string | Date): Date => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 
 type SearchModule = 'all' | 'events' | 'forum' | 'directory' | 'ferry' | 'alerts';
 
@@ -909,7 +919,7 @@ export default function CommunitySearchPage() {
               {filteredResults.events.map((event: any) => (
                 <Link
                   key={event.id}
-                  href={`/events/${event.id}`}
+                  href="/calendar"
                   className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{event.title}</h3>
@@ -918,7 +928,7 @@ export default function CommunitySearchPage() {
                     {event.start_date && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {format(new Date(event.start_date), 'MMM d, yyyy')}
+                        {format(parseLocalDate(event.start_date), 'MMM d, yyyy')}
                       </span>
                     )}
                     {event.location && (

@@ -1,7 +1,7 @@
 // components/SearchResultsInline.tsx
 // Mobile-optimized inline search results dropdown
-// Version: 2.0.0 - Fixed null safety and field names
-// Date: 2025-12-18
+// Version: 2.1.0 - Fixed date timezone bug and event links
+// Date: 2025-12-20
 
 'use client';
 
@@ -9,6 +9,16 @@ import { SearchResults } from '@/lib/useSearch';
 import { Calendar, MapPin, Ship, AlertTriangle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+
+// CRITICAL: Parse dates in local timezone to prevent day-shift
+// Database stores dates as YYYY-MM-DD strings
+const parseLocalDate = (dateStr: string | Date): Date => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 
 interface SearchResultsInlineProps {
   results: SearchResults;
@@ -63,13 +73,13 @@ export default function SearchResultsInline({
               {results.events.slice(0, 3).map(event => (
                 <Link
                   key={event.id}
-                  href={`/events#${event.id}`}
+                  href="/calendar"
                   onClick={onClose}
                   className="block p-3 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <div className="font-medium text-gray-900">{event.title}</div>
                   <div className="text-sm text-gray-600 mt-1">
-                    {event.start_date && format(new Date(event.start_date), 'MMM d, yyyy')}
+                    {event.start_date && format(parseLocalDate(event.start_date), 'MMM d, yyyy')}
                     {event.start_time && ` • ${event.start_time}`}
                   </div>
                   {event.location && (

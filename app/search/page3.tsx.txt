@@ -1,7 +1,7 @@
 // app/search/page.tsx
 // Mobile-first search with simple progressive filters
-// Version: 3.1.0 - Fixed date timezone bug and event links
-// Date: 2025-12-20
+// Version: 3.0.0 - Simple Mobile-First
+// Date: 2025-12-18
 
 'use client';
 
@@ -26,16 +26,6 @@ import {
   isAlertActive,
   operatesOnDay
 } from '@/lib/filters/simpleFilters';
-
-// CRITICAL: Parse dates in local timezone to prevent day-shift
-// Database stores dates as YYYY-MM-DD strings
-const parseLocalDate = (dateStr: string | Date): Date => {
-  if (!dateStr) return new Date();
-  if (dateStr instanceof Date) return dateStr;
-  
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -714,7 +704,7 @@ function SearchPageContent() {
               {filteredResults.events.map((event: any) => (
                 <Link
                   key={event.id}
-                  href="/calendar"
+                  href={`/events/${event.id}`}
                   className="block p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-gabriola-green transition"
                 >
                   <h3 className="font-bold text-lg text-gray-900 mb-1">{event.title}</h3>
@@ -723,7 +713,7 @@ function SearchPageContent() {
                     {event.start_date && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {format(parseLocalDate(event.start_date), 'MMM d, yyyy')}
+                        {format(new Date(event.start_date), 'MMM d, yyyy')}
                       </span>
                     )}
                     {event.location && (
