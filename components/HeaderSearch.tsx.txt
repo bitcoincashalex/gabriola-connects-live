@@ -1,7 +1,7 @@
 // components/HeaderSearch.tsx
 // Context-aware search with forum advanced search link
-// Version: 2.1.0 - Added modal callbacks for events and businesses
-// Date: 2025-12-20
+// Version: 2.0.0
+// Date: 2025-12-18
 
 'use client';
 
@@ -11,12 +11,7 @@ import { Search, X } from 'lucide-react';
 import { useSearch, SearchScope } from '@/lib/useSearch';
 import SearchResultsInline from './SearchResultsInline';
 
-interface HeaderSearchProps {
-  onSelectEvent?: (event: any) => void;
-  onSelectBusiness?: (business: any) => void;
-}
-
-export default function HeaderSearch({ onSelectEvent, onSelectBusiness }: HeaderSearchProps) {
+export default function HeaderSearch() {
   const pathname = usePathname();
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -133,8 +128,6 @@ export default function HeaderSearch({ onSelectEvent, onSelectBusiness }: Header
           loading={loading}
           query={query}
           onClose={handleClose}
-          onSelectEvent={onSelectEvent}
-          onSelectBusiness={onSelectBusiness}
         />
       )}
     </div>

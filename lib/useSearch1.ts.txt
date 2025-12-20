@@ -1,7 +1,7 @@
 // lib/useSearch.ts
 // Search hook with complete types from lib/types/search.ts
-// Version: 2.1.0 - Direct queries with full fields, ordering, and date filtering
-// Date: 2025-12-20
+// Version: 2.0.0 - Using Complete Shared Types
+// Date: 2025-12-18
 
 'use client';
 
@@ -46,54 +46,27 @@ export function useSearch() {
         totalCount: 0,
       };
 
-      const searchTerm = `%${query.toLowerCase()}%`;
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-      // Search Events - ALL fields, chronological order, future only
+      // Search Events
       if (scope === 'all' || scope === 'events') {
-        const { data } = await supabase
-          .from('events')
-          .select('*') // SELECT ALL FIELDS
-          .eq('is_approved', true)
-          .gte('start_date', today) // ONLY FUTURE EVENTS
-          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm}`)
-          .order('start_date', { ascending: true }) // CHRONOLOGICAL
-          .order('start_time', { ascending: true });
-        
+        const { data } = await supabase.rpc('search_events', { search_query: query });
         searchResults.events = (data || []) as Event[];
       }
 
-      // Search Directory - ALL fields, alphabetical
+      // Search Directory
       if (scope === 'all' || scope === 'directory') {
-        const { data } = await supabase
-          .from('directory_businesses')
-          .select('*') // SELECT ALL FIELDS
-          .eq('is_active', true)
-          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`)
-          .order('name', { ascending: true });
-        
+        const { data } = await supabase.rpc('search_directory', { search_query: query });
         searchResults.directory = (data || []) as DirectoryBusiness[];
       }
 
-      // Search Ferry - ALL fields
+      // Search Ferry
       if (scope === 'all' || scope === 'ferry') {
-        const { data } = await supabase
-          .from('ferry_schedules')
-          .select('*') // SELECT ALL FIELDS
-          .or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm}`)
-          .order('departure_time', { ascending: true });
-        
+        const { data } = await supabase.rpc('search_ferry', { search_query: query });
         searchResults.ferry = (data || []) as FerrySchedule[];
       }
 
-      // Search Alerts - ALL fields, newest first
+      // Search Alerts
       if (scope === 'all' || scope === 'alerts') {
-        const { data } = await supabase
-          .from('alerts')
-          .select('*') // SELECT ALL FIELDS
-          .or(`title.ilike.${searchTerm},message.ilike.${searchTerm},category.ilike.${searchTerm}`)
-          .order('created_at', { ascending: false });
-        
+        const { data } = await supabase.rpc('search_alerts', { search_query: query });
         searchResults.alerts = (data || []) as Alert[];
       }
 

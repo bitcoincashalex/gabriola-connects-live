@@ -1,6 +1,6 @@
 // components/Header.tsx
-// Version: 2.0.0 - Added debugging for real-time message notifications
-// Date: 2024-12-13
+// Version: 2.1.0 - Added event and business detail modals for search
+// Date: 2025-12-20
 'use client';
 
 import Link from 'next/link';
@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown } from 'lucide-react';
 import HeaderSearch from './HeaderSearch';
+import EventDetailModal from '@/components/EventDetailModal';
+import BusinessDetailModal from '@/components/BusinessDetailModal';
 
 export default function Header() {
   const { user } = useUser();
@@ -16,6 +18,8 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = user?.is_super_admin;
@@ -139,6 +143,7 @@ export default function Header() {
   ];
 
   return (
+    <>
     <header className="bg-gabriola-green text-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-20">
@@ -155,7 +160,10 @@ export default function Header() {
 
           {/* Search — hidden on mobile - NOW CONTEXT-AWARE! */}
           <div className="hidden md:flex flex-1 max-w-xl mx-8">
-            <HeaderSearch />
+            <HeaderSearch 
+              onSelectEvent={setSelectedEvent}
+              onSelectBusiness={setSelectedBusiness}
+            />
           </div>
 
           {/* Desktop Nav */}
@@ -434,5 +442,18 @@ export default function Header() {
         )}
       </div>
     </header>
+
+      {/* Event Detail Modal */}
+      <EventDetailModal 
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+
+      {/* Business Detail Modal */}
+      <BusinessDetailModal 
+        business={selectedBusiness}
+        onClose={() => setSelectedBusiness(null)}
+      />
+    </>
   );
 }

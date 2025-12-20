@@ -1,4 +1,6 @@
 // components/Header.tsx
+// Version: 2.0.0 - Added debugging for real-time message notifications
+// Date: 2024-12-13
 'use client';
 
 import Link from 'next/link';
@@ -54,9 +56,15 @@ export default function Header() {
             table: 'private_messages',
             filter: `receiver_id=eq.${user.id}`,
           },
-          () => fetchUnreadCount()
+          (payload) => {
+            console.log('🔔 [Header] Real-time message event:', payload.eventType);
+            console.log('🔔 [Header] Message data:', payload.new);
+            fetchUnreadCount();
+          }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('🔔 [Header] Subscription status:', status);
+        });
 
       // Subscribe to new user signups (super admin only)
       let userSubscription: any = null;
@@ -87,12 +95,16 @@ export default function Header() {
   const fetchUnreadCount = async () => {
     if (!user) return;
 
-    const { count } = await supabase
+    console.log('🔔 [Header] Fetching unread count for user:', user.id);
+
+    const { count, error } = await supabase
       .from('private_messages')
       .select('*', { count: 'exact', head: true })
       .eq('receiver_id', user.id)
       .eq('read', false)
       .eq('is_deleted', false);
+
+    console.log('🔔 [Header] Unread count:', count, 'Error:', error);
 
     setUnreadCount(count || 0);
   };
