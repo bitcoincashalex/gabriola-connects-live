@@ -1,6 +1,6 @@
 // components/LandingPage.tsx
-// v4.6.0 - Community card now navigates to /community-hub page
-// Date: 2024-12-13
+// v4.9.0 - Complete navigation fix: cards and emoji buttons use dedicated routes
+// Date: 2025-12-20
 'use client';
 
 import Link from 'next/link';
@@ -232,35 +232,20 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
 
   const fetchCommunityStats = async () => {
     try {
-      // Count verified residents
-      const { count: residentCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_resident', true);
-
-      // Count total members
-      const { count: memberCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-
-      // Count upcoming events (future events only)
-      const today = new Date().toISOString().split('T')[0];
-      const { count: eventCount } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_approved', true)
-        .gte('start_date', today);
-
-      // Count businesses in directory
-      const { count: businessCount } = await supabase
-        .from('directory_businesses')
-        .select('*', { count: 'exact', head: true });
-
+      // Fetch stats from public API (bypasses RLS)
+      const response = await fetch('/api/stats');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+      
+      const data = await response.json();
+      
       setStats({
-        residents: residentCount || 0,
-        totalMembers: memberCount || 0,
-        upcomingEvents: eventCount || 0,
-        businesses: businessCount || 0,
+        residents: data.residents || 0,
+        totalMembers: data.totalMembers || 0,
+        upcomingEvents: data.upcomingEvents || 0,
+        businesses: data.businesses || 0,
       });
       setStatsLoading(false);
     } catch (error) {
@@ -344,7 +329,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('forum')}
+              onClick={() => window.location.href = '/community-hub'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">💬</span>
@@ -354,7 +339,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('ferry')}
+              onClick={() => window.location.href = '/ferry'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">⛴️</span>
@@ -364,7 +349,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('directory')}
+              onClick={() => window.location.href = '/directory'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">📖</span>
@@ -393,44 +378,17 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
 
-            // Community card goes to dedicated page, others use hash navigation
-            if (card.id === 'forum') {
-              return (
-                <Link
-                  key={card.id}
-                  href="/community-hub"
-                  onMouseEnter={() => setHoveredCard(card.id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className={`
-                    relative overflow-hidden
-                    bg-gradient-to-br ${card.color}
-                    rounded-3xl p-8
-                    shadow-xl hover:shadow-2xl
-                    transform transition-all duration-300
-                    ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
-                    cursor-pointer
-                    group
-                    block
-                  `}
-                >
-                  <div className={`relative z-10 ${card.textColor}`}>
-                    <ForumWidget />
-                  </div>
-
-                  <div className={`
-                    absolute -bottom-12 -right-12 w-48 h-48 
-                    rounded-full bg-white/10
-                    transform transition-transform duration-500
-                    ${isHovered ? 'scale-150' : 'scale-100'}
-                  `} />
-                </Link>
-              );
-            }
+            // Determine the route for each card
+            let href = '/';
+            if (card.id === 'calendar') href = '/calendar';
+            else if (card.id === 'forum') href = '/community-hub';
+            else if (card.id === 'ferry') href = '/ferry';
+            else if (card.id === 'directory') href = '/directory';
 
             return (
-              <button
+              <Link
                 key={card.id}
-                onClick={() => onNavigate(card.id)}
+                href={href}
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
@@ -442,11 +400,13 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                   ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
                   cursor-pointer
                   group
+                  block
                 `}
               >
                 <div className={`relative z-10 ${card.textColor}`}>
                   {/* Widgets now include their own icon, title, and description */}
                   {card.id === 'calendar' && <NextEventWidget />}
+                  {card.id === 'forum' && <ForumWidget />}
                   {card.id === 'ferry' && <NextFerryWidget />}
                   {card.id === 'directory' && <DirectoryWidget />}
                 </div>
@@ -457,7 +417,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                   transform transition-transform duration-500
                   ${isHovered ? 'scale-150' : 'scale-100'}
                 `} />
-              </button>
+              </Link>
             );
           })}
         </div>
@@ -507,14 +467,12 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </p>
           <p className="text-gray-500 text-xs text-center">
             Brought to you by the{' '}
-            <a 
-              href="https://gabriolaconnects.ca/strachan" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <Link 
+              href="/strachan" 
               className="text-gabriola-green hover:text-gabriola-green-dark underline font-medium transition-colors"
             >
               Strachan family
-            </a>
+            </Link>
           </p>
         </div>
 

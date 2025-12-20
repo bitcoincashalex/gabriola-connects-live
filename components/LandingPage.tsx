@@ -1,5 +1,5 @@
 // components/LandingPage.tsx
-// v4.8.0 - Fixed navigation: All cards now use dedicated routes instead of hash navigation
+// v4.10.0 - Removed dead code (onNavigate prop) - all navigation uses direct routes
 // Date: 2025-12-20
 'use client';
 
@@ -14,7 +14,7 @@ import { ForumWidget } from '@/components/ForumWidget';
 import { AlertsWidget } from '@/components/AlertsWidget';
 
 interface LandingPageProps {
-  onNavigate: (tab: string) => void;
+  // No props needed - all navigation uses direct routes
 }
 
 // Share & Install Section Component
@@ -198,7 +198,7 @@ function ShareAndInstallSection() {
   );
 }
 
-export default function LandingPage({ onNavigate }: LandingPageProps) {
+export default function LandingPage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [activeAlertCount, setActiveAlertCount] = useState<number>(0);
   
@@ -329,7 +329,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('forum')}
+              onClick={() => window.location.href = '/community-hub'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">💬</span>
@@ -339,7 +339,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('ferry')}
+              onClick={() => window.location.href = '/ferry'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">⛴️</span>
@@ -349,7 +349,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             </button>
 
             <button
-              onClick={() => onNavigate('directory')}
+              onClick={() => window.location.href = '/directory'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
               <span className="text-lg sm:text-xl">📖</span>

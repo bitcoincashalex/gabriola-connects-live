@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v3.7.0 - Removed dead code (handleTabClick, onNavigate) - all tabs use Link components
+// v3.5.0 - Calendar navigates to /calendar page (eliminates flash navigation)
 // Date: 2025-12-20
 
 'use client';
@@ -11,9 +11,10 @@ import { useUser } from '@/components/AuthProvider';
 
 interface FooterProps {
   activeTab?: string;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function Footer({ activeTab = '' }: FooterProps) {
+export default function Footer({ activeTab = '', onNavigate }: FooterProps) {
   const { user } = useUser();
   
   // PWA Install State
@@ -56,6 +57,16 @@ export default function Footer({ activeTab = '' }: FooterProps) {
     setCanInstall(false);
   };
 
+  const handleTabClick = (tab: string) => {
+    if (onNavigate) {
+      // If onNavigate provided (on main page.tsx), use it
+      onNavigate(tab);
+    } else {
+      // On standalone pages, navigate to home with hash
+      window.location.href = `/#${tab}`;
+    }
+  };
+
   // Build tabs array - hide forum for banned users
   const tabs = [
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
@@ -94,20 +105,70 @@ export default function Footer({ activeTab = '' }: FooterProps) {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             
-            // Determine the route for each tab
-            let href = '/';
-            if (tab.id === 'calendar') href = '/calendar';
-            else if (tab.id === 'forum') href = '/community-hub';
-            else if (tab.id === 'ferry') href = '/ferry';
-            else if (tab.id === 'directory') href = '/directory';
-            else if (tab.id === 'alerts') href = '/alerts';
-            else if (tab.id === 'search') href = getSearchUrl();
+            // Special handling for calendar - navigate to /calendar page
+            if (tab.id === 'calendar') {
+              return (
+                <Link
+                  key={tab.id}
+                  href="/calendar"
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
             
-            // All tabs use Link components with dedicated routes
+            // Special handling for search and alerts - navigate to dedicated pages
+            if (tab.id === 'search') {
+              return (
+                <Link
+                  key={tab.id}
+                  href={getSearchUrl()}
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
+            
+            if (tab.id === 'alerts') {
+              return (
+                <Link
+                  key={tab.id}
+                  href="/alerts"
+                  className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
+                    isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                    <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                  </div>
+                  <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                    {tab.label}
+                  </span>
+                </Link>
+              );
+            }
+            
+            // Regular tabs - use button with handleTabClick
             return (
-              <Link
+              <button
                 key={tab.id}
-                href={href}
+                onClick={() => handleTabClick(tab.id)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
                   isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
                 }`}
@@ -118,7 +179,7 @@ export default function Footer({ activeTab = '' }: FooterProps) {
                 <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
                   {tab.label}
                 </span>
-              </Link>
+              </button>
             );
           })}
         </div>

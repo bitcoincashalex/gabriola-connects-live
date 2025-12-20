@@ -1,6 +1,6 @@
 // components/LandingPage.tsx
-// v4.7.0 - Fixed stats loading by using public API (bypasses RLS)
-// Date: 2025-12-18
+// v4.8.0 - Fixed navigation: All cards now use dedicated routes instead of hash navigation
+// Date: 2025-12-20
 'use client';
 
 import Link from 'next/link';
@@ -378,44 +378,17 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             const Icon = card.icon;
             const isHovered = hoveredCard === card.id;
 
-            // Community card goes to dedicated page, others use hash navigation
-            if (card.id === 'forum') {
-              return (
-                <Link
-                  key={card.id}
-                  href="/community-hub"
-                  onMouseEnter={() => setHoveredCard(card.id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className={`
-                    relative overflow-hidden
-                    bg-gradient-to-br ${card.color}
-                    rounded-3xl p-8
-                    shadow-xl hover:shadow-2xl
-                    transform transition-all duration-300
-                    ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
-                    cursor-pointer
-                    group
-                    block
-                  `}
-                >
-                  <div className={`relative z-10 ${card.textColor}`}>
-                    <ForumWidget />
-                  </div>
-
-                  <div className={`
-                    absolute -bottom-12 -right-12 w-48 h-48 
-                    rounded-full bg-white/10
-                    transform transition-transform duration-500
-                    ${isHovered ? 'scale-150' : 'scale-100'}
-                  `} />
-                </Link>
-              );
-            }
+            // Determine the route for each card
+            let href = '/';
+            if (card.id === 'calendar') href = '/calendar';
+            else if (card.id === 'forum') href = '/community-hub';
+            else if (card.id === 'ferry') href = '/ferry';
+            else if (card.id === 'directory') href = '/directory';
 
             return (
-              <button
+              <Link
                 key={card.id}
-                onClick={() => onNavigate(card.id)}
+                href={href}
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 className={`
@@ -427,11 +400,13 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                   ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
                   cursor-pointer
                   group
+                  block
                 `}
               >
                 <div className={`relative z-10 ${card.textColor}`}>
                   {/* Widgets now include their own icon, title, and description */}
                   {card.id === 'calendar' && <NextEventWidget />}
+                  {card.id === 'forum' && <ForumWidget />}
                   {card.id === 'ferry' && <NextFerryWidget />}
                   {card.id === 'directory' && <DirectoryWidget />}
                 </div>
@@ -442,7 +417,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                   transform transition-transform duration-500
                   ${isHovered ? 'scale-150' : 'scale-100'}
                 `} />
-              </button>
+              </Link>
             );
           })}
         </div>
