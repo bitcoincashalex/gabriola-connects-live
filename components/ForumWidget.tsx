@@ -1,7 +1,7 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.2.0 - Changed heading text
-// Date: 2024-12-20
+// Version: 5.2.1 - Fixed text cutoff on desktop (icon+title+descriptions all shifted left)
+// Date: 2025-12-20
 
 'use client';
 
@@ -65,10 +65,10 @@ export function ForumWidget() {
   return (
     <div className="space-y-3">
       {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-      <div className="flex items-center gap-4">
-        {/* Big Icon in Circle */}
-        <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-          <MessageSquare className="w-10 h-10 text-white" />
+      <div className="flex items-center gap-3">
+        {/* Big Icon in Circle - reduced padding from p-4 to p-3 */}
+        <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+          <MessageSquare className="w-9 h-9 text-white" />
         </div>
         
         {/* Big Title */}
@@ -77,19 +77,19 @@ export function ForumWidget() {
         </h3>
       </div>
       
-      {/* Subtitle */}
-      <div className="text-sm text-white/90 font-medium">
+      {/* Subtitle - shifted left to prevent text cutoff */}
+      <div className="text-sm text-white/90 font-medium -ml-1">
         Forum*Emergency*Map*News*Volunteer
       </div>
       
-      {/* Active Count - Medium Size */}
-      <div className="text-lg font-semibold text-white">
+      {/* Active Count - Medium Size, shifted left */}
+      <div className="text-lg font-semibold text-white -ml-1">
         {activeCount} active {activeCount === 1 ? 'discussion' : 'discussions'}
       </div>
       
-      {/* Latest Thread - Readable Size */}
+      {/* Latest Thread - Readable Size, shifted left */}
       {latestPost && (
-        <div className="text-base font-medium text-white/90 line-clamp-2">
+        <div className="text-base font-medium text-white/90 line-clamp-2 -ml-1">
           Latest: {displayTitle}
         </div>
       )}
