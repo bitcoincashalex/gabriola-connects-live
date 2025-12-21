@@ -83,7 +83,7 @@ export default function EditPostModal({ post, onClose, onSuccess }: Props) {
           body: body.trim(),
           link_url: linkUrl.trim() || null,
           edited_at: new Date().toISOString(),
-          edited_by: post.author_id,
+          edited_by: post.user_id,
           edit_count: (post.edit_count || 0) + 1,
         })
         .eq('id', post.id);
@@ -117,7 +117,7 @@ export default function EditPostModal({ post, onClose, onSuccess }: Props) {
           image_url: img.url,
           caption: img.caption || null,
           display_order: existingImageIds.length + index,
-          uploaded_by: post.author_id,
+          uploaded_by: post.user_id,
         }));
 
         const { error: insertError } = await supabase

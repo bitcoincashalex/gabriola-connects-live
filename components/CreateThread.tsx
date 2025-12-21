@@ -80,7 +80,7 @@ export default function CreateThread({ currentUser, defaultCategoryId, onSuccess
           category_id: categoryId,
           title: title.trim(),
           body: body.trim(),
-          author_id: currentUser.id,
+          user_id: currentUser.id,
           link_url: linkUrl.trim() || null,
           display_name: displayName,
           is_anonymous: isAnonymous,
