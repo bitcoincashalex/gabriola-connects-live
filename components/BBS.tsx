@@ -1,10 +1,10 @@
 // Path: components/BBS.tsx
-// Version: 5.0.0 - Allow anonymous browsing, only registered users can post/reply
-// Date: 2025-12-18
+// Version: 5.1.0 - Added auto-scroll to thread list on category/search selection
+// Date: 2025-12-20
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import CreateThread from './CreateThread';
@@ -26,10 +26,26 @@ export default function BBS() {
   const [searchResultCount, setSearchResultCount] = useState<number | undefined>(undefined);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Ref for auto-scrolling to thread list
+  const threadListRef = useRef<HTMLDivElement>(null);
+
   // Fetch categories from database
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Auto-scroll to thread list when category or search changes
+  useEffect(() => {
+    if (activeCategory !== 'all' || searchQuery) {
+      // Small delay to let ThreadList render first
+      setTimeout(() => {
+        threadListRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
+    }
+  }, [activeCategory, searchQuery]);
 
   const fetchCategories = async () => {
     const { data, error } = await supabase
@@ -315,7 +331,7 @@ export default function BBS() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div ref={threadListRef} className="max-w-7xl mx-auto px-6 py-8">
         <ThreadList 
           key={refreshKey} 
           category={activeCategory} 
