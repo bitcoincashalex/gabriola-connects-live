@@ -1,5 +1,5 @@
 // Path: components/Calendar.tsx
-// Version: 2.9.0 - FIXED: Add event now saves to database + link to EventsManager
+// Version: 2.8.0 - Added auto-scroll to event list when date selected
 // Date: 2025-12-20
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
@@ -236,7 +236,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const finalLocation = selectedVenueId === 'other' ? customLocation.trim() : formData.location.trim();
@@ -268,68 +268,56 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       }
     }
 
-    // Insert directly to Supabase instead of dispatching event
-    const { error } = await supabase.from('events').insert({
+    const eventDate = new Date(formData.date);
+    
+    window.dispatchEvent(new CustomEvent('add-event', { detail: {
       title: formData.title.trim(),
-      description: formData.description.trim() || 'No description provided.',
-      start_date: formData.date,
-      end_date: formData.endDate || formData.date,
-      start_time: formData.allDay ? null : formData.time,
-      end_time: formData.endTime || null,
-      is_all_day: formData.allDay,
+      start_date: eventDate,
+      start_time: formData.allDay ? 'All Day' : formatTimeDisplay(formData.time),
       location: finalLocation,
-      venue_name: formData.venue_name || null,
-      venue_address: formData.venue_address || null,
-      venue_city: formData.venue_city || 'Gabriola Island',
-      venue_postal_code: formData.venue_postal_code || null,
-      venue_map_url: formData.venue_map_url || null,
-      image_url: formData.posterImage.trim() || null,
-      contact_email: formData.organizerEmail.trim() || null,
-      contact_phone: formData.organizerPhone.trim() || null,
-      fees: formData.fees.trim() || null,
-      is_recurring: formData.recurring.trim() ? true : false,
-      recurrence_pattern: formData.recurring.trim() || null,
+      venue_name: formData.venue_name || undefined,
+      venue_address: formData.venue_address || undefined,
+      venue_city: formData.venue_city || 'Gabriola',
+      venue_postal_code: formData.venue_postal_code || undefined,
+      venue_map_url: formData.venue_map_url || undefined,
+      description: formData.description.trim() || 'No description provided.',
+      image_url: formData.posterImage.trim() || undefined,
+      contact_email: formData.organizerEmail.trim() || undefined,
+      contact_phone: formData.organizerPhone.trim() || undefined,
       source_name: 'User Submitted',
-      source_type: 'user_submitted',
-      is_approved: true, // Auto-approve calendar events
-      created_by: user?.id,
-    });
+      end_date: formData.endDate ? new Date(formData.endDate) : undefined,
+      end_time: formData.endTime ? formatTimeDisplay(formData.endTime) : undefined,
+      is_all_day: formData.allDay,
+      is_recurring: formData.recurring.trim() ? true : false,
+      recurrence_pattern: formData.recurring.trim() || undefined,
+    }}));
 
-    if (!error) {
-      alert('Event added to calendar! 🎉');
-      // Reset form
-      setFormData({
-        title: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        time: '',
-        endDate: format(new Date(), 'yyyy-MM-dd'),
-        endTime: '',
-        allDay: false,
-        location: '',
-        venue_name: '',
-        venue_address: '',
-        venue_city: 'Gabriola',
-        venue_postal_code: '',
-        venue_map_url: '',
-        description: '',
-        posterImage: '',
-        organizerEmail: '',
-        organizerPhone: '',
-        contactInfo: '',
-        fees: '',
-        recurring: '',
-        source: 'User Submitted',
-      });
-      setImagePreview(null);
-      setCustomLocation('');
-      setSelectedVenueId('');
-      setShowAddForm(false);
-      
-      // Refresh page to show new event (parent component fetches events)
-      window.location.reload();
-    } else {
-      alert('Error adding event: ' + error.message);
-    }
+    setFormData({
+      title: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      time: '',
+      endDate: format(new Date(), 'yyyy-MM-dd'),
+      endTime: '',
+      allDay: false,
+      location: '',
+      venue_name: '',
+      venue_address: '',
+      venue_city: 'Gabriola',
+      venue_postal_code: '',
+      venue_map_url: '',
+      description: '',
+      posterImage: '',
+      organizerEmail: '',
+      organizerPhone: '',
+      contactInfo: '',
+      fees: '',
+      recurring: '',
+      source: 'User Submitted',
+    });
+    setImagePreview(null);
+    setCustomLocation('');
+    setSelectedVenueId('');
+    setShowAddForm(false);
   };
 
   const handleRSVP = (event: Event) => {
@@ -575,21 +563,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                 </div>
               )}
             </div>
-            
-            {/* Link to Full Event Form */}
-            <div className="text-center py-3 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-2">
-                Need more options? Registration, capacity, accessibility info, etc.
-              </p>
-              <a 
-                href="/events" 
-                target="_blank"
-                className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
-              >
-                Use Full Event Form →
-              </a>
-            </div>
-            
             <button type="submit" className="w-full bg-gabriola-green text-white py-3 px-4 rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors">
               Add Event to Calendar
             </button>
