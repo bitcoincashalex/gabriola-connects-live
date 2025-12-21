@@ -1,26 +1,24 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 5.1.0 - Added Edit and Delete buttons for thread owners
-// Date: 2025-12-20
+// Version: 4.0.0 - Support anonymous browsing with signup CTA
+// Date: 2025-12-18
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, Flag, Mail, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Flag, Mail } from 'lucide-react';
 import ReplyForm from '@/components/ReplyForm';
 import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
-import EditThreadModal from '@/components/EditThreadModal';
 
 export default function ThreadPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useUser();
   const [thread, setThread] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +27,6 @@ export default function ThreadPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isOwnPost, setIsOwnPost] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -91,35 +88,6 @@ export default function ThreadPage() {
   const handleReplySuccess = () => {
     fetchReplyCount();
     setRefreshKey(prev => prev + 1);
-  };
-
-  const handleDeleteThread = async () => {
-    if (!confirm('Delete this thread?\n\nThis will hide it from public view. Admins can restore it later if needed.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('bbs_posts')
-        .update({
-          is_active: false,
-          deleted_at: new Date().toISOString(),
-          deleted_by: user?.id,
-        })
-        .eq('id', params.id);
-
-      if (error) {
-        console.error('Failed to delete thread:', error);
-        alert('Failed to delete thread: ' + error.message);
-        return;
-      }
-
-      // Redirect to forum after deletion
-      router.push('/community');
-    } catch (err) {
-      console.error('Error deleting thread:', err);
-      alert('Something went wrong while deleting the thread.');
-    }
   };
 
   // Check if we can message the author
@@ -291,30 +259,8 @@ export default function ThreadPage() {
                   <span>💬 {replyCount} replies</span>
                 </div>
 
-                {/* Report, Edit, and Delete buttons */}
+                {/* Report button */}
                 <div className="flex items-center gap-3">
-                  {/* Edit button - only for thread owner */}
-                  {isOwnPost && (
-                    <>
-                      <button
-                        onClick={() => setShowEditModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg transition"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Edit
-                      </button>
-                      
-                      <button
-                        onClick={handleDeleteThread}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-600 hover:text-white text-red-700 rounded-lg transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </>
-                  )}
-
-                  {/* Report button */}
                   <button
                     onClick={async () => {
                       if (!user) {
@@ -385,18 +331,6 @@ export default function ThreadPage() {
           recipientName={thread.display_name || 'Anonymous'}
           currentUserId={user!.id}
           onClose={() => setShowMessageModal(false)}
-        />
-      )}
-
-      {/* Edit Thread Modal */}
-      {showEditModal && isOwnPost && (
-        <EditThreadModal
-          thread={thread}
-          onClose={() => setShowEditModal(false)}
-          onSuccess={() => {
-            setShowEditModal(false);
-            fetchThread();
-          }}
         />
       )}
 
