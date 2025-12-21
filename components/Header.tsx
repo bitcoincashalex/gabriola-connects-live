@@ -1,5 +1,5 @@
 // components/Header.tsx
-// Version: 2.3.0 - Changed "Discussion" to "Forum" for clarity
+// Version: 2.5.0 - Added Search link to mobile menu, Alert Admin link to dropdown
 // Date: 2025-12-20
 'use client';
 
@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship } from 'lucide-react';
+import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship, AlertTriangle, Search } from 'lucide-react';
 import HeaderSearch from './HeaderSearch';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
@@ -334,6 +334,18 @@ export default function Header() {
                             <span>Ferry Admin</span>
                           </Link>
                         )}
+                        
+                        {/* Alert Administration - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/alerts"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <AlertTriangle className="w-5 h-5" />
+                            <span>Alert Administration</span>
+                          </Link>
+                        )}
                       </>
                     )}
 
@@ -434,6 +446,14 @@ export default function Header() {
                   )}
                 </>
               )}
+
+              <Link
+                href="/search"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full py-3 hover:bg-white/10"
+              >
+                Search
+              </Link>
 
               {user ? (
                 <button

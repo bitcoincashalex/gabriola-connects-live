@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Archive, Clock, Building2, MapPin, AlertTriangle, AlertCircle, Bell, Info } from 'lucide-react';
 import Link from 'next/link';
+import Footer from '@/components/Footer';
 
 interface Alert {
   id: string;
@@ -15,6 +16,7 @@ interface Alert {
   message: string;
   on_behalf_of_name?: string | null;
   on_behalf_of_organization?: string | null;
+  organization?: string | null; // alerts_archive uses this field name
   created_at: string;
   expires_at?: string | null;
   affected_areas?: string[] | null;
@@ -32,11 +34,10 @@ export default function AlertsArchivePage() {
   const fetchArchivedAlerts = async () => {
     setLoading(true);
 
-    // Fetch archived alerts - PUBLIC access
+    // Fetch from alerts_archive table - PUBLIC access
     const { data } = await supabase
-      .from('alerts')
+      .from('alerts_archive')
       .select('*')
-      .eq('active', false)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -87,10 +88,10 @@ export default function AlertsArchivePage() {
             <p className="text-gray-700 mb-2 line-clamp-3">{alert.message}</p>
             
             <div className="space-y-1 text-xs text-gray-600">
-              {alert.on_behalf_of_organization && (
+              {(alert.organization || alert.on_behalf_of_organization) && (
                 <div className="flex items-center gap-1.5">
                   <Building2 className="w-3 h-3" />
-                  <span>{alert.on_behalf_of_organization}</span>
+                  <span>{alert.organization || alert.on_behalf_of_organization}</span>
                 </div>
               )}
               
@@ -158,6 +159,7 @@ export default function AlertsArchivePage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

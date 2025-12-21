@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 2.2.4 - Enhanced search to include schedule/recurrence fields
+// Version: 2.3.0 - Added Footer component for consistent navigation
 // Date: 2025-12-20
 
 'use client';
@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
+import Footer from '@/components/Footer';
 import {
   eventCategories,
   directoryCategories,
@@ -1090,6 +1091,8 @@ export default function CommunitySearchPage() {
         business={selectedBusiness}
         onClose={() => setSelectedBusiness(null)}
       />
+      
+      <Footer />
     </div>
   );
 }

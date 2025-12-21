@@ -1,7 +1,7 @@
 // lib/types/search.ts
 // Complete database schemas for all searchable tables
-// Version: 1.0.0
-// Date: 2025-12-18
+// Version: 1.1.0 - Added missing FerrySchedule fields (day_of_week, route_name, from/to_location, notes, operating_days)
+// Date: 2025-12-20
 // Used by: /app/search/page.tsx and /app/community/search/page.tsx
 
 // ============================================================================
@@ -234,7 +234,7 @@ export interface Event {
 }
 
 // ============================================================================
-// FERRY SCHEDULE (22 fields)
+// FERRY SCHEDULE (28 fields)
 // Note: Table name is 'ferry_schedule' (singular), not 'ferry_schedules'
 // ============================================================================
 export interface FerrySchedule {
@@ -244,6 +244,14 @@ export interface FerrySchedule {
   arrival_terminal: string;
   departure_time: string;  // time without time zone
   arrival_time: string;    // time without time zone
+  
+  // Route information (added fields used in search/filters)
+  route_name: string | null;
+  from_location: string | null;
+  to_location: string | null;
+  day_of_week: string | null;  // "Monday", "Tuesday", etc.
+  operating_days: string | null;  // Text description of operating days
+  notes: string | null;
   
   // Display formatting
   time_display: string;
@@ -399,7 +407,7 @@ export interface BBSCategory {
 // ============================================================================
 // SUMMARY
 // ============================================================================
-// Total fields across all types: 15 + 74 + 62 + 22 + 25 + 18 + 24 = 240 fields
+// Total fields across all types: 15 + 74 + 62 + 28 + 25 + 18 + 24 = 246 fields
 //
 // Moderator/Admin-only fields (should be filtered from anonymous queries):
 // - Event: deleted_by, deleted_at

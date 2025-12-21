@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { AlertTriangle, Bell, AlertCircle, Info, Clock, Building2, MapPin, Phone } from 'lucide-react';
 import Link from 'next/link';
+import Footer from '@/components/Footer';
 
 interface Alert {
   id: string;
@@ -237,6 +238,7 @@ export default function AlertsPage() {
           </Link>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
