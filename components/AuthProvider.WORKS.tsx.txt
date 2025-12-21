@@ -1,6 +1,6 @@
 // Path: components/AuthProvider.tsx
-// Version: 3.1.0 - PERFORMANCE: Select 43 specific fields + type assertion (2s → <100ms)
-// Date: 2025-12-20
+// Version: 2.0.7 - Removed SIGNED_IN retry (getSession + INITIAL_SESSION handle everything)
+// Date: 2024-12-09
 
 'use client';
 
@@ -41,51 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const startTime = Date.now();
           const { data: userProfile, error: profileError } = await supabase
             .from('users')
-            .select(`
-              id,
-              email,
-              full_name,
-              username,
-              avatar_url,
-              bio,
-              postal_code,
-              phone_number,
-              is_super_admin,
-              is_banned,
-              account_locked,
-              forum_read_only,
-              admin_events,
-              admin_bbs,
-              admin_forum,
-              admin_directory,
-              admin_alerts,
-              admin_ferry,
-              admin_users,
-              can_post,
-              can_comment,
-              can_create_events,
-              can_issue_alerts,
-              can_rsvp,
-              can_moderate_events,
-              can_edit_directory,
-              can_send_messages,
-              can_receive_messages,
-              alert_level_permission,
-              alert_organization,
-              is_resident,
-              is_fire,
-              is_police,
-              is_medic,
-              is_coast_guard,
-              forum_moderator,
-              role,
-              posts_count,
-              events_created_count,
-              email_notifications,
-              created_at,
-              last_sign_in_at,
-              last_activity_at
-            `)
+            .select('*')
             .eq('id', session.user.id)
             .single();
           
@@ -96,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (userProfile) {
             console.log('✅ User loaded:', userProfile.full_name);
-            setUser(userProfile as User);
+            setUser(userProfile);
           } else {
             console.log('❌ No profile found');
             console.error('Profile error:', profileError);
@@ -139,51 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const startTime = Date.now();
         const { data: userProfile, error } = await supabase
           .from('users')
-          .select(`
-            id,
-            email,
-            full_name,
-            username,
-            avatar_url,
-            bio,
-            postal_code,
-            phone_number,
-            is_super_admin,
-            is_banned,
-            account_locked,
-            forum_read_only,
-            admin_events,
-            admin_bbs,
-            admin_forum,
-            admin_directory,
-            admin_alerts,
-            admin_ferry,
-            admin_users,
-            can_post,
-            can_comment,
-            can_create_events,
-            can_issue_alerts,
-            can_rsvp,
-            can_moderate_events,
-            can_edit_directory,
-            can_send_messages,
-            can_receive_messages,
-            alert_level_permission,
-            alert_organization,
-            is_resident,
-            is_fire,
-            is_police,
-            is_medic,
-            is_coast_guard,
-            forum_moderator,
-            role,
-            posts_count,
-            events_created_count,
-            email_notifications,
-            created_at,
-            last_sign_in_at,
-            last_activity_at
-          `)
+          .select('*')
           .eq('id', session.user.id)
           .single();
         
@@ -194,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (userProfile) {
           console.log('✅ Profile loaded:', userProfile.full_name);
-          setUser(userProfile as User);
+          setUser(userProfile);
         } else {
           console.log('❌ No profile found');
           console.error('Error:', error);
