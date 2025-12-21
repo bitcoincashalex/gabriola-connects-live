@@ -1,5 +1,5 @@
 // components/Header.tsx
-// Version: 2.5.0 - Added Search link to mobile menu, Alert Admin link to dropdown
+// Version: 2.6.0 - Added Alert Organizations link to admin dropdown
 // Date: 2025-12-20
 'use client';
 
@@ -27,7 +27,8 @@ export default function Header() {
   const isEventAdmin = (user as any)?.admin_events;
   const isDirectoryAdmin = (user as any)?.admin_directory;
   const isFerryAdmin = (user as any)?.admin_ferry;
-  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin || isFerryAdmin;
+  const isAlertAdmin = (user as any)?.admin_alerts;
+  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin || isFerryAdmin || isAlertAdmin;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -344,6 +345,18 @@ export default function Header() {
                           >
                             <AlertTriangle className="w-5 h-5" />
                             <span>Alert Administration</span>
+                          </Link>
+                        )}
+                        
+                        {/* Alert Organizations - Alert Admin or Super Admin */}
+                        {(isAlertAdmin || isSuperAdmin) && (
+                          <Link
+                            href="/admin/alert-organizations"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition text-orange-700"
+                          >
+                            <AlertTriangle className="w-5 h-5" />
+                            <span>Alert Organizations</span>
                           </Link>
                         )}
                       </>

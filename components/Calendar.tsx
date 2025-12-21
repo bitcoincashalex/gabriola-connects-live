@@ -1,5 +1,5 @@
 // Path: components/Calendar.tsx
-// Version: 2.9.0 - FIXED: Add event now saves to database + link to EventsManager
+// Version: 3.0.0 - UX FIX: Moved full form link to TOP so users choose BEFORE filling out form
 // Date: 2025-12-20
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
@@ -468,6 +468,27 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       {showAddForm && (
         <div className="p-4 bg-gabriola-sand/30 border-b border-gabriola-green/20 slide-up overflow-y-auto max-h-[500px]">
           <h3 className="font-semibold text-gabriola-green-dark mb-3">Add New Event</h3>
+          
+          {/* Notice about Full Event Form - BEFORE users start typing */}
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800 mb-2">
+              📋 <strong>Quick add</strong> for basic events, or use the <strong>Full Event Form</strong> for advanced options:
+            </p>
+            <ul className="text-xs text-blue-700 mb-2 ml-5 list-disc space-y-1">
+              <li>Registration & capacity management</li>
+              <li>Accessibility information</li>
+              <li>Age restrictions & dress code</li>
+              <li>Recurring events & tags</li>
+            </ul>
+            <a 
+              href="/events" 
+              target="_blank"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+            >
+              Switch to Full Event Form →
+            </a>
+          </div>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Event Title *</label>
@@ -574,20 +595,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                   <input type="url" placeholder="Paste image URL" value={formData.posterImage} onChange={e => { setFormData({ ...formData, posterImage: e.target.value }); if (e.target.value) setImagePreview(e.target.value); }} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gabriola-green" />
                 </div>
               )}
-            </div>
-            
-            {/* Link to Full Event Form */}
-            <div className="text-center py-3 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-2">
-                Need more options? Registration, capacity, accessibility info, etc.
-              </p>
-              <a 
-                href="/events" 
-                target="_blank"
-                className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
-              >
-                Use Full Event Form →
-              </a>
             </div>
             
             <button type="submit" className="w-full bg-gabriola-green text-white py-3 px-4 rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors">

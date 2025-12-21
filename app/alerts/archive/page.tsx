@@ -1,5 +1,5 @@
 // app/alerts/archive/page.tsx
-// Version: 1.0.0 - PUBLIC archive view, anyone can see past alerts
+// Version: 1.0.1 - Fixed footer placement (flex layout pushes footer to bottom)
 // Date: 2025-12-20
 'use client';
 
@@ -115,7 +115,7 @@ export default function AlertsArchivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-8">
@@ -141,8 +141,8 @@ export default function AlertsArchivePage() {
         </div>
       </div>
 
-      {/* Archive List */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Archive List - flex-1 makes it grow to fill space */}
+      <div className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gabriola-green mx-auto"></div>

@@ -1,6 +1,6 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.2 - Added alert_level_permission field
+// Version: 1.0.3 - Added alert_organization field (FIXED: "No valid fields" error)
 // Date: 2025-12-20
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -66,6 +66,7 @@ export async function PATCH(
       'can_create_events',
       'can_issue_alerts',
       'alert_level_permission',  // Alert level (emergency, critical, etc)
+      'alert_organization',       // Organization assignment for alerts
       'can_post',                // Forum posting
       'can_create_posts',        // BBS posting
       'can_reply',               // Forum replies
