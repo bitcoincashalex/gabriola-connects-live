@@ -1,5 +1,6 @@
 // components/EmergencyAlertBanner.tsx
-// v2.1 - Dec 11, 2025 - FIXED: Filter expired alerts (same as AlertsManager fix)
+// Version: 2.2.0 - Fixed mobile dismiss button with larger touch target (44x44px minimum)
+// Date: 2025-12-20
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -183,10 +184,11 @@ export default function EmergencyAlertBanner() {
                   {canDismiss && (
                     <button
                       onClick={() => dismissAlert(alert.id, alert.severity)}
-                      className="p-2 hover:bg-white/20 rounded-lg transition"
+                      className="p-3 sm:p-2 hover:bg-white/20 rounded-lg transition touch-manipulation"
+                      aria-label="Dismiss warning alert"
                       title="Dismiss this warning"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="w-6 h-6 sm:w-5 sm:h-5" />
                     </button>
                   )}
 

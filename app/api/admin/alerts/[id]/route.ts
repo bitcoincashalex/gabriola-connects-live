@@ -1,5 +1,5 @@
 // app/api/admin/alerts/[id]/route.ts
-// Version: 1.0.0 - Super admin edit/delete any alert using service role
+// Version: 1.1.0 - Fixed authentication using cookies() properly
 // Date: 2025-12-20
 
 import { createClient } from '@supabase/supabase-js';
@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 // Service role client - bypasses RLS
-const supabaseAdmin = createClient(
+const createAdminClient = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
@@ -18,13 +18,26 @@ const supabaseAdmin = createClient(
   }
 );
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Create authenticated client from cookies
+const createAuthClient = async () => {
+  const cookieStore = await cookies();
+  
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          cookie: cookieStore.toString()
+        }
+      }
+    }
+  );
+};
 
 // Helper to verify super admin
 async function verifySuperAdmin(userId: string) {
+  const supabaseAdmin = createAdminClient();
   const { data } = await supabaseAdmin
     .from('users')
     .select('is_super_admin')
@@ -40,17 +53,14 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const authCookie = cookieStore.get('sb-access-token');
+    // Create authenticated client
+    const supabase = await createAuthClient();
     
-    if (!authCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: { user } } = await supabase.auth.getUser(authCookie.value);
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized - Not logged in' }, { status: 401 });
     }
 
     // Verify super admin
@@ -63,6 +73,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Update using service role
+    const supabaseAdmin = createAdminClient();
     const { error } = await supabaseAdmin
       .from('alerts')
       .update(body)
@@ -87,17 +98,14 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const cookieStore = cookies();
-    const authCookie = cookieStore.get('sb-access-token');
+    // Create authenticated client
+    const supabase = await createAuthClient();
     
-    if (!authCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: { user } } = await supabase.auth.getUser(authCookie.value);
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized - Not logged in' }, { status: 401 });
     }
 
     // Verify super admin
@@ -108,6 +116,7 @@ export async function DELETE(
     }
 
     // Delete using service role
+    const supabaseAdmin = createAdminClient();
     const { error } = await supabaseAdmin
       .from('alerts')
       .delete()
