@@ -1,5 +1,5 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 5.2.0 - Fixed iOS Safari "Back to Forum" button with explicit touch handling
+// Version: 5.1.0 - Added Edit and Delete buttons for thread owners
 // Date: 2025-12-20
 
 'use client';
@@ -141,13 +141,8 @@ export default function ThreadPage() {
           <h1 className="text-4xl font-bold text-gray-800 mb-4">Thread Not Found</h1>
           <p className="text-gray-600 mb-8">This thread doesn't exist or has been deleted.</p>
           <Link 
-            href="/community"
-            prefetch={false}
-            onClick={(e) => {
-              e.preventDefault();
-              router.push('/community');
-            }}
-            className="inline-flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark cursor-pointer touch-manipulation"
+            href="/community" 
+            className="inline-flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Forum
@@ -162,13 +157,8 @@ export default function ThreadPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Back link */}
         <Link 
-          href="/community"
-          prefetch={false}
-          onClick={(e) => {
-            e.preventDefault();
-            router.push('/community');
-          }}
-          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8 text-lg font-medium cursor-pointer touch-manipulation"
+          href="/community" 
+          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8 text-lg font-medium"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Forum
