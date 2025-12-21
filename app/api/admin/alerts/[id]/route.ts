@@ -1,5 +1,5 @@
 // app/api/admin/alerts/[id]/route.ts
-// Version: 1.2.0 - Fixed auth by parsing Supabase auth cookie directly
+// Version: 1.3.0 - Added extensive cookie debugging to find auth token
 // Date: 2025-12-20
 
 import { createClient } from '@supabase/supabase-js';
@@ -25,14 +25,20 @@ async function getUserFromCookies() {
   // Get all Supabase auth cookies
   const allCookies = cookieStore.getAll();
   
+  // DEBUG: Log all cookie names to see what we have
+  console.log('🍪 All cookies:', allCookies.map(c => c.name));
+  
   // Find the access token cookie (Supabase stores it as sb-{project-ref}-auth-token)
   const authTokenCookie = allCookies.find(cookie => 
     cookie.name.includes('sb-') && cookie.name.includes('-auth-token')
   );
   
   if (!authTokenCookie) {
+    console.error('❌ No auth token cookie found. Available cookies:', allCookies.map(c => c.name));
     return { user: null, error: 'No auth token found' };
   }
+  
+  console.log('✅ Found auth cookie:', authTokenCookie.name);
   
   try {
     // Parse the auth token JSON
@@ -40,6 +46,7 @@ async function getUserFromCookies() {
     const accessToken = authData.access_token;
     
     if (!accessToken) {
+      console.error('❌ No access token in cookie data');
       return { user: null, error: 'No access token in cookie' };
     }
     
@@ -51,8 +58,15 @@ async function getUserFromCookies() {
     
     const { data: { user }, error } = await supabase.auth.getUser(accessToken);
     
+    if (error) {
+      console.error('❌ Error verifying token:', error);
+    } else {
+      console.log('✅ User verified:', user?.id);
+    }
+    
     return { user, error };
   } catch (e) {
+    console.error('❌ Failed to parse auth cookie:', e);
     return { user: null, error: 'Failed to parse auth cookie' };
   }
 }
