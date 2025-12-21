@@ -1,18 +1,19 @@
 // Path: components/ReplyList.tsx
-// Version: 4.0.0 - Support anonymous browsing, hide vote/reply buttons for non-logged-in users
-// Date: 2025-12-18
+// Version: 5.0.0 - Added Edit button for reply authors
+// Date: 2025-12-20
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, Flag, Trash2, Loader2, Reply, Mail } from 'lucide-react';
+import { MessageSquare, Flag, Trash2, Loader2, Reply, Mail, Edit } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 import ReplyForm from '@/components/ReplyForm';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
+import EditReplyModal from '@/components/EditReplyModal';
 
 interface Reply {
   id: string;
@@ -45,6 +46,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [editingReply, setEditingReply] = useState<Reply | null>(null);
   const [messagingUser, setMessagingUser] = useState<{ id: string; name: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
@@ -143,6 +145,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
 
   const ReplyItem = ({ reply, depth = 0 }: { reply: Reply; depth?: number }) => {
     const canDelete = isAdmin || reply.user_id === user?.id;
+    const canEdit = reply.user_id === user?.id; // Only author can edit
     const isReplying = replyingTo === reply.id;
     const canMessage = user && !reply.is_anonymous && reply.user_id !== user.id;
 
@@ -175,15 +178,28 @@ export default function ReplyList({ postId, onRefresh }: Props) {
 
             {/* Content - Right side */}
             <div className="flex-1 min-w-0">
-              {/* Delete button */}
-              {canDelete && (
-                <button
-                  onClick={() => handleDelete(reply.id)}
-                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                  title="Delete reply"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              {/* Edit and Delete buttons - only for reply author */}
+              {(canEdit || canDelete) && (
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition flex gap-2">
+                  {canEdit && (
+                    <button
+                      onClick={() => setEditingReply(reply)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                      title="Edit reply"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(reply.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                      title="Delete reply"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Author & Time with Avatar and Badges */}
@@ -345,6 +361,18 @@ export default function ReplyList({ postId, onRefresh }: Props) {
           recipientName={messagingUser.name}
           currentUserId={user.id}
           onClose={() => setMessagingUser(null)}
+        />
+      )}
+
+      {/* Edit Reply Modal */}
+      {editingReply && (
+        <EditReplyModal
+          reply={editingReply}
+          onClose={() => setEditingReply(null)}
+          onSuccess={() => {
+            setEditingReply(null);
+            fetchReplies();
+          }}
         />
       )}
 

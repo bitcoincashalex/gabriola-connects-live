@@ -1,9 +1,8 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 3.0.0 - PERFORMANCE: Removed slow activity tracking RPC call (2.6s → <200ms)
+// Version: 2.0.0 - Full feature restoration with ALL admin columns
 // Created: 2025-12-18
-// Updated: 2025-12-20
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
 // ============================================================================
@@ -324,10 +323,34 @@ export async function GET(request: NextRequest) {
     console.log(`[Admin API] ✅ Found ${users.length} users (total: ${count})`);
 
     // ========================================================================
-    // 9. ENRICH USER DATA (Calculate is_online)
+    // 9. FETCH LATEST ACTIVITIES FOR THESE USERS
+    // ========================================================================
+    
+    const userIds = users.map(u => u.id);
+    
+    const { data: activities, error: activityError } = await supabaseAdmin
+      .rpc('get_latest_activities', { user_ids: userIds });
+
+    if (activityError) {
+      console.error('[Admin API] Activity fetch error:', activityError);
+      // Don't fail the request, just continue without activities
+    }
+
+    // Map activities by user_id for fast lookup
+    const activityMap = new Map();
+    if (activities) {
+      activities.forEach((act: any) => {
+        activityMap.set(act.user_id, act);
+      });
+    }
+
+    // ========================================================================
+    // 10. COMBINE USER DATA WITH ACTIVITIES
     // ========================================================================
     
     const enrichedUsers: AdminUser[] = users.map(user => {
+      const activity = activityMap.get(user.id);
+      
       // Calculate is_online (active within 5 minutes)
       const isOnline = user.last_activity_at 
         ? (Date.now() - new Date(user.last_activity_at).getTime()) < 5 * 60 * 1000
@@ -336,12 +359,17 @@ export async function GET(request: NextRequest) {
       return {
         ...user,
         is_online: isOnline,
-        last_activity: null // Activity tracking removed for performance
+        last_activity: activity ? {
+          type: activity.activity_type,
+          details: activity.activity_details,
+          timestamp: activity.created_at,
+          formatted: formatActivityForDisplay(activity.activity_type, activity.activity_details)
+        } : null
       };
     });
 
     // ========================================================================
-    // 10. BUILD RESPONSE WITH PAGINATION METADATA
+    // 11. BUILD RESPONSE WITH PAGINATION METADATA
     // ========================================================================
     
     const totalPages = count ? Math.ceil(count / limit) : 0;
@@ -383,14 +411,8 @@ PERFORMANCE:
 - Selects only needed fields (~200 bytes/user vs 1051 bytes)
 - Bypasses RLS (500-2000ms saved)
 - Paginated (50 users at a time, not all 4,500)
-- **REMOVED activity tracking RPC call** (was causing 2.6s delay for 10 users!)
-- Expected query time: 50-200ms for any user count
-
-PERFORMANCE FIX (v3.0.0):
-- Previous: 2.6 seconds for 10 users (activity RPC was the bottleneck)
-- Now: <200ms for 10 users, <500ms for 1000 users
-- Removed: get_latest_activities RPC call (can be added back with optimization)
-- Activity tracking moved to individual user detail view (not list view)
+- Uses function for latest activities (efficient DISTINCT ON)
+- Expected query time: 10-50ms even at 4,500 users
 
 SECURITY:
 - Server-side auth check (more secure than client-side RLS)
@@ -398,10 +420,8 @@ SECURITY:
 - Only accessible to super admins
 
 SCALABILITY:
-- Current (10 users): ~50-100ms query time
-- At 100 users: ~100-150ms query time
-- At 1,000 users: ~200-400ms query time
-- At 4,500 users: ~400-600ms query time (still acceptable)
+- Current (8 users): ~10ms query time
+- At 4,500 users: ~50ms query time (still fast)
 - Pagination prevents payload bloat
 - Can add caching later if needed
 
