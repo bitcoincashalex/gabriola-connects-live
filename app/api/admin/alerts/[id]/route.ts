@@ -1,5 +1,5 @@
 // app/api/admin/alerts/[id]/route.ts
-// Version: 1.1.0 - Fixed authentication using cookies() properly
+// Version: 1.2.0 - Fixed auth by parsing Supabase auth cookie directly
 // Date: 2025-12-20
 
 import { createClient } from '@supabase/supabase-js';
@@ -18,22 +18,44 @@ const createAdminClient = () => createClient(
   }
 );
 
-// Create authenticated client from cookies
-const createAuthClient = async () => {
+// Get user from session stored in cookies
+async function getUserFromCookies() {
   const cookieStore = await cookies();
   
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          cookie: cookieStore.toString()
-        }
-      }
-    }
+  // Get all Supabase auth cookies
+  const allCookies = cookieStore.getAll();
+  
+  // Find the access token cookie (Supabase stores it as sb-{project-ref}-auth-token)
+  const authTokenCookie = allCookies.find(cookie => 
+    cookie.name.includes('sb-') && cookie.name.includes('-auth-token')
   );
-};
+  
+  if (!authTokenCookie) {
+    return { user: null, error: 'No auth token found' };
+  }
+  
+  try {
+    // Parse the auth token JSON
+    const authData = JSON.parse(authTokenCookie.value);
+    const accessToken = authData.access_token;
+    
+    if (!accessToken) {
+      return { user: null, error: 'No access token in cookie' };
+    }
+    
+    // Create a client and verify the token
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    
+    return { user, error };
+  } catch (e) {
+    return { user: null, error: 'Failed to parse auth cookie' };
+  }
+}
 
 // Helper to verify super admin
 async function verifySuperAdmin(userId: string) {
@@ -53,14 +75,15 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Create authenticated client
-    const supabase = await createAuthClient();
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Get user from cookies
+    const { user, error: authError } = await getUserFromCookies();
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized - Not logged in' }, { status: 401 });
+      console.error('Auth error:', authError);
+      return NextResponse.json({ 
+        error: 'Unauthorized - Not logged in',
+        details: authError 
+      }, { status: 401 });
     }
 
     // Verify super admin
@@ -85,6 +108,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('PATCH error:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -98,14 +122,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Create authenticated client
-    const supabase = await createAuthClient();
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Get user from cookies
+    const { user, error: authError } = await getUserFromCookies();
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized - Not logged in' }, { status: 401 });
+      console.error('Auth error:', authError);
+      return NextResponse.json({ 
+        error: 'Unauthorized - Not logged in',
+        details: authError 
+      }, { status: 401 });
     }
 
     // Verify super admin
@@ -128,6 +153,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('Delete error:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
