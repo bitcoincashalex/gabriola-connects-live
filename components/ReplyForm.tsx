@@ -1,5 +1,5 @@
-// Path: components/ReplyForm.tsx
-// Version: 2.2.0 - Added copy/paste image support
+// components/ReplyForm.tsx
+// Version: 3.0.0 - Multi-image support with database integration
 // Date: 2025-12-20
 
 'use client';
@@ -7,8 +7,16 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Loader2, Image as ImageIcon, Link2, X, Clipboard } from 'lucide-react';
-import { compressImage } from '@/lib/imageCompression';
+import { Loader2, Link2 } from 'lucide-react';
+import ImageUploadManager from './ImageUploadManager';
+
+interface ImageData {
+  id: string;
+  url: string;
+  file?: File;
+  caption?: string;
+  compressing?: boolean;
+}
 
 interface Props {
   postId: string;
@@ -23,14 +31,10 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [body, setBody] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageData[]>([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [compressing, setCompressing] = useState(false);
-  const [compressionStats, setCompressionStats] = useState<string>('');
   const [error, setError] = useState('');
-  const [pasteHint, setPasteHint] = useState(false);
 
   if (!user) {
     return (
@@ -48,111 +52,59 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
 
   const displayName = isAnonymous ? 'Island Neighbour' : (user.full_name || user.email || 'Anonymous');
 
-  // Process image from File object (used by both file upload and paste)
-  const processImageFile = async (file: File) => {
-    setCompressing(true);
-    setCompressionStats('');
-
-    try {
-      // Compress image (max 10MB before compression, resizes to 1920px, 85% quality)
-      const result = await compressImage(file, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 0.85,
-        maxSizeMB: 10,
-      });
-
-      if (!result.success) {
-        alert(result.error);
-        setCompressing(false);
-        return;
-      }
-
-      // Calculate compression savings
-      const originalMB = (result.originalSize / 1024 / 1024).toFixed(2);
-      const compressedMB = (result.compressedSize / 1024 / 1024).toFixed(2);
-      const savedPercent = (((result.originalSize - result.compressedSize) / result.originalSize) * 100).toFixed(0);
-      
-      setCompressionStats(`✅ Compressed from ${originalMB} MB to ${compressedMB} MB (saved ${savedPercent}%)`);
-
-      // Read compressed file
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const resultData = reader.result as string;
-        setImageUrl(resultData);
-        setImagePreview(resultData);
-        setCompressing(false);
-      };
-      reader.readAsDataURL(result.file);
-
-    } catch (err) {
-      console.error('Compression error:', err);
-      alert('Failed to compress image. Please try a smaller file.');
-      setCompressing(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processImageFile(file);
-  };
-
-  // Handle paste event for images
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    // Look for image in clipboard
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      
-      if (item.type.indexOf('image') !== -1) {
-        e.preventDefault(); // Prevent default paste behavior for images
-        
-        const file = item.getAsFile();
-        if (file) {
-          // Show hint that image was pasted
-          setPasteHint(true);
-          setTimeout(() => setPasteHint(false), 3000);
-          
-          await processImageFile(file);
-        }
-        break;
-      }
-    }
-  };
-
-  const removeImage = () => {
-    setImageUrl('');
-    setImagePreview(null);
-    setCompressionStats('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!body.trim() || loading) return;
 
+    // Check if any images are still compressing
+    if (images.some(img => img.compressing)) {
+      alert('Please wait for all images to finish compressing.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    const { error: insertError } = await supabase.from('bbs_replies').insert({
-      post_id: postId,
-      parent_reply_id: parentReplyId,
-      user_id: user.id,
-      body: body.trim(),
-      link_url: linkUrl.trim() || null,
-      image_url: imageUrl || null,
-      display_name: displayName,
-      is_anonymous: isAnonymous,
-      is_active: true,
-    });
+    try {
+      // 1. Create the reply
+      const { data: reply, error: insertError } = await supabase
+        .from('bbs_replies')
+        .insert({
+          post_id: postId,
+          parent_reply_id: parentReplyId,
+          user_id: user.id,
+          body: body.trim(),
+          link_url: linkUrl.trim() || null,
+          display_name: displayName,
+          is_anonymous: isAnonymous,
+          is_active: true,
+        })
+        .select()
+        .single();
 
-    if (insertError) {
-      setError(insertError.message);
-      setLoading(false);
-    } else {
-      // Update parent post reply count
+      if (insertError) throw insertError;
+
+      // 2. Insert all images with their order
+      if (images.length > 0 && reply) {
+        const imageInserts = images.map((img, index) => ({
+          reply_id: reply.id,
+          image_url: img.url,
+          caption: img.caption || null,
+          display_order: index,
+          uploaded_by: user.id,
+        }));
+
+        const { error: imagesError } = await supabase
+          .from('bbs_reply_images')
+          .insert(imageInserts);
+
+        if (imagesError) {
+          console.error('Error inserting images:', imagesError);
+          // Don't fail the whole reply if images fail
+        }
+      }
+
+      // 3. Update parent post reply count
       const { count } = await supabase
         .from('bbs_replies')
         .select('*', { count: 'exact', head: true })
@@ -167,12 +119,14 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
       // Reset form
       setBody('');
       setLinkUrl('');
-      setImageUrl('');
-      setImagePreview(null);
+      setImages([]);
       setIsAnonymous(false);
-      setCompressionStats('');
       setLoading(false);
+      
       if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
     }
   };
 
@@ -186,33 +140,31 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
         </div>
       )}
 
-      {/* Paste hint */}
-      {pasteHint && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 animate-fade-in">
-          <Clipboard className="w-5 h-5 text-green-600" />
-          <p className="text-green-800 text-sm font-medium">Image pasted! Processing...</p>
-        </div>
-      )}
-
       {/* Reply Body */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Your Reply
-          <span className="ml-2 text-xs text-gray-500 font-normal">
-            (💡 Tip: You can paste images with Ctrl+V or Cmd+V)
-          </span>
         </label>
         <textarea
           ref={textareaRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onPaste={handlePaste}
           placeholder={placeholder || "Share your thoughts..."}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent resize-none"
           rows={6}
           required
         />
         <p className="text-xs text-gray-500 mt-1">{body.length} characters</p>
+      </div>
+
+      {/* Multi-Image Upload */}
+      <div className="mb-6">
+        <ImageUploadManager
+          images={images}
+          onImagesChange={setImages}
+          maxImages={10}
+          showCaptions={false}
+        />
       </div>
 
       {/* Link */}
@@ -228,56 +180,6 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
           placeholder="https://example.com"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
         />
-      </div>
-
-      {/* Image Upload */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-          <ImageIcon className="w-4 h-4" />
-          Add an Image (optional, max 10MB)
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          disabled={compressing}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent disabled:bg-gray-100"
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Or paste an image with Ctrl+V (Cmd+V on Mac) in the text area above
-        </p>
-        
-        {/* Compression Status */}
-        {compressing && (
-          <div className="mt-3 flex items-center gap-2 text-blue-600">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Compressing image...</span>
-          </div>
-        )}
-        
-        {compressionStats && (
-          <div className="mt-2 text-xs text-green-600 font-medium">
-            {compressionStats}
-          </div>
-        )}
-
-        {imagePreview && (
-          <div className="mt-4 relative">
-            <img 
-              src={imagePreview} 
-              alt="Preview" 
-              className="max-w-full h-auto rounded-lg border-2 border-gray-200"
-              style={{ maxHeight: '400px' }}
-            />
-            <button
-              type="button"
-              onClick={removeImage}
-              className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Anonymous Toggle */}
@@ -306,7 +208,7 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={loading || compressing || !body.trim()}
+          disabled={loading || !body.trim() || images.some(img => img.compressing)}
           className="flex-1 bg-gabriola-green text-white py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (

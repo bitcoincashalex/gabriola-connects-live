@@ -1,13 +1,13 @@
 // Path: components/ReplyForm.tsx
-// Version: 2.1.0 - 10MB limit + client-side image compression
-// Date: 2024-12-09
+// Version: 2.2.0 - Added copy/paste image support
+// Date: 2025-12-20
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Loader2, Image as ImageIcon, Link2, X } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Link2, X, Clipboard } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompression';
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 
 export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onCancel, placeholder }: Props) {
   const { user } = useUser();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [body, setBody] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -29,6 +30,7 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
   const [compressing, setCompressing] = useState(false);
   const [compressionStats, setCompressionStats] = useState<string>('');
   const [error, setError] = useState('');
+  const [pasteHint, setPasteHint] = useState(false);
 
   if (!user) {
     return (
@@ -46,10 +48,8 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
 
   const displayName = isAnonymous ? 'Island Neighbour' : (user.full_name || user.email || 'Anonymous');
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // Process image from File object (used by both file upload and paste)
+  const processImageFile = async (file: File) => {
     setCompressing(true);
     setCompressionStats('');
 
@@ -89,6 +89,37 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
       console.error('Compression error:', err);
       alert('Failed to compress image. Please try a smaller file.');
       setCompressing(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImageFile(file);
+  };
+
+  // Handle paste event for images
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Look for image in clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault(); // Prevent default paste behavior for images
+        
+        const file = item.getAsFile();
+        if (file) {
+          // Show hint that image was pasted
+          setPasteHint(true);
+          setTimeout(() => setPasteHint(false), 3000);
+          
+          await processImageFile(file);
+        }
+        break;
+      }
     }
   };
 
@@ -155,11 +186,27 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
         </div>
       )}
 
+      {/* Paste hint */}
+      {pasteHint && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 animate-fade-in">
+          <Clipboard className="w-5 h-5 text-green-600" />
+          <p className="text-green-800 text-sm font-medium">Image pasted! Processing...</p>
+        </div>
+      )}
+
       {/* Reply Body */}
       <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Your Reply
+          <span className="ml-2 text-xs text-gray-500 font-normal">
+            (💡 Tip: You can paste images with Ctrl+V or Cmd+V)
+          </span>
+        </label>
         <textarea
+          ref={textareaRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onPaste={handlePaste}
           placeholder={placeholder || "Share your thoughts..."}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent resize-none"
           rows={6}
@@ -196,6 +243,9 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
           disabled={compressing}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent disabled:bg-gray-100"
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Or paste an image with Ctrl+V (Cmd+V on Mac) in the text area above
+        </p>
         
         {/* Compression Status */}
         {compressing && (
