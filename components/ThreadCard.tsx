@@ -11,6 +11,7 @@ import { MessageSquare, Pin, Trash2, ChevronUp, Mail, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
+import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 
 export default function ThreadCard({ 
   thread, 
@@ -130,7 +131,16 @@ export default function ThreadCard({
               
               {/* Name and badges */}
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{thread.display_name || 'Anonymous'}</span>
+                {/* Author name - with profile hover for non-anonymous */}
+                {!thread.is_anonymous && user && thread.user_id ? (
+                  <ProfilePreviewCard userId={thread.user_id}>
+                    <span className="font-medium hover:text-gabriola-green cursor-pointer">
+                      {thread.display_name || 'Anonymous'}
+                    </span>
+                  </ProfilePreviewCard>
+                ) : (
+                  <span className="font-medium">{thread.display_name || 'Anonymous'}</span>
+                )}
                 
                 {/* Resident Badge - only if not anonymous */}
                 {!thread.is_anonymous && thread.author?.is_resident && (

@@ -17,6 +17,7 @@ import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
 import EditThreadModal from '@/components/EditThreadModal';
+import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -218,7 +219,16 @@ export default function ThreadPage() {
                 
                 {/* Name and Badges */}
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
+                  {/* Author name - with profile hover for non-anonymous */}
+                  {!thread.is_anonymous && user && thread.user_id ? (
+                    <ProfilePreviewCard userId={thread.user_id}>
+                      <span className="font-medium text-gabriola-green hover:text-gabriola-green-dark cursor-pointer">
+                        {thread.display_name || 'Anonymous'}
+                      </span>
+                    </ProfilePreviewCard>
+                  ) : (
+                    <span className="font-medium text-gabriola-green">{thread.display_name || 'Anonymous'}</span>
+                  )}
                   
                   {/* Resident Badge - only if not anonymous */}
                   {!thread.is_anonymous && thread.author?.is_resident && (

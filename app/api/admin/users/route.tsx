@@ -1,7 +1,7 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 2.0.1 - Made activity tracking optional, improved error handling
+// Version: 2.0.0 - Full feature restoration with ALL admin columns
 // Created: 2025-12-18
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
@@ -323,26 +323,17 @@ export async function GET(request: NextRequest) {
     console.log(`[Admin API] ✅ Found ${users.length} users (total: ${count})`);
 
     // ========================================================================
-    // 9. FETCH LATEST ACTIVITIES FOR THESE USERS (OPTIONAL)
+    // 9. FETCH LATEST ACTIVITIES FOR THESE USERS
     // ========================================================================
     
-    // Note: Activity tracking requires the get_latest_activities RPC function
-    // If not yet deployed, this section is skipped gracefully
-    
     const userIds = users.map(u => u.id);
-    let activities = null;
     
-    try {
-      const { data: activityData, error: activityError } = await supabaseAdmin
-        .rpc('get_latest_activities', { user_ids: userIds });
-      
-      if (!activityError && activityData) {
-        activities = activityData;
-      } else if (activityError) {
-        console.log('[Admin API] Activity tracking not available yet (RPC function missing)');
-      }
-    } catch (err) {
-      console.log('[Admin API] Activity tracking skipped:', err);
+    const { data: activities, error: activityError } = await supabaseAdmin
+      .rpc('get_latest_activities', { user_ids: userIds });
+
+    if (activityError) {
+      console.error('[Admin API] Activity fetch error:', activityError);
+      // Don't fail the request, just continue without activities
     }
 
     // Map activities by user_id for fast lookup
