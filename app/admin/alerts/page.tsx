@@ -1,5 +1,5 @@
 // app/admin/alerts/page.tsx
-// Version: 1.1.1 - Fixed TypeScript error: getAuthHeaders returns consistent type with error handling
+// Version: 1.2.0 - Added timezone conversion (UTC to local) for all dates
 // Date: 2025-12-20
 'use client';
 
@@ -51,6 +51,24 @@ interface Template {
 }
 
 type TabType = 'alerts' | 'templates' | 'organizations' | 'authorizations';
+
+// Helper function to convert UTC to local datetime-local format
+function utcToLocal(utcString: string): string {
+  const date = new Date(utcString);
+  // Format: YYYY-MM-DDTHH:mm for datetime-local input
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+// Helper function to convert local datetime-local to UTC
+function localToUtc(localString: string): string {
+  const date = new Date(localString);
+  return date.toISOString();
+}
 
 export default function AdminAlertsPage() {
   const { user, loading: authLoading } = useUser();
@@ -567,10 +585,10 @@ export default function AdminAlertsPage() {
                             {alert.creator_name || 'Unknown'}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {new Date(alert.created_at).toLocaleDateString()}
+                            {new Date(alert.created_at).toLocaleString()}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
-                            {alert.expires_at ? new Date(alert.expires_at).toLocaleDateString() : 'Never'}
+                            {alert.expires_at ? new Date(alert.expires_at).toLocaleString() : 'Never'}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex gap-1 justify-end">
@@ -815,7 +833,7 @@ function EditAlertModal({ alert, organizations, onSave, onClose }: any) {
     severity: alert.severity,
     on_behalf_of_organization: alert.on_behalf_of_organization || '',
     category: alert.category || '',
-    expires_at: alert.expires_at ? alert.expires_at.slice(0, 16) : '',
+    expires_at: alert.expires_at ? utcToLocal(alert.expires_at) : '',
     active: alert.active
   });
 
@@ -823,7 +841,7 @@ function EditAlertModal({ alert, organizations, onSave, onClose }: any) {
     e.preventDefault();
     onSave({
       ...formData,
-      expires_at: formData.expires_at || null
+      expires_at: formData.expires_at ? localToUtc(formData.expires_at) : null
     });
   };
 
@@ -905,14 +923,16 @@ function EditAlertModal({ alert, organizations, onSave, onClose }: any) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Expires At</label>
+            <label className="block text-sm font-medium mb-1">Expires At (Your Local Time)</label>
             <input
               type="datetime-local"
               value={formData.expires_at}
               onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
               className="w-full px-4 py-2 border rounded-lg"
             />
-            <p className="text-xs text-gray-500 mt-1">Leave empty for no expiration</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Times shown in your local timezone. Leave empty for no expiration.
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
