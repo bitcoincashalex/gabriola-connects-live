@@ -1,12 +1,13 @@
 // components/EventDetailModal.tsx
 // Reusable event detail modal - extracted from Calendar.tsx
-// Version: 1.0.1 - Fixed date type error (ensureDate on both dates)
+// Version: 1.1.0 - Added clickable image to view full size poster
 // Date: 2025-12-20
 
 'use client';
 
+import { useState } from 'react';
 import { Event } from '@/lib/types';
-import { X, Clock, MapPin, Mail, Phone } from 'lucide-react';
+import { X, Clock, MapPin, Mail, Phone, ZoomIn } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface EventDetailModalProps {
@@ -25,6 +26,8 @@ const ensureDate = (dateValue: Date | string | undefined | null): Date => {
 
 export default function EventDetailModal({ event, onClose }: EventDetailModalProps) {
   if (!event) return null;
+
+  const [showFullImage, setShowFullImage] = useState(false);
 
   const handleRSVP = (selectedEvent: Event) => {
     if (selectedEvent.contact_email) {
@@ -78,7 +81,15 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
         onClick={e => e.stopPropagation()}
       >
         {event.image_url && (
-          <img src={event.image_url} alt={event.title} className="w-full h-48 object-cover rounded-t-2xl" />
+          <div className="relative group cursor-pointer" onClick={() => setShowFullImage(true)}>
+            <img src={event.image_url} alt={event.title} className="w-full h-48 object-cover rounded-t-2xl" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all rounded-t-2xl flex items-center justify-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-4 py-2 rounded-lg flex items-center gap-2">
+                <ZoomIn className="w-5 h-5 text-gray-800" />
+                <span className="text-sm font-medium text-gray-800">Click to view full size</span>
+              </div>
+            </div>
+          </div>
         )}
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
@@ -312,6 +323,32 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
           </div>
         </div>
       </div>
+
+      {/* Full Size Image Modal */}
+      {showFullImage && event.image_url && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]" 
+          onClick={() => setShowFullImage(false)}
+        >
+          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
+            <button 
+              onClick={() => setShowFullImage(false)}
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            <img 
+              src={event.image_url} 
+              alt={event.title}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm bg-black/50 py-2">
+              Click outside image to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
