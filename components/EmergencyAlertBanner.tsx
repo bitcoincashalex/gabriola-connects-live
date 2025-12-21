@@ -1,5 +1,5 @@
 // components/EmergencyAlertBanner.tsx
-// Version: 2.2.0 - Fixed mobile dismiss button with larger touch target (44x44px minimum)
+// Version: 2.3.0 - Fixed dismiss button always visible (top-right overlay) for mobile
 // Date: 2025-12-20
 'use client';
 
@@ -122,81 +122,82 @@ export default function EmergencyAlertBanner() {
         return (
           <div
             key={alert.id}
-            className={`${styles.bg} ${styles.border} border-b-2 ${styles.text} shadow-lg`}
+            className={`${styles.bg} ${styles.border} border-b-2 ${styles.text} shadow-lg relative`}
           >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  <span className="text-2xl flex-shrink-0 mt-1">{styles.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg sm:text-xl font-bold">
-                        {alert.title}
-                      </h3>
-                      <span className="text-xs bg-white/20 px-2 py-1 rounded uppercase font-bold">
-                        {alert.severity}
-                      </span>
-                    </div>
-                    <p className="text-sm sm:text-base opacity-95 mb-2">
-                      {alert.message}
-                    </p>
+            {/* Dismiss button - Fixed position in top-right corner */}
+            {canDismiss && (
+              <button
+                onClick={() => dismissAlert(alert.id, alert.severity)}
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 p-3 hover:bg-white/20 rounded-lg transition touch-manipulation z-10"
+                aria-label="Dismiss warning alert"
+                title="Dismiss this warning"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            )}
 
-                    {/* Additional info */}
-                    <div className="flex flex-wrap gap-4 text-xs sm:text-sm opacity-90">
-                      {alert.affected_areas && alert.affected_areas.length > 0 && (
-                        <div>
-                          <strong>Areas:</strong> {alert.affected_areas.join(', ')}
-                        </div>
-                      )}
-                      {alert.action_required && (
-                        <div>
-                          <strong>Action:</strong> {alert.action_required}
-                        </div>
-                      )}
-                      {alert.contact_info && (
-                        <div>
-                          <strong>Contact:</strong> {alert.contact_info}
-                        </div>
-                      )}
-                    </div>
+            {/* Cannot dismiss label - only for emergency */}
+            {!canDismiss && (
+              <div className="absolute top-2 right-2 sm:top-3 sm:right-3 text-xs opacity-75 bg-white/10 px-3 py-2 rounded-lg">
+                Cannot dismiss
+              </div>
+            )}
 
-                    {/* Issuer - show who created it */}
-                    <div className="mt-2 text-xs opacity-75">
-                      Created by {alert.creator_name || 'Unknown'}
-                      {(alert.on_behalf_of_name || alert.on_behalf_of_organization) && (
-                        <span>
-                          {' '}on behalf of {alert.on_behalf_of_name}
-                          {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
-                        </span>
-                      )}
-                    </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 pr-16 sm:pr-20">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl flex-shrink-0 mt-1">{styles.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="text-lg sm:text-xl font-bold">
+                      {alert.title}
+                    </h3>
+                    <span className="text-xs bg-white/20 px-2 py-1 rounded uppercase font-bold">
+                      {alert.severity}
+                    </span>
                   </div>
-                </div>
+                  <p className="text-sm sm:text-base opacity-95 mb-2">
+                    {alert.message}
+                  </p>
 
-                <div className="flex items-start gap-2 flex-shrink-0">
-                  <Link
-                    href="/alerts"
-                    className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold transition whitespace-nowrap"
-                  >
-                    View All Alerts →
-                  </Link>
-                  
-                  {canDismiss && (
-                    <button
-                      onClick={() => dismissAlert(alert.id, alert.severity)}
-                      className="p-3 sm:p-2 hover:bg-white/20 rounded-lg transition touch-manipulation"
-                      aria-label="Dismiss warning alert"
-                      title="Dismiss this warning"
+                  {/* Additional info */}
+                  <div className="flex flex-wrap gap-4 text-xs sm:text-sm opacity-90">
+                    {alert.affected_areas && alert.affected_areas.length > 0 && (
+                      <div>
+                        <strong>Areas:</strong> {alert.affected_areas.join(', ')}
+                      </div>
+                    )}
+                    {alert.action_required && (
+                      <div>
+                        <strong>Action:</strong> {alert.action_required}
+                      </div>
+                    )}
+                    {alert.contact_info && (
+                      <div>
+                        <strong>Contact:</strong> {alert.contact_info}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Issuer - show who created it */}
+                  <div className="mt-2 text-xs opacity-75">
+                    Created by {alert.creator_name || 'Unknown'}
+                    {(alert.on_behalf_of_name || alert.on_behalf_of_organization) && (
+                      <span>
+                        {' '}on behalf of {alert.on_behalf_of_name}
+                        {alert.on_behalf_of_organization && ` (${alert.on_behalf_of_organization})`}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* View All Alerts button - moved to bottom */}
+                  <div className="mt-3">
+                    <Link
+                      href="/alerts"
+                      className="inline-block bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition"
                     >
-                      <X className="w-6 h-6 sm:w-5 sm:h-5" />
-                    </button>
-                  )}
-
-                  {!canDismiss && (
-                    <div className="text-xs opacity-75 px-2 py-2 whitespace-nowrap">
-                      Cannot dismiss
-                    </div>
-                  )}
+                      View All Alerts →
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
