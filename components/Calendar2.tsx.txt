@@ -1,10 +1,10 @@
 // Path: components/Calendar.tsx
-// Version: 2.8.0 - Added auto-scroll to event list when date selected
+// Version: 2.7.1 - Using reusable EventDetailModal component
 // Date: 2025-12-20
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { Event } from '@/lib/types';
@@ -88,9 +88,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [customLocation, setCustomLocation] = useState<string>('');
   
-  // Ref for auto-scrolling to event list
-  const eventListRef = useRef<HTMLDivElement>(null);
-  
   // Load venues from database
   useEffect(() => {
     const loadVenues = async () => {
@@ -105,17 +102,6 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     };
     loadVenues();
   }, []);
-
-  // Auto-scroll to event list when date is selected
-  useEffect(() => {
-    // Small delay to let event list render first
-    setTimeout(() => {
-      eventListRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  }, [selectedDate]);
 
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -591,7 +577,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       </div>
 
       {eventsForSelectedDate.length > 0 && !selectedEvent && (
-        <div ref={eventListRef} className="border-t border-gabriola-green/20 p-4 bg-gabriola-sand/30 overflow-y-auto max-h-64">
+        <div className="border-t border-gabriola-green/20 p-4 bg-gabriola-sand/30 overflow-y-auto max-h-64">
           <h3 className="font-semibold text-gabriola-green-dark mb-3">
             Events on {format(selectedDate, 'MMMM d')}:
           </h3>

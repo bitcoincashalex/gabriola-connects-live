@@ -1,6 +1,6 @@
 // Path: components/EventsManager.tsx
-// Version: 3.7.2 - Simplified: Google Calendar URL for all, .ics download for others
-// Date: 2024-12-13
+// Version: 3.8.0 - Fixed past events sort order (newest first, descending)
+// Date: 2025-12-20
 
 'use client';
 
@@ -335,7 +335,9 @@ export default function EventsManager() {
   const upcoming = events.filter(e => 
     isAfter(e.start_date, today) || isSameDay(e.start_date, today)
   );
-  const past = events.filter(e => isBefore(e.start_date, today));
+  const past = events
+    .filter(e => isBefore(e.start_date, today))
+    .reverse(); // Show past events newest first (descending order)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
