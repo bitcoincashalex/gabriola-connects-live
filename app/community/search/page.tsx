@@ -1,6 +1,6 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 3.1.2 - Fixed TypeScript: Added missing category/filter constants
+// Version: 4.0.0 - MAJOR: Added all new filters from main search (alert org, event org/registration/accessibility, directory pet/wifi)
 // Date: 2025-12-20
 
 'use client';
@@ -165,6 +165,16 @@ export default function CommunitySearchPage() {
   const [acceptsCash, setAcceptsCash] = useState(false);
   const [acceptsCredit, setAcceptsCredit] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(false);
+  const [petFriendly, setPetFriendly] = useState(false);
+  const [hasWifi, setHasWifi] = useState(false);
+  
+  // Alert-specific filters (to match main search)
+  const [alertOrganization, setAlertOrganization] = useState('all');
+  
+  // Event-specific filters (to match main search)
+  const [eventOrganization, setEventOrganization] = useState('all');
+  const [registrationRequiredFilter, setRegistrationRequiredFilter] = useState('all');
+  const [hasAccessibility, setHasAccessibility] = useState(false);
   
   const [ferryActiveOnly, setFerryActiveOnly] = useState(false);
   
@@ -394,6 +404,15 @@ export default function CommunitySearchPage() {
         if (recurringOnly && !event.is_recurring) return false;
         if (weatherDependent && !event.weather_dependent) return false;
         if (freeOnly && !isEventFree(event.fees)) return false;
+        // New filters to match main search
+        if (eventOrganization !== 'all') {
+          const matchOrg = event.organizer_organization?.toLowerCase().includes(eventOrganization.toLowerCase()) ||
+                          event.organizer_name?.toLowerCase().includes(eventOrganization.toLowerCase());
+          if (!matchOrg) return false;
+        }
+        if (registrationRequiredFilter === 'yes' && !event.registration_required) return false;
+        if (registrationRequiredFilter === 'no' && event.registration_required) return false;
+        if (hasAccessibility && (!event.accessibility_info || event.accessibility_info.length === 0)) return false;
         return true;
       });
     }
@@ -422,6 +441,8 @@ export default function CommunitySearchPage() {
         if (acceptsCash && !business.accepts_cash) return false;
         if (acceptsCredit && !business.accepts_credit) return false;
         if (offersDelivery && !business.offers_delivery) return false;
+        if (petFriendly && !business.pet_friendly) return false;
+        if (hasWifi && !business.wifi_available) return false;
         return true;
       });
     }
@@ -444,6 +465,11 @@ export default function CommunitySearchPage() {
         if (dateFrom && alert.created_at && new Date(alert.created_at) < new Date(dateFrom)) return false;
         if (dateTo && alert.created_at && new Date(alert.created_at) > new Date(dateTo)) return false;
         if (actionRequiredOnly && !alert.action_required) return false;
+        // New filter to match main search
+        if (alertOrganization !== 'all') {
+          const matchOrg = alert.on_behalf_of_organization?.toLowerCase().includes(alertOrganization.toLowerCase());
+          if (!matchOrg) return false;
+        }
         return true;
       });
     }
@@ -518,6 +544,13 @@ export default function CommunitySearchPage() {
     if (actionRequiredOnly) count++;
     if (hasReplies) count++;
     if (pinnedOnly) count++;
+    // New filters from main search
+    if (petFriendly) count++;
+    if (hasWifi) count++;
+    if (alertOrganization !== 'all') count++;
+    if (eventOrganization !== 'all') count++;
+    if (registrationRequiredFilter !== 'all') count++;
+    if (hasAccessibility) count++;
     
     return count;
   };
@@ -713,6 +746,41 @@ export default function CommunitySearchPage() {
                 </div>
               </div>
 
+              {/* NEW FILTERS FROM MAIN SEARCH */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Organizer</label>
+                <input
+                  type="text"
+                  value={eventOrganization}
+                  onChange={(e) => setEventOrganization(e.target.value)}
+                  placeholder="Search by organizer name..."
+                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Registration</label>
+                <select
+                  value={registrationRequiredFilter}
+                  onChange={(e) => setRegistrationRequiredFilter(e.target.value)}
+                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                >
+                  <option value="all">All Events</option>
+                  <option value="yes">Registration Required</option>
+                  <option value="no">No Registration</option>
+                </select>
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={hasAccessibility}
+                  onChange={(e) => setHasAccessibility(e.target.checked)}
+                  className="w-6 h-6 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                />
+                <span className="text-base font-medium">Has Accessibility Info</span>
+              </label>
+
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -869,6 +937,24 @@ export default function CommunitySearchPage() {
                     />
                     <span className="text-base">Offers Delivery</span>
                   </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={petFriendly}
+                      onChange={(e) => setPetFriendly(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">🐕 Pet Friendly</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasWifi}
+                      onChange={(e) => setHasWifi(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">📶 WiFi Available</span>
+                  </label>
                 </div>
               )}
             </div>
@@ -944,6 +1030,24 @@ export default function CommunitySearchPage() {
                   {alertSeverities.map(sev => (
                     <option key={sev.value} value={sev.value}>{sev.label}</option>
                   ))}
+                </select>
+              </div>
+
+              {/* NEW FILTER FROM MAIN SEARCH */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Organization</label>
+                <select
+                  value={alertOrganization}
+                  onChange={(e) => setAlertOrganization(e.target.value)}
+                  className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+                >
+                  <option value="all">All Organizations</option>
+                  <option value="fire">Fire Department</option>
+                  <option value="rcmp">RCMP</option>
+                  <option value="ferry">BC Ferries</option>
+                  <option value="hydro">BC Hydro</option>
+                  <option value="health">Health Authority</option>
+                  <option value="chamber">Chamber of Commerce</option>
                 </select>
               </div>
 
