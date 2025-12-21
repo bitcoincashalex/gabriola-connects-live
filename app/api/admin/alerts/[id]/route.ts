@@ -1,10 +1,9 @@
 // app/api/admin/alerts/[id]/route.ts
-// Version: 1.3.0 - Added extensive cookie debugging to find auth token
+// Version: 2.0.0 - MAJOR: Uses Authorization header instead of cookies (cookies not accessible in API routes)
 // Date: 2025-12-20
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 // Service role client - bypasses RLS
 const createAdminClient = () => createClient(
@@ -18,56 +17,38 @@ const createAdminClient = () => createClient(
   }
 );
 
-// Get user from session stored in cookies
-async function getUserFromCookies() {
-  const cookieStore = await cookies();
+// Get user from Authorization header
+async function getUserFromRequest(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
   
-  // Get all Supabase auth cookies
-  const allCookies = cookieStore.getAll();
-  
-  // DEBUG: Log all cookie names to see what we have
-  console.log('🍪 All cookies:', allCookies.map(c => c.name));
-  
-  // Find the access token cookie (Supabase stores it as sb-{project-ref}-auth-token)
-  const authTokenCookie = allCookies.find(cookie => 
-    cookie.name.includes('sb-') && cookie.name.includes('-auth-token')
-  );
-  
-  if (!authTokenCookie) {
-    console.error('❌ No auth token cookie found. Available cookies:', allCookies.map(c => c.name));
-    return { user: null, error: 'No auth token found' };
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('❌ No Authorization header found');
+    return { user: null, error: 'No authorization header' };
   }
   
-  console.log('✅ Found auth cookie:', authTokenCookie.name);
+  const token = authHeader.replace('Bearer ', '');
+  
+  console.log('✅ Found auth token in header');
   
   try {
-    // Parse the auth token JSON
-    const authData = JSON.parse(authTokenCookie.value);
-    const accessToken = authData.access_token;
-    
-    if (!accessToken) {
-      console.error('❌ No access token in cookie data');
-      return { user: null, error: 'No access token in cookie' };
-    }
-    
     // Create a client and verify the token
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error) {
       console.error('❌ Error verifying token:', error);
-    } else {
-      console.log('✅ User verified:', user?.id);
+      return { user: null, error: error.message };
     }
     
-    return { user, error };
-  } catch (e) {
-    console.error('❌ Failed to parse auth cookie:', e);
-    return { user: null, error: 'Failed to parse auth cookie' };
+    console.log('✅ User verified:', user?.id);
+    return { user, error: null };
+  } catch (e: any) {
+    console.error('❌ Failed to verify token:', e);
+    return { user: null, error: e.message };
   }
 }
 
@@ -89,8 +70,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user from cookies
-    const { user, error: authError } = await getUserFromCookies();
+    // Get user from Authorization header
+    const { user, error: authError } = await getUserFromRequest(request);
     
     if (authError || !user) {
       console.error('Auth error:', authError);
@@ -136,8 +117,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user from cookies
-    const { user, error: authError } = await getUserFromCookies();
+    // Get user from Authorization header
+    const { user, error: authError } = await getUserFromRequest(request);
     
     if (authError || !user) {
       console.error('Auth error:', authError);

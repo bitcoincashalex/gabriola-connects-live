@@ -1,5 +1,5 @@
 // app/admin/alerts/page.tsx
-// Version: 1.0.0 - Super Admin Alert Management Panel
+// Version: 1.1.1 - Fixed TypeScript error: getAuthHeaders returns consistent type with error handling
 // Date: 2025-12-20
 'use client';
 
@@ -55,6 +55,22 @@ type TabType = 'alerts' | 'templates' | 'organizations' | 'authorizations';
 export default function AdminAlertsPage() {
   const { user, loading: authLoading } = useUser();
   const router = useRouter();
+
+  // Helper to get auth headers for API calls
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    
+    if (!token) {
+      console.error('❌ No access token found');
+      throw new Error('Not authenticated - please log in again');
+    }
+    
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
 
   // State
   const [activeTab, setActiveTab] = useState<TabType>('alerts');
@@ -158,73 +174,117 @@ export default function AdminAlertsPage() {
   };
 
   const saveAlert = async (alertData: any) => {
-    const response = await fetch(`/api/admin/alerts/${editingAlert?.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(alertData)
-    });
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`/api/admin/alerts/${editingAlert?.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(alertData)
+      });
 
-    if (response.ok) {
-      alert('Alert updated successfully!');
-      setShowAlertModal(false);
-      fetchAlerts();
-    } else {
-      alert('Error updating alert');
+      if (response.ok) {
+        alert('Alert updated successfully!');
+        setShowAlertModal(false);
+        fetchAlerts();
+      } else {
+        const error = await response.json();
+        console.error('Error updating alert:', error);
+        alert(`Error updating alert: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Error in saveAlert:', error);
+      alert(`Error: ${error.message || 'Not authenticated'}`);
     }
   };
 
   const deleteAlert = async (alertId: string) => {
     if (!confirm('Permanently delete this alert?')) return;
 
-    const response = await fetch(`/api/admin/alerts/${alertId}`, {
-      method: 'DELETE'
-    });
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`/api/admin/alerts/${alertId}`, {
+        method: 'DELETE',
+        headers
+      });
 
-    if (response.ok) {
-      alert('Alert deleted');
-      fetchAlerts();
-    } else {
-      alert('Error deleting alert');
+      if (response.ok) {
+        alert('Alert deleted');
+        fetchAlerts();
+      } else {
+        const error = await response.json();
+        console.error('Error deleting alert:', error);
+        alert(`Error deleting alert: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Error in deleteAlert:', error);
+      alert(`Error: ${error.message || 'Not authenticated'}`);
     }
   };
 
   const archiveAlert = async (alertId: string) => {
-    const response = await fetch(`/api/admin/alerts/${alertId}/archive`, {
-      method: 'POST'
-    });
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`/api/admin/alerts/${alertId}/archive`, {
+        method: 'POST',
+        headers
+      });
 
-    if (response.ok) {
-      fetchAlerts();
-    } else {
-      alert('Error archiving alert');
+      if (response.ok) {
+        fetchAlerts();
+      } else {
+        const error = await response.json();
+        console.error('Error archiving alert:', error);
+        alert(`Error archiving alert: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Error in archiveAlert:', error);
+      alert(`Error: ${error.message || 'Not authenticated'}`);
     }
   };
 
   const restoreAlert = async (alertId: string) => {
-    const response = await fetch(`/api/admin/alerts/${alertId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: true })
-    });
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`/api/admin/alerts/${alertId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ active: true })
+      });
 
-    if (response.ok) {
-      fetchAlerts();
+      if (response.ok) {
+        fetchAlerts();
+      } else {
+        const error = await response.json();
+        console.error('Error restoring alert:', error);
+      }
+    } catch (error: any) {
+      console.error('Error in restoreAlert:', error);
     }
   };
 
   const bulkArchiveExpired = async () => {
     if (!confirm('Archive all expired alerts?')) return;
 
-    const response = await fetch('/api/admin/alerts/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'archive' })
-    });
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/admin/alerts/bulk', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'archive' })
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      alert(`Archived ${result.count} expired alerts`);
-      fetchAlerts();
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Archived ${result.count} expired alerts`);
+        fetchAlerts();
+      } else {
+        const error = await response.json();
+        console.error('Error bulk archiving:', error);
+        alert(`Error archiving alerts: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('Error in bulkArchiveExpired:', error);
+      alert(`Error: ${error.message || 'Not authenticated'}`);
     }
   };
 
