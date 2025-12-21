@@ -1,5 +1,5 @@
 // Path: components/EventsManager.tsx
-// Version: 3.8.0 - Fixed past events sort order (newest first, descending)
+// Version: 4.0.0 - MASSIVELY ENHANCED: 40+ fields (registration, organizer, tags, recurring, parking, etc.)
 // Date: 2025-12-20
 
 'use client';
@@ -53,29 +53,57 @@ export default function EventsManager() {
 
   // Form state
   const [form, setForm] = useState({
+    // Basic Info
     title: '',
     description: '',
+    category: '',
+    image_url: '',
+    
+    // Date & Time
     start_date: '',
     end_date: '',
     start_time: '',
     end_time: '',
     is_all_day: false,
+    is_recurring: false,
+    recurrence_pattern: '',
+    
+    // Location
     location: '',
     venue_name: '',
     venue_address: '',
-    venue_city: '',
+    venue_city: 'Gabriola Island',
     venue_postal_code: '',
     venue_map_url: '',
-    category: '',
-    image_url: '',
-    organizer_name: '',
+    parking_info: '',
+    
+    // Contact & Organizer
     contact_email: '',
     contact_phone: '',
+    organizer_name: '',
+    organizer_organization: '',
+    organizer_website: '',
+    
+    // Registration & Fees
     fees: '',
+    registration_required: false,
     registration_url: '',
-    additional_info: '',
+    registration_deadline: '',
+    max_attendees: '',
+    min_attendees: '',
+    waitlist_enabled: false,
+    
+    // Event Details
     age_restrictions: '',
     accessibility_info: '',
+    what_to_bring: '',
+    dress_code: '',
+    additional_info: '',
+    weather_dependent: false,
+    
+    // Tags (will be comma-separated string, converted to array on save)
+    tags: '',
+    keywords: '',
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -218,32 +246,62 @@ export default function EventsManager() {
     }
 
     const payload = {
+      // Basic Info
       title: form.title,
       description: form.description,
+      category: form.category || null,
+      image_url: form.image_url || null,
+      
+      // Date & Time
       start_date: form.start_date,
       end_date: form.end_date || form.start_date,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
       is_all_day: form.is_all_day,
+      is_recurring: form.is_recurring,
+      recurrence_pattern: form.recurrence_pattern || null,
+      
+      // Location
       location: finalLocation,
       venue_name: form.venue_name || null,
       venue_address: form.venue_address || null,
-      venue_city: form.venue_city || null,
+      venue_city: form.venue_city || 'Gabriola Island',
       venue_postal_code: form.venue_postal_code || null,
       venue_map_url: form.venue_map_url || null,
-      category: form.category || null,
-      image_url: form.image_url || null,
-      organizer_name: form.organizer_name || null,
+      parking_info: form.parking_info || null,
+      
+      // Contact & Organizer
       contact_email: form.contact_email || null,
       contact_phone: form.contact_phone || null,
+      organizer_name: form.organizer_name || null,
+      organizer_organization: form.organizer_organization || null,
+      organizer_website: form.organizer_website || null,
+      
+      // Registration & Fees
       fees: form.fees || null,
+      registration_required: form.registration_required,
       registration_url: form.registration_url || null,
-      additional_info: form.additional_info || null,
+      registration_deadline: form.registration_deadline || null,
+      max_attendees: form.max_attendees ? parseInt(form.max_attendees) : null,
+      min_attendees: form.min_attendees ? parseInt(form.min_attendees) : null,
+      waitlist_enabled: form.waitlist_enabled,
+      
+      // Event Details
       age_restrictions: form.age_restrictions || null,
       accessibility_info: form.accessibility_info || null,
+      what_to_bring: form.what_to_bring || null,
+      dress_code: form.dress_code || null,
+      additional_info: form.additional_info || null,
+      weather_dependent: form.weather_dependent,
+      
+      // Tags & Keywords
+      tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
+      keywords: form.keywords || null,
+      
+      // Meta
       source_name: 'User Submitted',
       source_type: 'user_submitted',
-      is_approved: canPublishInstantly ? true : false, // Instant approval for authorized users
+      is_approved: canPublishInstantly ? true : false,
       created_by: user?.id,
     };
 
@@ -270,27 +328,42 @@ export default function EventsManager() {
     setForm({
       title: '',
       description: '',
+      category: '',
+      image_url: '',
       start_date: '',
       end_date: '',
       start_time: '',
       end_time: '',
       is_all_day: false,
+      is_recurring: false,
+      recurrence_pattern: '',
       location: '',
       venue_name: '',
       venue_address: '',
-      venue_city: '',
+      venue_city: 'Gabriola Island',
       venue_postal_code: '',
       venue_map_url: '',
-      category: '',
-      image_url: '',
-      organizer_name: '',
+      parking_info: '',
       contact_email: '',
       contact_phone: '',
+      organizer_name: '',
+      organizer_organization: '',
+      organizer_website: '',
       fees: '',
+      registration_required: false,
       registration_url: '',
-      additional_info: '',
+      registration_deadline: '',
+      max_attendees: '',
+      min_attendees: '',
+      waitlist_enabled: false,
       age_restrictions: '',
       accessibility_info: '',
+      what_to_bring: '',
+      dress_code: '',
+      additional_info: '',
+      weather_dependent: false,
+      tags: '',
+      keywords: '',
     });
     setImagePreview(null);
     setSelectedVenueId('');
@@ -454,29 +527,57 @@ export default function EventsManager() {
                   const matchingVenue = venues.find(v => v.name === eventVenueName);
                   
                   setForm({
+                    // Basic Info
                     title: event.title,
                     description: event.description,
+                    category: event.category || '',
+                    image_url: event.image_url || '',
+                    
+                    // Date & Time
                     start_date: format(event.start_date, 'yyyy-MM-dd'),
                     end_date: event.end_date ? format(event.end_date, 'yyyy-MM-dd') : '',
                     start_time: event.start_time || '',
                     end_time: event.end_time || '',
                     is_all_day: event.is_all_day || false,
+                    is_recurring: event.is_recurring || false,
+                    recurrence_pattern: event.recurrence_pattern || '',
+                    
+                    // Location
                     location: event.location || '',
                     venue_name: event.venue_name || '',
                     venue_address: event.venue_address || '',
-                    venue_city: (event as any).venue_city || '',
+                    venue_city: (event as any).venue_city || 'Gabriola Island',
                     venue_postal_code: (event as any).venue_postal_code || '',
                     venue_map_url: (event as any).venue_map_url || '',
-                    category: event.category || '',
-                    image_url: event.image_url || '',
-                    organizer_name: event.organizer_name || '',
+                    parking_info: (event as any).parking_info || '',
+                    
+                    // Contact & Organizer
                     contact_email: event.contact_email || '',
                     contact_phone: event.contact_phone || '',
+                    organizer_name: event.organizer_name || '',
+                    organizer_organization: (event as any).organizer_organization || '',
+                    organizer_website: (event as any).organizer_website || '',
+                    
+                    // Registration & Fees
                     fees: event.fees || '',
+                    registration_required: (event as any).registration_required || false,
                     registration_url: event.registration_url || '',
-                    additional_info: event.additional_info || '',
+                    registration_deadline: (event as any).registration_deadline || '',
+                    max_attendees: (event as any).max_attendees ? String((event as any).max_attendees) : '',
+                    min_attendees: (event as any).min_attendees ? String((event as any).min_attendees) : '',
+                    waitlist_enabled: (event as any).waitlist_enabled || false,
+                    
+                    // Event Details
                     age_restrictions: event.age_restrictions || '',
                     accessibility_info: event.accessibility_info || '',
+                    what_to_bring: (event as any).what_to_bring || '',
+                    dress_code: (event as any).dress_code || '',
+                    additional_info: event.additional_info || '',
+                    weather_dependent: (event as any).weather_dependent || false,
+                    
+                    // Tags & Keywords
+                    tags: (event as any).tags ? (event as any).tags.join(', ') : '',
+                    keywords: (event as any).keywords || '',
                   });
                   
                   // Set venue dropdown state
@@ -539,213 +640,525 @@ export default function EventsManager() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
-                <input 
-                  type="text" 
-                  value={form.title} 
-                  onChange={e => setForm({ ...form, title: e.target.value })} 
-                  required 
-                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                <textarea 
-                  value={form.description} 
-                  onChange={e => setForm({ ...form, description: e.target.value })} 
-                  required 
-                  rows={4}
-                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
-                />
-              </div>
-
-              {/* Category */}
-              {categories.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select 
-                    value={form.category} 
-                    onChange={e => setForm({ ...form, category: e.target.value })}
-                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
-                  >
-                    <option value="">Select a category...</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                  <input 
-                    type="date" 
-                    value={form.start_date} 
-                    onChange={e => setForm({ ...form, start_date: e.target.value })} 
-                    required 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                  <input 
-                    type="time" 
-                    value={form.start_time} 
-                    onChange={e => setForm({ ...form, start_time: e.target.value })} 
-                    disabled={form.is_all_day} 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-              </div>
-
-              {/* All Day Checkbox */}
-              <div>
-                <label className="flex items-center gap-3">
-                  <input 
-                    type="checkbox" 
-                    checked={form.is_all_day} 
-                    onChange={e => setForm({ ...form, is_all_day: e.target.checked })} 
-                    className="w-5 h-5" 
-                  />
-                  <span>All Day Event</span>
-                </label>
-              </div>
-
-              {/* Venue Dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
-                <select
-                  value={selectedVenueId}
-                  onChange={e => handleVenueChange(e.target.value)}
-                  required
-                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
-                >
-                  <option value="">Select a venue...</option>
-                  {venues.map(venue => (
-                    <option key={venue.id} value={venue.id}>{venue.name}</option>
-                  ))}
-                  <option value="other">Other location...</option>
-                </select>
-              </div>
-
-              {/* Custom Location */}
-              {selectedVenueId === 'other' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Specify Location *</label>
-                  <input 
-                    type="text" 
-                    value={customLocation}
-                    onChange={e => setCustomLocation(e.target.value)}
-                    required
-                    placeholder="Enter location name"
-                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
-                  />
-                </div>
-              )}
-
-              {/* Venue Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
-                  <input 
-                    type="text" 
-                    value={form.venue_name} 
-                    onChange={e => setForm({ ...form, venue_name: e.target.value })} 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Venue Address</label>
-                  <input 
-                    type="text" 
-                    value={form.venue_address} 
-                    onChange={e => setForm({ ...form, venue_address: e.target.value })} 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-              </div>
-
-              {/* Contact Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
-                  <input 
-                    type="email" 
-                    value={form.contact_email} 
-                    onChange={e => setForm({ ...form, contact_email: e.target.value })} 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
-                  <input 
-                    type="tel" 
-                    value={form.contact_phone} 
-                    onChange={e => setForm({ ...form, contact_phone: e.target.value })} 
-                    className="w-full p-4 border rounded-lg" 
-                  />
-                </div>
-              </div>
-
-              {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageUpload} 
-                  className="w-full p-4 border rounded-lg" 
-                />
-                {imagePreview && (
-                  <div className="mt-3">
-                    <img src={imagePreview} alt="Preview" className="max-w-xs rounded-lg" />
+            <form onSubmit={handleSubmit} className="space-y-8">
+              
+              {/* SECTION 1: Basic Information */}
+              <div className="bg-white border-2 border-gabriola-green/20 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gabriola-green-dark mb-4">📝 Basic Information</h4>
+                <div className="space-y-4">
+                  {/* Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Event Title *</label>
+                    <input 
+                      type="text" 
+                      value={form.title} 
+                      onChange={e => setForm({ ...form, title: e.target.value })} 
+                      required 
+                      className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
+                      placeholder="Annual Salmon BBQ"
+                    />
                   </div>
-                )}
+
+                  {/* Category */}
+                  {categories.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                      <select 
+                        value={form.category} 
+                        onChange={e => setForm({ ...form, category: e.target.value })}
+                        className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                      >
+                        <option value="">Select a category...</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.icon} {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                    <textarea 
+                      value={form.description} 
+                      onChange={e => setForm({ ...form, description: e.target.value })} 
+                      required 
+                      rows={5}
+                      className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                      placeholder="Describe your event..."
+                    />
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                    <input 
+                      type="text" 
+                      value={form.tags} 
+                      onChange={e => setForm({ ...form, tags: e.target.value })} 
+                      className="w-full p-4 border rounded-lg" 
+                      placeholder="family-friendly, outdoor, music (comma-separated)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Separate tags with commas</p>
+                  </div>
+
+                  {/* Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageUpload} 
+                      className="w-full p-4 border rounded-lg" 
+                    />
+                    {imagePreview && (
+                      <div className="mt-3">
+                        <img src={imagePreview} alt="Preview" className="max-w-xs rounded-lg" />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Additional Fields */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Fees</label>
-                <input 
-                  type="text" 
-                  value={form.fees} 
-                  onChange={e => setForm({ ...form, fees: e.target.value })} 
-                  placeholder="e.g., Free, $10, By donation"
-                  className="w-full p-4 border rounded-lg" 
-                />
+              {/* SECTION 2: Date & Time */}
+              <div className="bg-white border-2 border-blue-200 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">📅 Date & Time</h4>
+                <div className="space-y-4">
+                  {/* Start Date & Time */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+                      <input 
+                        type="date" 
+                        value={form.start_date} 
+                        onChange={e => setForm({ ...form, start_date: e.target.value })} 
+                        required 
+                        className="w-full p-4 border rounded-lg" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                      <input 
+                        type="time" 
+                        value={form.start_time} 
+                        onChange={e => setForm({ ...form, start_time: e.target.value })} 
+                        disabled={form.is_all_day} 
+                        className="w-full p-4 border rounded-lg" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* End Date & Time */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                      <input 
+                        type="date" 
+                        value={form.end_date} 
+                        onChange={e => setForm({ ...form, end_date: e.target.value })} 
+                        className="w-full p-4 border rounded-lg" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                      <input 
+                        type="time" 
+                        value={form.end_time} 
+                        onChange={e => setForm({ ...form, end_time: e.target.value })} 
+                        disabled={form.is_all_day} 
+                        className="w-full p-4 border rounded-lg" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Checkboxes */}
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={form.is_all_day} 
+                        onChange={e => setForm({ ...form, is_all_day: e.target.checked })} 
+                        className="w-5 h-5" 
+                      />
+                      <span className="font-medium">All Day Event</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={form.is_recurring} 
+                        onChange={e => setForm({ ...form, is_recurring: e.target.checked })} 
+                        className="w-5 h-5" 
+                      />
+                      <span className="font-medium">Recurring Event</span>
+                    </label>
+
+                    {form.is_recurring && (
+                      <div className="ml-8">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Recurrence Pattern</label>
+                        <select
+                          value={form.recurrence_pattern}
+                          onChange={e => setForm({ ...form, recurrence_pattern: e.target.value })}
+                          className="w-full p-3 border rounded-lg"
+                        >
+                          <option value="">Select pattern...</option>
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="biweekly">Bi-weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={form.weather_dependent} 
+                        onChange={e => setForm({ ...form, weather_dependent: e.target.checked })} 
+                        className="w-5 h-5" 
+                      />
+                      <span className="font-medium">🌧️ Weather Dependent</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Info</label>
-                <textarea 
-                  value={form.additional_info} 
-                  onChange={e => setForm({ ...form, additional_info: e.target.value })} 
-                  rows={3}
-                  className="w-full p-4 border rounded-lg" 
-                />
+              {/* SECTION 3: Location & Venue */}
+              <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">📍 Location & Venue</h4>
+                <div className="space-y-4">
+                  {/* Venue Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
+                    <select
+                      value={selectedVenueId}
+                      onChange={e => handleVenueChange(e.target.value)}
+                      required
+                      className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    >
+                      <option value="">Select a venue...</option>
+                      {venues.map(venue => (
+                        <option key={venue.id} value={venue.id}>{venue.name}</option>
+                      ))}
+                      <option value="other">Other location...</option>
+                    </select>
+                  </div>
+
+                  {/* Custom Location */}
+                  {selectedVenueId === 'other' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Specify Location *</label>
+                      <input 
+                        type="text" 
+                        value={customLocation}
+                        onChange={e => setCustomLocation(e.target.value)}
+                        required
+                        placeholder="Enter location name"
+                        className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green" 
+                      />
+                    </div>
+                  )}
+
+                  {/* Venue Details */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
+                      <input 
+                        type="text" 
+                        value={form.venue_name} 
+                        onChange={e => setForm({ ...form, venue_name: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="Rollo Centre"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Venue Address</label>
+                      <input 
+                        type="text" 
+                        value={form.venue_address} 
+                        onChange={e => setForm({ ...form, venue_address: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="575 North Rd"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
+                      <input 
+                        type="text" 
+                        value={form.venue_postal_code} 
+                        onChange={e => setForm({ ...form, venue_postal_code: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="V0R 1X0"
+                        maxLength={7}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Google Maps URL</label>
+                      <input 
+                        type="url" 
+                        value={form.venue_map_url} 
+                        onChange={e => setForm({ ...form, venue_map_url: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="https://maps.google.com/..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Parking Info */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🅿️ Parking Information</label>
+                    <textarea 
+                      value={form.parking_info} 
+                      onChange={e => setForm({ ...form, parking_info: e.target.value })} 
+                      rows={2}
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="Free parking available, street parking, etc."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: Registration & Capacity */}
+              <div className="bg-white border-2 border-green-200 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">🎟️ Registration & Capacity</h4>
+                <div className="space-y-4">
+                  {/* Fees */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">💰 Fees / Cost</label>
+                    <input 
+                      type="text" 
+                      value={form.fees} 
+                      onChange={e => setForm({ ...form, fees: e.target.value })} 
+                      placeholder="e.g., Free, $10, $5-$15, By donation"
+                      className="w-full p-4 border rounded-lg" 
+                    />
+                  </div>
+
+                  {/* Registration */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={form.registration_required} 
+                      onChange={e => setForm({ ...form, registration_required: e.target.checked })} 
+                      className="w-5 h-5" 
+                    />
+                    <span className="font-medium">Registration Required</span>
+                  </label>
+
+                  {form.registration_required && (
+                    <div className="space-y-4 ml-8">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Registration URL</label>
+                        <input 
+                          type="url" 
+                          value={form.registration_url} 
+                          onChange={e => setForm({ ...form, registration_url: e.target.value })} 
+                          placeholder="https://eventbrite.com/..."
+                          className="w-full p-4 border rounded-lg" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Registration Deadline</label>
+                        <input 
+                          type="datetime-local" 
+                          value={form.registration_deadline} 
+                          onChange={e => setForm({ ...form, registration_deadline: e.target.value })} 
+                          className="w-full p-4 border rounded-lg" 
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Capacity */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Min Attendees</label>
+                      <input 
+                        type="number" 
+                        value={form.min_attendees} 
+                        onChange={e => setForm({ ...form, min_attendees: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        min="0"
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Max Attendees</label>
+                      <input 
+                        type="number" 
+                        value={form.max_attendees} 
+                        onChange={e => setForm({ ...form, max_attendees: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        min="0"
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Waitlist */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={form.waitlist_enabled} 
+                      onChange={e => setForm({ ...form, waitlist_enabled: e.target.checked })} 
+                      className="w-5 h-5" 
+                    />
+                    <span className="font-medium">Enable Waitlist (if event fills up)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* SECTION 5: Organizer Information */}
+              <div className="bg-white border-2 border-amber-200 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">👤 Organizer Information</h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Organizer Name</label>
+                      <input 
+                        type="text" 
+                        value={form.organizer_name} 
+                        onChange={e => setForm({ ...form, organizer_name: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="Jane Smith"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Organization</label>
+                      <input 
+                        type="text" 
+                        value={form.organizer_organization} 
+                        onChange={e => setForm({ ...form, organizer_organization: e.target.value })} 
+                        className="w-full p-4 border rounded-lg"
+                        placeholder="Gabriola Arts Council"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Organizer Website</label>
+                    <input 
+                      type="url" 
+                      value={form.organizer_website} 
+                      onChange={e => setForm({ ...form, organizer_website: e.target.value })} 
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="https://gabriolaartscouncil.org"
+                    />
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="pt-4 border-t">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Contact Information</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                        <input 
+                          type="email" 
+                          value={form.contact_email} 
+                          onChange={e => setForm({ ...form, contact_email: e.target.value })} 
+                          className="w-full p-4 border rounded-lg"
+                          placeholder="contact@example.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
+                        <input 
+                          type="tel" 
+                          value={form.contact_phone} 
+                          onChange={e => setForm({ ...form, contact_phone: e.target.value })} 
+                          className="w-full p-4 border rounded-lg"
+                          placeholder="(250) 555-1234"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 6: Event Details */}
+              <div className="bg-white border-2 border-pink-200 rounded-xl p-6">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">ℹ️ Event Details</h4>
+                <div className="space-y-4">
+                  {/* Age Restrictions */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🔞 Age Restrictions</label>
+                    <input 
+                      type="text" 
+                      value={form.age_restrictions} 
+                      onChange={e => setForm({ ...form, age_restrictions: e.target.value })} 
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="e.g., All ages, 19+, Family friendly"
+                    />
+                  </div>
+
+                  {/* Accessibility */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">♿ Accessibility Information</label>
+                    <textarea 
+                      value={form.accessibility_info} 
+                      onChange={e => setForm({ ...form, accessibility_info: e.target.value })} 
+                      rows={2}
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="Wheelchair accessible, ASL interpreter available, etc."
+                    />
+                  </div>
+
+                  {/* What to Bring */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🎒 What to Bring</label>
+                    <textarea 
+                      value={form.what_to_bring} 
+                      onChange={e => setForm({ ...form, what_to_bring: e.target.value })} 
+                      rows={2}
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="Lawn chairs, water bottle, sunscreen, etc."
+                    />
+                  </div>
+
+                  {/* Dress Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">👔 Dress Code</label>
+                    <input 
+                      type="text" 
+                      value={form.dress_code} 
+                      onChange={e => setForm({ ...form, dress_code: e.target.value })} 
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="Casual, Business casual, Formal, etc."
+                    />
+                  </div>
+
+                  {/* Additional Info */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">📋 Additional Information</label>
+                    <textarea 
+                      value={form.additional_info} 
+                      onChange={e => setForm({ ...form, additional_info: e.target.value })} 
+                      rows={4}
+                      className="w-full p-4 border rounded-lg"
+                      placeholder="Any other important details..."
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Submit */}
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark"
+                  className="flex-1 bg-gabriola-green text-white py-5 rounded-xl font-bold text-lg hover:bg-gabriola-green-dark shadow-lg hover:shadow-xl transition-all"
                 >
                   {selectedEvent ? 'Update Event' : canPublishInstantly ? 'Publish Event' : 'Submit for Approval'}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowForm(false); setSelectedEvent(null); resetForm(); }}
-                  className="px-6 py-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-8 py-5 border-2 border-gray-300 rounded-xl hover:bg-gray-50 font-semibold transition-all"
                 >
                   Cancel
                 </button>
