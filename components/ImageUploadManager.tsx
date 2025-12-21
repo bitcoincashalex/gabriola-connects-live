@@ -1,5 +1,5 @@
 // components/ImageUploadManager.tsx
-// Version: 1.1.0 - Parallel image processing + clearer multi-select UX
+// Version: 1.1.1 - CRITICAL: Fixed state closure bug preventing multiple file uploads
 // Date: 2025-12-21
 
 'use client';
@@ -38,14 +38,14 @@ export default function ImageUploadManager({
       // Create temporary ID
       const tempId = `temp-${Date.now()}-${Math.random()}`;
       
-      // Add placeholder while compressing
+      // Add placeholder while compressing (use functional setState!)
       const placeholder: ImageData = {
         id: tempId,
         url: '',
         compressing: true
       };
       
-      onImagesChange([...images, placeholder]);
+      onImagesChange(prevImages => [...prevImages, placeholder]);
 
       // Compress image
       const result = await compressImage(file, {
@@ -56,8 +56,8 @@ export default function ImageUploadManager({
       });
 
       if (!result.success) {
-        // Remove placeholder on error
-        onImagesChange(images.filter(img => img.id !== tempId));
+        // Remove placeholder on error (use functional setState!)
+        onImagesChange(prevImages => prevImages.filter(img => img.id !== tempId));
         alert(result.error);
         return null;
       }
@@ -73,10 +73,10 @@ export default function ImageUploadManager({
             compressing: false
           };
           
-          // Replace placeholder with actual image
-          onImagesChange(images.map(img => 
-            img.id === tempId ? imageData : img
-          ).concat(images.find(img => img.id === tempId) ? [] : [imageData]));
+          // Replace placeholder with actual image (use functional setState!)
+          onImagesChange(prevImages => 
+            prevImages.map(img => img.id === tempId ? imageData : img)
+          );
           
           resolve(imageData);
         };

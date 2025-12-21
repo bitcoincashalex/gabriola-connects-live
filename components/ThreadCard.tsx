@@ -1,5 +1,5 @@
 // components/ThreadCard.tsx
-// Version: 7.0.2 - Added body text preview to summary view
+// Version: 7.0.3 - Added auto-linkify for URLs in body text
 // Date: 2025-12-21
 
 'use client';
@@ -16,6 +16,7 @@ import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import ImageGallery from '@/components/ImageGallery';
 import EditPostModal from '@/components/EditPostModal';
+import LinkifyText from '@/components/LinkifyText';
 
 export default function ThreadCard({ 
   thread, 
@@ -261,9 +262,9 @@ export default function ThreadCard({
             </h3>
 
             {/* Body Preview */}
-            <p className="text-gray-700 mb-4 line-clamp-3">
-              {thread.body}
-            </p>
+            <div className="text-gray-700 mb-4 line-clamp-3">
+              <LinkifyText>{thread.body}</LinkifyText>
+            </div>
 
             {/* Image Gallery */}
             {!imagesLoading && images.length > 0 && (

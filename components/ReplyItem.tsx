@@ -1,6 +1,6 @@
 // components/ReplyItem.tsx
-// Version: 6.0.1 - COMPLETE with TypeScript fixes
-// Date: 2025-12-20
+// Version: 6.0.2 - Added auto-linkify for URLs in reply body
+// Date: 2025-12-21
 
 'use client';
 
@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import ImageGallery from './ImageGallery';
 import EditReplyModal from './EditReplyModal';
+import LinkifyText from './LinkifyText';
 
 export default function ReplyItem({ reply, depth, onRefresh }: { reply: any; depth: number; onRefresh?: () => void }) {
   const { user } = useUser();
@@ -220,7 +221,9 @@ export default function ReplyItem({ reply, depth, onRefresh }: { reply: any; dep
           </div>
 
           {/* Body/Content */}
-          <div className="whitespace-pre-wrap text-gray-800 mb-3">{reply.body || reply.content}</div>
+          <div className="whitespace-pre-wrap text-gray-800 mb-3">
+            <LinkifyText>{reply.body || reply.content}</LinkifyText>
+          </div>
 
           {/* Image Gallery */}
           {!imagesLoading && images.length > 0 && (

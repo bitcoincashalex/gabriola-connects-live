@@ -1,5 +1,5 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 5.3.0 - Added multi-image support from bbs_post_images
+// Version: 5.3.1 - Added auto-linkify for URLs in body text
 // Date: 2025-12-21
 
 'use client';
@@ -19,6 +19,7 @@ import ImageLightbox from '@/components/ImageLightbox';
 import ImageGallery from '@/components/ImageGallery';
 import EditThreadModal from '@/components/EditThreadModal';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
+import LinkifyText from '@/components/LinkifyText';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -312,7 +313,7 @@ export default function ThreadPage() {
 
               {/* Content Body */}
               <div className="prose prose-lg max-w-none mb-8 whitespace-pre-wrap text-gray-700 leading-relaxed">
-                {thread.body}
+                <LinkifyText>{thread.body}</LinkifyText>
               </div>
 
               {/* Stats and Actions */}

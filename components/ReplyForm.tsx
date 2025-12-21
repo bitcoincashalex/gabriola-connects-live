@@ -1,6 +1,6 @@
 // components/ReplyForm.tsx
-// Version: 3.0.0 - Multi-image support with database integration
-// Date: 2025-12-20
+// Version: 3.1.1 - CRITICAL: Fixed state closure bug in paste handler
+// Date: 2025-12-21
 
 'use client';
 
@@ -51,6 +51,77 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
   }
 
   const displayName = isAnonymous ? 'Island Neighbour' : (user.full_name || user.email || 'Anonymous');
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Check if paste contains an image
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault(); // Prevent default paste of image data as text
+        
+        if (images.length >= 10) {
+          alert('Maximum 10 images allowed.');
+          return;
+        }
+
+        const file = item.getAsFile();
+        if (file) {
+          // Process the image using the same logic as ImageUploadManager
+          const tempId = `temp-${Date.now()}-${Math.random()}`;
+          
+          // Add placeholder (use functional setState!)
+          const placeholder = {
+            id: tempId,
+            url: '',
+            compressing: true
+          };
+          setImages(prevImages => [...prevImages, placeholder]);
+
+          try {
+            // Import compression utility
+            const { compressImage } = await import('@/lib/imageCompression');
+            
+            const result = await compressImage(file, {
+              maxWidth: 1920,
+              maxHeight: 1920,
+              quality: 0.85,
+              maxSizeMB: 10,
+            });
+
+            if (!result.success) {
+              setImages(prevImages => prevImages.filter(img => img.id !== tempId));
+              alert(result.error);
+              return;
+            }
+
+            // Read as base64
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const imageData = {
+                id: tempId,
+                url: reader.result as string,
+                file: result.file,
+                compressing: false
+              };
+              
+              setImages(prevImages => 
+                prevImages.map(img => img.id === tempId ? imageData : img)
+              );
+            };
+            reader.readAsDataURL(result.file);
+          } catch (err) {
+            console.error('Image processing error:', err);
+            setImages(prevImages => prevImages.filter(img => img.id !== tempId));
+          }
+        }
+        break; // Only handle first image
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,12 +220,13 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
           ref={textareaRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onPaste={handlePaste}
           placeholder={placeholder || "Share your thoughts..."}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent resize-none"
           rows={6}
           required
         />
-        <p className="text-xs text-gray-500 mt-1">{body.length} characters</p>
+        <p className="text-xs text-gray-500 mt-1">{body.length} characters • Paste images with Ctrl+V</p>
       </div>
 
       {/* Multi-Image Upload */}
