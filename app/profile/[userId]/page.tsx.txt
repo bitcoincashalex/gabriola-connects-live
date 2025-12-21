@@ -1,108 +1,126 @@
-// app/profile/[userId]/page.tsx
-// v2.0 - Dec 8, 2025 - Merged: All original features + super admin override
+// Path: app/profile/[userId]/page.tsx
+// Version: 1.0.0 - User profile page (logged-in users only)
+// Date: 2025-12-20
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import Link from 'next/link';
-import { format } from 'date-fns';
 import { 
-  ArrowLeft, Mail, MapPin, Calendar, Edit, Shield, 
-  MessageSquare, ThumbsUp, Loader2 
+  ArrowLeft, Calendar, MessageCircle, CalendarDays, 
+  Mail, MapPin, Loader2, Ban 
 } from 'lucide-react';
+import { format } from 'date-fns';
+import SendMessageModal from '@/components/SendMessageModal';
 
-export default function UserProfilePage() {
+export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser } = useUser();
+  const { user, loading: authLoading } = useUser();
   const [profile, setProfile] = useState<any>(null);
-  const [stats, setStats] = useState({ posts: 0, replies: 0, likes: 0 });
   const [recentPosts, setRecentPosts] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [canView, setCanView] = useState(true);
-
-  const userId = params.userId as string;
-  const isOwnProfile = currentUser?.id === userId;
-  // NEW: Super admin override
-  const isSuperAdmin = currentUser?.is_super_admin;
+  const [error, setError] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-    fetchStats();
-    fetchRecentPosts();
-  }, [userId, currentUser]);
+    if (!authLoading) {
+      fetchProfile();
+    }
+  }, [params.userId, authLoading]);
 
   const fetchProfile = async () => {
-    const { data } = await supabase
+    // Fetch user profile
+    const { data: profileData, error: profileError } = await supabase
       .from('users')
-      .select('*')
-      .eq('id', userId)
+      .select(`
+        id,
+        username,
+        full_name,
+        avatar_url,
+        bio,
+        postal_code,
+        is_resident,
+        is_banned,
+        created_at,
+        posts_count,
+        events_created_count,
+        last_activity_at
+      `)
+      .eq('id', params.userId)
       .single();
 
-    if (data) {
-      // Check visibility - UPDATED: Super admin override
-      if (data.profile_visibility === 'private' && !isOwnProfile && !isSuperAdmin) {
-        setCanView(false);
-        setLoading(false);
-        return;
-      }
-      if (data.profile_visibility === 'members' && !currentUser && !isSuperAdmin) {
-        setCanView(false);
-        setLoading(false);
-        return;
-      }
-
-      setProfile(data);
+    if (profileError || !profileData) {
+      console.error('Error fetching profile:', profileError);
+      setError(true);
+      setLoading(false);
+      return;
     }
+
+    setProfile(profileData);
+
+    // Fetch recent posts (if not banned)
+    if (!profileData.is_banned) {
+      const { data: postsData } = await supabase
+        .from('bbs_posts')
+        .select('id, title, created_at, vote_score, reply_count, category')
+        .eq('user_id', profileData.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setRecentPosts(postsData || []);
+
+      // Fetch recent events
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('id, title, start_date, location')
+        .eq('created_by', profileData.id)
+        .gte('start_date', new Date().toISOString())
+        .order('start_date', { ascending: true })
+        .limit(3);
+
+      setRecentEvents(eventsData || []);
+    }
+
     setLoading(false);
   };
 
-  const fetchStats = async () => {
-    // Count posts
-    const { count: postCount } = await supabase
-      .from('bbs_posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_active', true);
+  // Check if user is logged in
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+            Sign In Required
+          </h1>
+          <p className="text-gray-600 mb-6">
+            You must be logged in to view user profiles.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link
+              href="/signup"
+              className="bg-gabriola-green text-white px-8 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark transition"
+            >
+              Sign Up Free
+            </Link>
+            <Link
+              href="/signin"
+              className="bg-white text-gabriola-green border-2 border-gabriola-green px-8 py-3 rounded-lg font-bold hover:bg-gray-50 transition"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    // Count replies
-    const { count: replyCount } = await supabase
-      .from('bbs_replies')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_active', true);
-
-    // Sum likes from posts
-    const { data: posts } = await supabase
-      .from('bbs_posts')
-      .select('like_count')
-      .eq('user_id', userId)
-      .eq('is_active', true);
-
-    const totalLikes = posts?.reduce((sum, p) => sum + (p.like_count || 0), 0) || 0;
-
-    setStats({
-      posts: postCount || 0,
-      replies: replyCount || 0,
-      likes: totalLikes,
-    });
-  };
-
-  const fetchRecentPosts = async () => {
-    const { data } = await supabase
-      .from('bbs_posts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    setRecentPosts(data || []);
-  };
-
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-gabriola-green animate-spin" />
@@ -110,32 +128,17 @@ export default function UserProfilePage() {
     );
   }
 
-  if (!canView) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white rounded-2xl shadow-lg p-12 max-w-md">
-          <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Private Profile</h1>
-          <p className="text-gray-600 mb-6">
-            This profile is set to private.
-          </p>
-          <Link
-            href="/community"
-            className="inline-block bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-          >
-            Back to Forum
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) {
+  if (error || !profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">User Not Found</h1>
-          <Link href="/community" className="text-gabriola-green hover:underline">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">User Not Found</h1>
+          <p className="text-gray-600 mb-8">This user doesn't exist or has been deleted.</p>
+          <Link 
+            href="/community" 
+            className="inline-flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
+          >
+            <ArrowLeft className="w-5 h-5" />
             Back to Forum
           </Link>
         </div>
@@ -143,233 +146,217 @@ export default function UserProfilePage() {
     );
   }
 
-  const badges = [];
-  if (profile.is_super_admin) badges.push({ text: 'Super Admin', color: 'bg-red-600' });
-  if (profile.admin_forum) badges.push({ text: 'Forum Admin', color: 'bg-purple-600' });
-  if (profile.moderator_forum) badges.push({ text: 'Moderator', color: 'bg-blue-600' });
-  if (profile.fire_dept) badges.push({ text: '🔥 Fire Dept', color: 'bg-orange-600' });
-  if (profile.rcmp) badges.push({ text: '👮 RCMP', color: 'bg-indigo-600' });
-  if (profile.medic) badges.push({ text: '⚕️ Medic', color: 'bg-green-600' });
-  if (profile.coast_guard) badges.push({ text: '⚓ Coast Guard', color: 'bg-teal-600' });
-  
-  // NEW: Add event/alert permission badges for super admins
-  if (isSuperAdmin) {
-    if (profile.can_create_events) badges.push({ text: '📅 Event Admin', color: 'bg-emerald-600' });
-    if (profile.can_issue_alerts) badges.push({ text: '⚠️ Alert Admin', color: 'bg-amber-600' });
+  // Banned user - show minimal info
+  if (profile.is_banned) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <Link 
+            href="/community" 
+            className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </Link>
+
+          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Ban className="w-12 h-12 text-red-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {profile.full_name}
+            </h1>
+            <p className="text-gray-600">@{profile.username}</p>
+            <p className="text-red-600 mt-4 font-medium">
+              This user account has been banned.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // NEW: Super admin viewing private profile indicator
-  const isViewingPrivateProfile = profile.profile_visibility === 'private' && isSuperAdmin && !isOwnProfile;
+  const isOwnProfile = user && user.id === profile.id;
+  const canMessage = user && !isOwnProfile;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <Link
-          href="/community"
-          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8 text-lg font-medium"
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        {/* Back link */}
+        <Link 
+          href="/community" 
+          className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Forum
         </Link>
 
-        {/* NEW: Super Admin Override Notice */}
-        {isViewingPrivateProfile && (
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Shield className="w-6 h-6 text-purple-600" />
-              <div>
-                <div className="font-bold text-purple-900">Super Admin View</div>
-                <div className="text-sm text-purple-700">
-                  You're viewing a private profile. This user has restricted visibility to members only.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Profile Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
-          {/* Header with cover gradient */}
-          <div className="h-32 bg-gradient-to-br from-gabriola-green to-gabriola-green-dark" />
-
-          <div className="px-8 pb-8">
-            {/* Profile photo - overlaps header */}
-            <div className="flex flex-col sm:flex-row sm:items-end gap-6 -mt-16 mb-6">
-              <div className="relative">
-                {profile.profile_photo ? (
-                  <img
-                    src={profile.profile_photo}
-                    alt={profile.full_name}
-                    className="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover"
-                  />
-                ) : (
-                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-gabriola-green text-white flex items-center justify-center text-5xl font-bold">
-                    {profile.full_name?.charAt(0) || '?'}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  {profile.full_name}
-                </h1>
-                {profile.username && (
-                  <p className="text-gray-600 text-lg">@{profile.username}</p>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-3">
-                {isOwnProfile ? (
-                  <Link
-                    href="/profile/edit"
-                    className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-                  >
-                    <Edit className="w-5 h-5" />
-                    Edit Profile
-                  </Link>
-                ) : (
-                  <>
-                    {currentUser && (
-                      <Link
-                        href={`/messages/${userId}`}
-                        className="flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
-                      >
-                        <Mail className="w-5 h-5" />
-                        Send Message
-                      </Link>
-                    )}
-                    {/* NEW: Admin panel link for super admins */}
-                    {isSuperAdmin && (
-                      <Link
-                        href="/admin/users"
-                        className="flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700"
-                      >
-                        <Shield className="w-5 h-5" />
-                        Admin Panel
-                      </Link>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Badges */}
-            {badges.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                {badges.map((badge, i) => (
-                  <span
-                    key={i}
-                    className={`${badge.color} text-white px-4 py-2 rounded-full text-sm font-bold`}
-                  >
-                    {badge.text}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Bio */}
-            {profile.bio && (
-              <div className="mb-6">
-                <p className="text-gray-700 text-lg whitespace-pre-wrap">
-                  {profile.bio}
-                </p>
+        {/* Profile Header */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
+          <div className="flex items-start gap-6">
+            {/* Avatar */}
+            {profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.full_name}
+                className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-500">
+                {profile.full_name?.charAt(0) || '?'}
               </div>
             )}
 
             {/* Info */}
-            <div className="flex flex-wrap gap-6 text-gray-600 mb-6">
-              {profile.show_location && profile.postal_code && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  <span>{profile.postal_code}</span>
+            <div className="flex-1">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h1 className="text-4xl font-bold text-gray-900 mb-1">
+                    {profile.full_name}
+                  </h1>
+                  <p className="text-xl text-gray-600">@{profile.username}</p>
                 </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                <span>Joined {format(new Date(profile.created_at), 'MMMM yyyy')}</span>
-              </div>
-              {profile.show_email && profile.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-5 h-5" />
-                  <a href={`mailto:${profile.email}`} className="hover:underline">
-                    {profile.email}
-                  </a>
-                </div>
-              )}
-            </div>
 
-            {/* NEW: Admin-only permission details */}
-            {isSuperAdmin && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Admin View: Permissions
-                </h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {profile.can_create_events && <span className="text-green-600">✓ Can create events</span>}
-                  {profile.can_moderate_events && <span className="text-green-600">✓ Can moderate events</span>}
-                  {profile.can_issue_alerts && <span className="text-orange-600">✓ Can issue alerts ({profile.alert_level_permission})</span>}
-                  {profile.can_post && <span className="text-green-600">✓ Can post</span>}
-                  {profile.can_comment && <span className="text-green-600">✓ Can comment</span>}
-                  {profile.can_rsvp && <span className="text-green-600">✓ Can RSVP</span>}
-                  {profile.can_edit_directory && <span className="text-green-600">✓ Can edit directory</span>}
-                  {profile.is_banned && <span className="text-red-600">⚠️ BANNED</span>}
-                </div>
+                {/* Message Button */}
+                {canMessage && (
+                  <button
+                    onClick={() => setShowMessageModal(true)}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                  >
+                    <Mail className="w-5 h-5" />
+                    Message
+                  </button>
+                )}
               </div>
-            )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-6 py-6 border-t border-b">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gabriola-green">{stats.posts}</div>
-                <div className="text-gray-600">Posts</div>
+              {/* Badges */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {profile.is_resident && (
+                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                    🏝️ Gabriola Resident
+                  </span>
+                )}
+                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Joined {format(new Date(profile.created_at), 'MMMM yyyy')}
+                </span>
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gabriola-green">{stats.replies}</div>
-                <div className="text-gray-600">Replies</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gabriola-green">{stats.likes}</div>
-                <div className="text-gray-600">Likes Received</div>
-              </div>
+
+              {/* Bio */}
+              {profile.bio && (
+                <p className="text-lg text-gray-700 whitespace-pre-wrap">
+                  {profile.bio}
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Recent Posts */}
-        {recentPosts.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <MessageSquare className="w-6 h-6" />
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="flex items-center justify-center gap-2 text-gabriola-green mb-2">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">
+              {profile.posts_count || 0}
+            </div>
+            <div className="text-sm text-gray-600">Forum Posts</div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="flex items-center justify-center gap-2 text-gabriola-green mb-2">
+              <CalendarDays className="w-6 h-6" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">
+              {profile.events_created_count || 0}
+            </div>
+            <div className="text-sm text-gray-600">Events Created</div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <div className="flex items-center justify-center gap-2 text-gabriola-green mb-2">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">
+              {Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24))}
+            </div>
+            <div className="text-sm text-gray-600">Days on Gabriola Connects</div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Recent Posts */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <MessageCircle className="w-6 h-6 text-gabriola-green" />
               Recent Posts
             </h2>
-            <div className="space-y-4">
-              {recentPosts.map(post => (
-                <Link
-                  key={post.id}
-                  href={`/community/thread/${post.id}`}
-                  className="block p-4 border-2 border-gray-200 rounded-xl hover:border-gabriola-green hover:bg-gray-50 transition"
-                >
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{post.title}</h3>
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span>{format(new Date(post.created_at), 'PPP')}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      {post.reply_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ThumbsUp className="w-4 h-4" />
-                      {post.like_count || 0}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            {recentPosts.length > 0 ? (
+              <div className="space-y-3">
+                {recentPosts.map(post => (
+                  <Link
+                    key={post.id}
+                    href={`/community/thread/${post.id}`}
+                    className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <h3 className="font-medium text-gray-900 mb-1">
+                      {post.title}
+                    </h3>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>{format(new Date(post.created_at), 'MMM d, yyyy')}</span>
+                      <span>💬 {post.reply_count || 0}</span>
+                      <span>👍 {post.vote_score || 0}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No recent posts</p>
+            )}
           </div>
-        )}
+
+          {/* Recent Events */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <CalendarDays className="w-6 h-6 text-gabriola-green" />
+              Upcoming Events
+            </h2>
+            {recentEvents.length > 0 ? (
+              <div className="space-y-3">
+                {recentEvents.map(event => (
+                  <Link
+                    key={event.id}
+                    href={`/events/${event.id}`}
+                    className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <h3 className="font-medium text-gray-900 mb-1">
+                      {event.title}
+                    </h3>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>📅 {format(new Date(event.start_date), 'MMM d, yyyy')}</span>
+                      {event.location && <span>📍 {event.location}</span>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No upcoming events</p>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Send Message Modal */}
+      {showMessageModal && canMessage && (
+        <SendMessageModal
+          recipientId={profile.id}
+          recipientName={profile.full_name}
+          currentUserId={user!.id}
+          onClose={() => setShowMessageModal(false)}
+        />
+      )}
     </div>
   );
 }

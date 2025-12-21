@@ -1,6 +1,6 @@
 // Path: components/Ferry.tsx
-// Version: 2.2.0 - Last updated now shows date and time
-// Date: 2025-12-20
+// Version: 2.1.0 - Database-driven schedule (was 2.0.0 with hardcoded schedule)
+// Date: 2025-12-11
 
 'use client';
 
@@ -171,7 +171,7 @@ export default function Ferry() {
           )}
 
           <div className="text-xs text-gray-500 mt-3">
-            Last updated: {status.lastUpdated.toLocaleString()}
+            Last updated: {status.lastUpdated.toLocaleTimeString()}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-300">

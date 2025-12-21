@@ -1,6 +1,6 @@
 // app/profile/edit/page.tsx
-// Version: 3.0.0 - ENHANCED: Added website, Facebook, resident toggle, resident_since
-// Date: 2025-12-20
+// Version: 2.0.0 - Added notification preferences for alerts
+// Date: 2024-12-10
 
 'use client';
 
@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Camera, Image as ImageIcon, Loader2, X, Bell, Mail, MessageSquare, Smartphone, Globe, Facebook } from 'lucide-react';
+import { ArrowLeft, Save, Camera, Image as ImageIcon, Loader2, X, Bell, Mail, MessageSquare, Smartphone } from 'lucide-react';
 
 export default function ProfileEditPage() {
   const { user, loading: authLoading } = useUser();
@@ -30,12 +30,6 @@ export default function ProfileEditPage() {
   const [showEmail, setShowEmail] = useState(false);
   const [showLocation, setShowLocation] = useState(true);
   const [showInDirectory, setShowInDirectory] = useState(true);
-  
-  // NEW: Enhanced profile fields
-  const [website, setWebsite] = useState('');
-  const [facebookUrl, setFacebookUrl] = useState('');
-  const [isResident, setIsResident] = useState(false);
-  const [residentSince, setResidentSince] = useState('');
   
   // Notification preferences
   const [notifyEmail, setNotifyEmail] = useState(true);
@@ -79,12 +73,6 @@ export default function ProfileEditPage() {
       setShowEmail(data.show_email || false);
       setShowLocation(data.show_location !== false);
       setShowInDirectory(data.show_in_directory !== false);
-      
-      // Load enhanced profile fields
-      setWebsite(data.website || '');
-      setFacebookUrl(data.facebook_url || '');
-      setIsResident(data.is_resident || false);
-      setResidentSince(data.resident_since || '');
       
       // Load notification preferences
       setNotifyEmail(data.notify_email !== false);
@@ -162,11 +150,6 @@ export default function ProfileEditPage() {
         show_email: showEmail,
         show_location: showLocation,
         show_in_directory: showInDirectory,
-        // Enhanced profile fields
-        website: website.trim() || null,
-        facebook_url: facebookUrl.trim() || null,
-        is_resident: isResident,
-        resident_since: residentSince || null,
         // Notification preferences
         notify_email: notifyEmail,
         notify_sms: notifySms,
@@ -380,78 +363,6 @@ export default function ProfileEditPage() {
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
                 placeholder="(250) 555-1234"
               />
-            </div>
-
-            {/* Website */}
-            <div>
-              <label className="block font-bold text-gray-900 mb-2">
-                Website
-              </label>
-              <p className="text-sm text-gray-600 mb-2">
-                Optional - link to your personal or business website
-              </p>
-              <input
-                type="url"
-                value={website}
-                onChange={e => setWebsite(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-                placeholder="https://yourwebsite.com"
-              />
-            </div>
-
-            {/* Facebook URL */}
-            <div>
-              <label className="block font-bold text-gray-900 mb-2">
-                Facebook Profile
-              </label>
-              <p className="text-sm text-gray-600 mb-2">
-                Optional - connect with neighbors on social media
-              </p>
-              <input
-                type="url"
-                value={facebookUrl}
-                onChange={e => setFacebookUrl(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-                placeholder="https://facebook.com/yourprofile"
-              />
-            </div>
-
-            {/* Gabriola Resident Section */}
-            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <input
-                  type="checkbox"
-                  id="is-resident"
-                  checked={isResident}
-                  onChange={e => setIsResident(e.target.checked)}
-                  className="w-6 h-6 mt-1 cursor-pointer accent-green-600"
-                />
-                <div className="flex-1">
-                  <label htmlFor="is-resident" className="block font-bold text-gray-900 mb-1 cursor-pointer">
-                    🏝️ I am a Gabriola Island Resident
-                  </label>
-                  <p className="text-sm text-gray-700">
-                    Residents get special badges on their profile and forum posts
-                  </p>
-                </div>
-              </div>
-
-              {/* Resident Since (only show if is_resident is checked) */}
-              {isResident && (
-                <div className="mt-4 pl-10">
-                  <label className="block font-medium text-gray-900 mb-2">
-                    Resident Since
-                  </label>
-                  <input
-                    type="date"
-                    value={residentSince}
-                    onChange={e => setResidentSince(e.target.value)}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    max={new Date().toISOString().split('T')[0]}
-                  />
-                  <p className="text-xs text-gray-600 mt-1">When did you move to Gabriola?</p>
-                </div>
-              )}
             </div>
 
             {/* Privacy Settings */}

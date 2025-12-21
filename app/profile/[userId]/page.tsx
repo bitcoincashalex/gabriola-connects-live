@@ -1,5 +1,5 @@
 // Path: app/profile/[userId]/page.tsx
-// Version: 1.0.0 - User profile page (logged-in users only)
+// Version: 2.0.0 - ENHANCED: Display website, Facebook, resident since
 // Date: 2025-12-20
 
 'use client';
@@ -11,7 +11,7 @@ import { useUser } from '@/components/AuthProvider';
 import Link from 'next/link';
 import { 
   ArrowLeft, Calendar, MessageCircle, CalendarDays, 
-  Mail, MapPin, Loader2, Ban 
+  Mail, MapPin, Loader2, Ban, Globe, Facebook 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import SendMessageModal from '@/components/SendMessageModal';
@@ -45,6 +45,9 @@ export default function ProfilePage() {
         bio,
         postal_code,
         is_resident,
+        resident_since,
+        website,
+        facebook_url,
         is_banned,
         created_at,
         posts_count,
@@ -234,6 +237,7 @@ export default function ProfilePage() {
                 {profile.is_resident && (
                   <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                     🏝️ Gabriola Resident
+                    {profile.resident_since && ` since ${new Date(profile.resident_since).getFullYear()}`}
                   </span>
                 )}
                 <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
@@ -241,6 +245,34 @@ export default function ProfilePage() {
                   Joined {format(new Date(profile.created_at), 'MMMM yyyy')}
                 </span>
               </div>
+
+              {/* Contact Links */}
+              {(profile.website || profile.facebook_url) && (
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {profile.website && (
+                    <a 
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium"
+                    >
+                      <Globe className="w-4 h-4" />
+                      Website
+                    </a>
+                  )}
+                  {profile.facebook_url && (
+                    <a 
+                      href={profile.facebook_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                    >
+                      <Facebook className="w-4 h-4" />
+                      Facebook
+                    </a>
+                  )}
+                </div>
+              )}
 
               {/* Bio */}
               {profile.bio && (
