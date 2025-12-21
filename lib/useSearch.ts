@@ -1,6 +1,6 @@
 // lib/useSearch.ts
 // Search hook with complete types from lib/types/search.ts
-// Version: 2.2.0 - Enhanced search to include schedule/recurrence fields
+// Version: 2.3.0 - Expanded search fields: Events (12 fields), Directory (10 fields), Alerts (7 fields)
 // Date: 2025-12-20
 
 'use client';
@@ -56,7 +56,7 @@ export function useSearch() {
           .select('*') // SELECT ALL FIELDS
           .eq('is_approved', true)
           .gte('start_date', today) // ONLY FUTURE EVENTS
-          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm}`)
+          .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm},contact_email.ilike.${searchTerm},what_to_bring.ilike.${searchTerm},accessibility_info.ilike.${searchTerm}`)
           .order('start_date', { ascending: true }) // CHRONOLOGICAL
           .order('start_time', { ascending: true });
         
@@ -69,7 +69,7 @@ export function useSearch() {
           .from('directory_businesses')
           .select('*') // SELECT ALL FIELDS
           .eq('is_active', true)
-          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`)
+          .or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},subcategory.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm},tagline.ilike.${searchTerm},owner_name.ilike.${searchTerm},address.ilike.${searchTerm},location_notes.ilike.${searchTerm}`)
           .order('name', { ascending: true });
         
         searchResults.directory = (data || []) as DirectoryBusiness[];
@@ -91,7 +91,7 @@ export function useSearch() {
         const { data } = await supabase
           .from('alerts')
           .select('*') // SELECT ALL FIELDS
-          .or(`title.ilike.${searchTerm},message.ilike.${searchTerm},category.ilike.${searchTerm}`)
+          .or(`title.ilike.${searchTerm},message.ilike.${searchTerm},category.ilike.${searchTerm},on_behalf_of_name.ilike.${searchTerm},on_behalf_of_organization.ilike.${searchTerm},contact_info.ilike.${searchTerm},action_required.ilike.${searchTerm}`)
           .order('created_at', { ascending: false });
         
         searchResults.alerts = (data || []) as Alert[];

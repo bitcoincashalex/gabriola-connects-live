@@ -1,97 +1,34 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 3.1.2 - Fixed TypeScript: Added missing category/filter constants
+// Version: 2.3.0 - Added Footer component for consistent navigation
 // Date: 2025-12-20
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useUser } from '@/components/AuthProvider';
-import { Search, Calendar, MessageSquare, MapPin, Ship, AlertTriangle, Filter, X, ChevronDown, ChevronUp, Ban } from 'lucide-react';
+import { Search, Calendar, MessageSquare, MapPin, Ship, AlertTriangle, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
 import Footer from '@/components/Footer';
-
-// Helper functions for filtering
-const isEventFree = (fees: string | null): boolean => {
-  if (!fees) return true;
-  const lowercaseFees = fees.toLowerCase();
-  return lowercaseFees === 'free' || lowercaseFees === '0' || lowercaseFees === 'none' || lowercaseFees === 'n/a';
-};
-
-const isAlertActive = (alert: any): boolean => {
-  if (!alert.active) return false;
-  if (!alert.expires_at) return true;
-  return new Date(alert.expires_at) > new Date();
-};
-
-const operatesOnDay = (schedule: any, day: string): boolean => {
-  if (!schedule.operating_days) return false;
-  return schedule.operating_days.toLowerCase().includes(day.toLowerCase());
-};
-
-// Category and filter constants
-const eventCategories = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'arts-culture', label: 'Arts & Culture' },
-  { value: 'community', label: 'Community' },
-  { value: 'education', label: 'Education' },
-  { value: 'entertainment', label: 'Entertainment' },
-  { value: 'food-drink', label: 'Food & Drink' },
-  { value: 'health-wellness', label: 'Health & Wellness' },
-  { value: 'music', label: 'Music' },
-  { value: 'outdoors', label: 'Outdoors' },
-  { value: 'sports-recreation', label: 'Sports & Recreation' },
-];
-
-const directoryCategories = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'food-dining', label: 'Food & Dining' },
-  { value: 'services', label: 'Services' },
-  { value: 'retail', label: 'Retail' },
-  { value: 'health-wellness', label: 'Health & Wellness' },
-  { value: 'arts-crafts', label: 'Arts & Crafts' },
-  { value: 'accommodations', label: 'Accommodations' },
-  { value: 'recreation', label: 'Recreation' },
-  { value: 'professional-services', label: 'Professional Services' },
-];
-
-const locations = [
-  { value: 'all', label: 'All Locations' },
-  { value: 'north-end', label: 'North End' },
-  { value: 'south-end', label: 'South End' },
-  { value: 'central', label: 'Central' },
-  { value: 'village', label: 'Village' },
-  { value: 'silva-bay', label: 'Silva Bay' },
-  { value: 'descanso-bay', label: 'Descanso Bay' },
-];
-
-const ferryRoutes = [
-  { value: 'all', label: 'All Routes' },
-  { value: 'gabriola-nanaimo', label: 'Gabriola ↔ Nanaimo' },
-];
-
-const daysOfWeek = [
-  { value: 'all', label: 'All Days' },
-  { value: 'monday', label: 'Monday' },
-  { value: 'tuesday', label: 'Tuesday' },
-  { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday', label: 'Thursday' },
-  { value: 'friday', label: 'Friday' },
-  { value: 'saturday', label: 'Saturday' },
-  { value: 'sunday', label: 'Sunday' },
-];
-
-const alertSeverities = [
-  { value: 'all', label: 'All Severities' },
-  { value: 'emergency', label: 'Emergency' },
-  { value: 'warning', label: 'Warning' },
-  { value: 'advisory', label: 'Advisory' },
-  { value: 'info', label: 'Info' },
-];
+import {
+  eventCategories,
+  directoryCategories,
+  locations,
+  ferryRoutes,
+  daysOfWeek,
+  alertSeverities,
+  eventAdvancedFilters,
+  directoryAdvancedFilters,
+  ferryAdvancedFilters,
+  alertAdvancedFilters,
+  forumFilters,
+  isEventFree,
+  isAlertActive,
+  operatesOnDay
+} from '@/lib/filters/simpleFilters';
 
 // CRITICAL: Parse dates in local timezone to prevent day-shift
 // Database stores dates as YYYY-MM-DD strings
@@ -106,9 +43,6 @@ const parseLocalDate = (dateStr: string | Date): Date => {
 type SearchModule = 'all' | 'events' | 'forum' | 'directory' | 'ferry' | 'alerts';
 
 export default function CommunitySearchPage() {
-  // Auth check - community search is protected like the forum
-  const { user } = useUser();
-
   // Search state
   const [query, setQuery] = useState('');
   const [activeModule, setActiveModule] = useState<SearchModule>('all');
@@ -174,41 +108,6 @@ export default function CommunitySearchPage() {
   const [hasReplies, setHasReplies] = useState(false);
   const [pinnedOnly, setPinnedOnly] = useState(false);
 
-  // CRITICAL: Block banned users from accessing community search
-  if (user && user.is_banned) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Ban className="w-12 h-12 text-red-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
-            Community Access Restricted
-          </h1>
-          <p className="text-gray-600 mb-6 text-lg">
-            You have been banned from the Gabriola Connects community area.
-          </p>
-          {(user as any).banned_reason && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-red-800">
-                <strong>Reason:</strong> {(user as any).banned_reason}
-              </p>
-            </div>
-          )}
-          <p className="text-gray-500 text-sm mb-6">
-            If you believe this is a mistake, please contact the site administrators.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-gabriola-green text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Return to Home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   // Fetch forum categories on mount
   useEffect(() => {
     fetchForumCategories();
@@ -265,7 +164,7 @@ export default function CommunitySearchPage() {
         
         // Only apply search filter if there's a search query
         if (query.trim()) {
-          eventsQuery = eventsQuery.or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm},contact_email.ilike.${searchTerm},what_to_bring.ilike.${searchTerm},accessibility_info.ilike.${searchTerm}`);
+          eventsQuery = eventsQuery.or(`title.ilike.${searchTerm},description.ilike.${searchTerm},location.ilike.${searchTerm},category.ilike.${searchTerm},recurrence_pattern.ilike.${searchTerm},additional_info.ilike.${searchTerm},venue_name.ilike.${searchTerm},organizer_name.ilike.${searchTerm},organizer_organization.ilike.${searchTerm}`);
         }
         
         eventsQuery = eventsQuery
@@ -306,7 +205,7 @@ export default function CommunitySearchPage() {
         
         // Only apply search filter if there's a search query
         if (query.trim()) {
-          directoryQuery = directoryQuery.or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},subcategory.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm},tagline.ilike.${searchTerm},owner_name.ilike.${searchTerm},address.ilike.${searchTerm},location_notes.ilike.${searchTerm}`);
+          directoryQuery = directoryQuery.or(`name.ilike.${searchTerm},description.ilike.${searchTerm},category.ilike.${searchTerm},services.ilike.${searchTerm},specialties.ilike.${searchTerm}`);
         }
         
         directoryQuery = directoryQuery
@@ -345,7 +244,7 @@ export default function CommunitySearchPage() {
         
         // Only apply search filter if there's a search query
         if (query.trim()) {
-          alertsQuery = alertsQuery.or(`title.ilike.${searchTerm},message.ilike.${searchTerm},category.ilike.${searchTerm},on_behalf_of_name.ilike.${searchTerm},on_behalf_of_organization.ilike.${searchTerm},contact_info.ilike.${searchTerm},action_required.ilike.${searchTerm}`);
+          alertsQuery = alertsQuery.or(`title.ilike.${searchTerm},message.ilike.${searchTerm}`);
         }
         
         alertsQuery = alertsQuery
@@ -440,7 +339,7 @@ export default function CommunitySearchPage() {
     if (activeModule === 'all' || activeModule === 'alerts') {
       filtered.alerts = filtered.alerts.filter(alert => {
         if (alertSeverity !== 'all' && alert.severity !== alertSeverity) return false;
-        if (activeAlertsOnly && !isAlertActive(alert)) return false;
+        if (activeAlertsOnly && !isAlertActive(alert.active, alert.expires_at)) return false;
         if (dateFrom && alert.created_at && new Date(alert.created_at) < new Date(dateFrom)) return false;
         if (dateTo && alert.created_at && new Date(alert.created_at) > new Date(dateTo)) return false;
         if (actionRequiredOnly && !alert.action_required) return false;
