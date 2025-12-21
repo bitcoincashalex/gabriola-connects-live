@@ -1,6 +1,6 @@
 // components/ThreadCard.tsx
-// Version: 7.0.1 - COMPLETE with TypeScript fixes
-// Date: 2025-12-20
+// Version: 7.0.2 - Added body text preview to summary view
+// Date: 2025-12-21
 
 'use client';
 
@@ -259,6 +259,11 @@ export default function ThreadCard({
             <h3 className="text-2xl font-bold text-gabriola-green-dark mb-3">
               {thread.title}
             </h3>
+
+            {/* Body Preview */}
+            <p className="text-gray-700 mb-4 line-clamp-3">
+              {thread.body}
+            </p>
 
             {/* Image Gallery */}
             {!imagesLoading && images.length > 0 && (

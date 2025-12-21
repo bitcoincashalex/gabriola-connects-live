@@ -1,6 +1,6 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 5.2.0 - Fixed iOS Safari "Back to Forum" button with explicit touch handling
-// Date: 2025-12-20
+// Version: 5.3.0 - Added multi-image support from bbs_post_images
+// Date: 2025-12-21
 
 'use client';
 
@@ -16,6 +16,7 @@ import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
+import ImageGallery from '@/components/ImageGallery';
 import EditThreadModal from '@/components/EditThreadModal';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 
@@ -32,10 +33,13 @@ export default function ThreadPage() {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [images, setImages] = useState<any[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(true);
 
   useEffect(() => {
     fetchThread();
     fetchReplyCount();
+    fetchImages();
     
     // Track view with IP
     trackView(params.id as string, 'post');
@@ -87,6 +91,20 @@ export default function ThreadPage() {
       .eq('is_active', true);
 
     setReplyCount(count || 0);
+  };
+
+  const fetchImages = async () => {
+    setImagesLoading(true);
+    const { data, error } = await supabase
+      .from('bbs_post_images')
+      .select('*')
+      .eq('post_id', params.id)
+      .order('display_order', { ascending: true });
+
+    if (!error && data) {
+      setImages(data);
+    }
+    setImagesLoading(false);
   };
 
   const handleReplySuccess = () => {
@@ -285,17 +303,10 @@ export default function ThreadPage() {
                 </a>
               )}
 
-              {/* Image */}
-              {thread.image_url && (
+              {/* Multi-Image Gallery */}
+              {!imagesLoading && images.length > 0 && (
                 <div className="mb-6">
-                  <img 
-                    src={thread.image_url} 
-                    alt="Post attachment" 
-                    onClick={() => setLightboxImage(thread.image_url)}
-                    className="max-w-full h-auto rounded-lg border-2 border-gray-200 cursor-pointer hover:border-gabriola-green transition"
-                    style={{ maxHeight: '600px' }}
-                    title="Click to view full size"
-                  />
+                  <ImageGallery images={images} />
                 </div>
               )}
 
@@ -416,6 +427,7 @@ export default function ThreadPage() {
           onSuccess={() => {
             setShowEditModal(false);
             fetchThread();
+            fetchImages();
           }}
         />
       )}

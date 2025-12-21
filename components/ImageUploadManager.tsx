@@ -1,6 +1,6 @@
 // components/ImageUploadManager.tsx
-// Version: 1.0.0 - Multi-image upload with paste, drag-to-reorder, and previews
-// Date: 2025-12-20
+// Version: 1.1.0 - Parallel image processing + clearer multi-select UX
+// Date: 2025-12-21
 
 'use client';
 
@@ -97,9 +97,10 @@ export default function ImageUploadManager({
       return;
     }
 
-    for (const file of files.slice(0, remainingSlots)) {
-      await processImageFile(file);
-    }
+    // Process all images in parallel for better UX
+    await Promise.all(
+      files.slice(0, remainingSlots).map(file => processImageFile(file))
+    );
 
     // Reset input
     if (fileInputRef.current) {
@@ -193,7 +194,7 @@ export default function ImageUploadManager({
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent disabled:bg-gray-100"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Or paste images with Ctrl+V (Cmd+V on Mac) • Max 10MB per image
+            Select multiple files at once • Or paste images with Ctrl+V (Cmd+V on Mac) • Max 10MB per image
           </p>
         </div>
       </div>
