@@ -1,99 +1,130 @@
 // components/ForumWidget.tsx
 // Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.2.1 - Fixed text cutoff on desktop (icon+title+descriptions all shifted left)
+// Version: 5.4.0 - ULTRA-FIX for BOTH title and description cutoff
 // Date: 2025-12-20
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MessageSquare } from 'lucide-react';
-
-interface LatestPost {
-  id: string;
-  title: string;
-  created_at: string;
-}
+import Link from 'next/link';
 
 export function ForumWidget() {
   const [activeCount, setActiveCount] = useState(0);
-  const [latestPost, setLatestPost] = useState<LatestPost | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [latestTopic, setLatestTopic] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        // Call public function (works for anon users too)
-        const { data, error } = await supabase.rpc('get_forum_stats');
+    fetchForumStats();
+    
+    // Subscribe to changes
+    const channel = supabase
+      .channel('forum_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'bbs_posts'
+      }, () => {
+        fetchForumStats();
+      })
+      .subscribe();
 
-        if (error) {
-          console.error('Error loading forum stats:', error);
-          return;
-        }
-
-        if (data) {
-          setActiveCount(data.activeCount || 0);
-          setLatestPost(data.latestPost || null);
-        }
-      } catch (error) {
-        console.error('Error loading forum stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    loadStats();
-
-    // Refresh every minute
-    const interval = setInterval(loadStats, 60000);
-    return () => clearInterval(interval);
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="text-white/70 text-sm">
-        Loading...
-      </div>
-    );
-  }
+  const fetchForumStats = async () => {
+    try {
+      // Get active discussion count
+      const { count } = await supabase
+        .from('bbs_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .is('deleted_at', null);
 
-  // Truncate title if too long
-  const displayTitle = latestPost && latestPost.title.length > 40
-    ? latestPost.title.substring(0, 37) + '...'
-    : latestPost?.title;
+      setActiveCount(count || 0);
+
+      // Get latest topic
+      const { data: latest } = await supabase
+        .from('bbs_posts')
+        .select('title')
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latest) {
+        setLatestTopic(latest.title);
+      }
+    } catch (error) {
+      console.error('Error fetching forum stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-3">
-      {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-      <div className="flex items-center gap-3">
-        {/* Big Icon in Circle - reduced padding from p-4 to p-3 */}
-        <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-          <MessageSquare className="w-9 h-9 text-white" />
+    <Link
+      href="/community"
+      className="group bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 p-6 text-white overflow-hidden relative"
+    >
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-16 translate-x-16"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-12 -translate-x-12"></div>
+      </div>
+
+      {/* Content */}
+      <div className="relative">
+        {/* Header - MAXIMUM COMPRESSION */}
+        <div className="flex items-center gap-1 mb-2.5">
+          {/* Tiny icon */}
+          <div className="p-1.5 bg-white/20 rounded-full flex-shrink-0">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          {/* Smaller title with tighter letter spacing */}
+          <h3 className="text-lg font-bold leading-none tracking-tight">Community</h3>
         </div>
-        
-        {/* Big Title */}
-        <h3 className="text-3xl font-bold text-white">
-          Community
-        </h3>
-      </div>
-      
-      {/* Subtitle - shifted left to prevent text cutoff */}
-      <div className="text-sm text-white/90 font-medium -ml-1">
-        Forum*Emergency*Map*News*Volunteer
-      </div>
-      
-      {/* Active Count - Medium Size, shifted left */}
-      <div className="text-lg font-semibold text-white -ml-1">
-        {activeCount} active {activeCount === 1 ? 'discussion' : 'discussions'}
-      </div>
-      
-      {/* Latest Thread - Readable Size, shifted left */}
-      {latestPost && (
-        <div className="text-base font-medium text-white/90 line-clamp-2 -ml-1">
-          Latest: {displayTitle}
+
+        {/* Description - Two lines, very compact */}
+        <div className="text-[10px] text-blue-100 mb-3 leading-tight -mt-0.5">
+          Forum • Emergency • Map
+          <br />
+          News • Volunteer
         </div>
-      )}
-    </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            <div className="h-6 bg-white/20 rounded animate-pulse"></div>
+            <div className="h-4 bg-white/20 rounded w-3/4 animate-pulse"></div>
+          </div>
+        ) : (
+          <>
+            {/* Active Discussions */}
+            <div className="mb-2">
+              <p className="text-2xl sm:text-3xl font-bold">{activeCount} active discussions</p>
+            </div>
+
+            {/* Latest Topic */}
+            {latestTopic && (
+              <div className="pt-2 border-t border-white/20">
+                <p className="text-[10px] text-blue-100">Latest:</p>
+                <p className="font-medium text-xs sm:text-sm truncate">{latestTopic}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Hover Arrow */}
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </Link>
   );
 }
-
