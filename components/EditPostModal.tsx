@@ -1,6 +1,6 @@
 // components/EditPostModal.tsx
-// Version: 1.0.0 - Edit post content and images
-// Date: 2025-12-20
+// Version: 1.0.1 - Fixed author_id → user_id field name bug
+// Date: 2025-12-21
 
 'use client';
 
