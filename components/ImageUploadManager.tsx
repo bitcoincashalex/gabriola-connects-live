@@ -1,10 +1,10 @@
 // components/ImageUploadManager.tsx
-// Version: 1.1.1 - CRITICAL: Fixed state closure bug preventing multiple file uploads
+// Version: 1.1.3 - Fixed stale closure with useRef for controlled component
 // Date: 2025-12-21
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Image as ImageIcon, GripVertical, Loader2 } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompression';
 
@@ -32,21 +32,23 @@ export default function ImageUploadManager({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef<ImageData[]>(images);
 
-  const processImageFile = async (file: File): Promise<ImageData | null> => {
+  // Keep ref in sync with prop
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+
+  const updateImageById = (id: string, updateFn: (img: ImageData) => ImageData) => {
+    onImagesChange(imagesRef.current.map(img => img.id === id ? updateFn(img) : img));
+  };
+
+  const removeImageById = (id: string) => {
+    onImagesChange(imagesRef.current.filter(img => img.id !== id));
+  };
+
+  const processImageFile = async (file: File, tempId: string): Promise<ImageData | null> => {
     try {
-      // Create temporary ID
-      const tempId = `temp-${Date.now()}-${Math.random()}`;
-      
-      // Add placeholder while compressing (use functional setState!)
-      const placeholder: ImageData = {
-        id: tempId,
-        url: '',
-        compressing: true
-      };
-      
-      onImagesChange(prevImages => [...prevImages, placeholder]);
-
       // Compress image
       const result = await compressImage(file, {
         maxWidth: 1920,
@@ -56,8 +58,7 @@ export default function ImageUploadManager({
       });
 
       if (!result.success) {
-        // Remove placeholder on error (use functional setState!)
-        onImagesChange(prevImages => prevImages.filter(img => img.id !== tempId));
+        removeImageById(tempId);
         alert(result.error);
         return null;
       }
@@ -73,10 +74,8 @@ export default function ImageUploadManager({
             compressing: false
           };
           
-          // Replace placeholder with actual image (use functional setState!)
-          onImagesChange(prevImages => 
-            prevImages.map(img => img.id === tempId ? imageData : img)
-          );
+          // Update the placeholder with actual image data
+          updateImageById(tempId, () => imageData);
           
           resolve(imageData);
         };
@@ -84,22 +83,35 @@ export default function ImageUploadManager({
       });
     } catch (err) {
       console.error('Image processing error:', err);
+      removeImageById(tempId);
       return null;
     }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const remainingSlots = maxImages - images.length;
+    const remainingSlots = maxImages - imagesRef.current.length;
     
     if (files.length > remainingSlots) {
       alert(`You can only add ${remainingSlots} more image(s). Maximum is ${maxImages}.`);
       return;
     }
 
-    // Process all images in parallel for better UX
+    // Create placeholders for ALL files upfront
+    const placeholders = files.slice(0, remainingSlots).map((file, index) => ({
+      id: `temp-${Date.now()}-${index}`,
+      url: '',
+      compressing: true
+    }));
+
+    // Add all placeholders at once
+    onImagesChange([...imagesRef.current, ...placeholders]);
+
+    // Process all files in parallel
     await Promise.all(
-      files.slice(0, remainingSlots).map(file => processImageFile(file))
+      files.slice(0, remainingSlots).map((file, index) => 
+        processImageFile(file, placeholders[index].id)
+      )
     );
 
     // Reset input
@@ -118,14 +130,26 @@ export default function ImageUploadManager({
       if (item.type.indexOf('image') !== -1) {
         e.preventDefault();
         
-        if (images.length >= maxImages) {
+        if (imagesRef.current.length >= maxImages) {
           alert(`Maximum ${maxImages} images allowed.`);
           return;
         }
 
         const file = item.getAsFile();
         if (file) {
-          await processImageFile(file);
+          // Create placeholder with unique ID
+          const tempId = `temp-${Date.now()}-${Math.random()}`;
+          const placeholder: ImageData = {
+            id: tempId,
+            url: '',
+            compressing: true
+          };
+          
+          // Add placeholder
+          onImagesChange([...imagesRef.current, placeholder]);
+          
+          // Process the file
+          await processImageFile(file, tempId);
         }
       }
     }
