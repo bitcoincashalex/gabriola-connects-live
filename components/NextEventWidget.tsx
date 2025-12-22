@@ -1,6 +1,6 @@
 // components/NextEventWidget.tsx
-// Shows next upcoming event - REDESIGNED
-// Version: 4.2.0 - Added timeout error state + changed subtitle to "Next upcoming event"
+// Shows next 2 upcoming events - REDESIGNED
+// Version: 4.3.0 - Shows 2 events instead of 1
 // Date: 2025-12-22
 
 'use client';
@@ -20,19 +20,19 @@ interface EventInfo {
 }
 
 export function NextEventWidget() {
-  const [nextEvent, setNextEvent] = useState<EventInfo | null>(null);
+  const [nextEvents, setNextEvents] = useState<EventInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    const loadNextEvent = async () => {
+    const loadNextEvents = async () => {
       try {
         setHasError(false);
         const now = new Date();
         const today = format(now, 'yyyy-MM-dd');
         const currentTime = format(now, 'HH:mm:ss');
 
-        // Try to get events happening later TODAY (with timeout)
+        // Try to get events happening later TODAY (with timeout) - get 2
         let { data, error } = await queryWithTimeout(async () =>
           supabase
             .from('events')
@@ -42,11 +42,14 @@ export function NextEventWidget() {
             .eq('start_date', today)
             .gt('start_time', currentTime)
             .order('start_time', { ascending: true })
-            .limit(1)
+            .limit(2)
         );
 
-        // If no events later today, get first event from tomorrow onwards
-        if (!data || data.length === 0) {
+        // If we have less than 2 events today, get more from tomorrow onwards
+        if (!data || data.length < 2) {
+          const todayEvents = data || [];
+          const remaining = 2 - todayEvents.length;
+          
           const result = await queryWithTimeout(async () =>
             supabase
               .from('events')
@@ -56,33 +59,34 @@ export function NextEventWidget() {
               .gt('start_date', today)
               .order('start_date', { ascending: true })
               .order('start_time', { ascending: true })
-              .limit(1)
+              .limit(remaining)
           );
           
-          data = result.data;
+          // Combine today's events with future events
+          data = [...todayEvents, ...(result.data || [])];
           error = result.error;
         }
 
         if (error) {
-          console.error('Error loading next event:', error);
-          setNextEvent(null);
+          console.error('Error loading next events:', error);
+          setNextEvents([]);
           return;
         }
 
-        setNextEvent(data && data.length > 0 ? data[0] : null);
+        setNextEvents(data || []);
       } catch (error) {
-        console.error('Error loading next event:', error);
+        console.error('Error loading next events:', error);
         setHasError(true);
-        setNextEvent(null);
+        setNextEvents([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadNextEvent();
+    loadNextEvents();
 
     // Refresh every 5 minutes
-    const interval = setInterval(loadNextEvent, 300000);
+    const interval = setInterval(loadNextEvents, 300000);
     return () => clearInterval(interval);
   }, []);
 
@@ -105,7 +109,7 @@ export function NextEventWidget() {
           <h3 className="text-3xl font-bold text-white">Calendar</h3>
         </div>
         
-        <div className="text-sm text-white/90">Next upcoming event</div>
+        <div className="text-sm text-white/90">Upcoming events</div>
         
         {/* Timeout Error State */}
         <div className="text-center py-2">
@@ -123,7 +127,7 @@ export function NextEventWidget() {
     );
   }
 
-  if (!nextEvent) {
+  if (nextEvents.length === 0) {
     return (
       <div className="space-y-3">
         {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
@@ -141,7 +145,7 @@ export function NextEventWidget() {
         
         {/* Description - CHANGED */}
         <div className="text-sm text-white/90">
-          Next upcoming event
+          Upcoming events
         </div>
         
         <div className="text-sm text-white/70">
@@ -151,32 +155,37 @@ export function NextEventWidget() {
     );
   }
 
-  // Format the date
-  const eventDate = parseISO(nextEvent.start_date);
-  let dateDisplay: string;
-  
-  if (isToday(eventDate)) {
-    dateDisplay = 'Today';
-  } else if (isTomorrow(eventDate)) {
-    dateDisplay = 'Tomorrow';
-  } else {
-    dateDisplay = format(eventDate, 'MMM d');
-  }
+  // Helper function to format date display
+  const formatDateDisplay = (dateString: string): string => {
+    const eventDate = parseISO(dateString);
+    if (isToday(eventDate)) {
+      return 'Today';
+    } else if (isTomorrow(eventDate)) {
+      return 'Tomorrow';
+    } else {
+      return format(eventDate, 'MMM d');
+    }
+  };
 
-  // Format the time
-  const timeDisplay = nextEvent.start_time 
-    ? format(parseISO(`2000-01-01T${nextEvent.start_time}`), 'h:mm a')
-    : 'All day';
+  // Helper function to format time display
+  const formatTimeDisplay = (timeString: string | null): string => {
+    if (!timeString) return 'All day';
+    return format(parseISO(`2000-01-01T${timeString}`), 'h:mm a');
+  };
 
-  // Truncate title if too long
-  const displayTitle = nextEvent.title.length > 40 
-    ? nextEvent.title.substring(0, 37) + '...'
-    : nextEvent.title;
+  // Get first and second events
+  const firstEvent = nextEvents[0];
+  const secondEvent = nextEvents[1];
 
-  // Truncate location if too long
-  const displayLocation = nextEvent.location.length > 30
-    ? nextEvent.location.substring(0, 27) + '...'
-    : nextEvent.location;
+  // Format first event data
+  const firstDateDisplay = formatDateDisplay(firstEvent.start_date);
+  const firstTimeDisplay = formatTimeDisplay(firstEvent.start_time);
+  const firstTitle = firstEvent.title.length > 40 
+    ? firstEvent.title.substring(0, 37) + '...'
+    : firstEvent.title;
+  const firstLocation = firstEvent.location.length > 30
+    ? firstEvent.location.substring(0, 27) + '...'
+    : firstEvent.location;
 
   return (
     <div className="space-y-3">
@@ -195,24 +204,51 @@ export function NextEventWidget() {
       
       {/* Description - CHANGED */}
       <div className="text-sm text-white/90">
-        Next upcoming event
+        Upcoming events
       </div>
       
-      {/* Event Title - Readable & Bold */}
-      <div className="text-base font-semibold text-white line-clamp-2">
-        {displayTitle}
-      </div>
-      
-      {/* Date & Time - Medium & Visible */}
-      <div className="text-lg font-medium text-white/90">
-        {dateDisplay} • {timeDisplay}
-      </div>
-      
-      {/* Location - Supporting Info */}
-      {nextEvent.location && (
-        <div className="text-sm text-white/80">
-          📍 {displayLocation}
+      {/* FIRST Event - Full Details */}
+      <div className="space-y-1">
+        {/* Event Title - Readable & Bold */}
+        <div className="text-base font-semibold text-white line-clamp-2">
+          {firstTitle}
         </div>
+        
+        {/* Date & Time - Medium & Visible */}
+        <div className="text-lg font-medium text-white/90">
+          {firstDateDisplay} • {firstTimeDisplay}
+        </div>
+        
+        {/* Location - Supporting Info */}
+        {firstEvent.location && (
+          <div className="text-sm text-white/80">
+            📍 {firstLocation}
+          </div>
+        )}
+      </div>
+
+      {/* SECOND Event (if exists) - Compact */}
+      {secondEvent && (
+        <>
+          <div className="border-t border-white/20 pt-2">
+            <div className="text-xs text-white/70 mb-1">Next:</div>
+            <div className="text-sm font-medium text-white line-clamp-1">
+              {secondEvent.title.length > 35 
+                ? secondEvent.title.substring(0, 32) + '...'
+                : secondEvent.title}
+            </div>
+            <div className="text-sm text-white/80">
+              {formatDateDisplay(secondEvent.start_date)} • {formatTimeDisplay(secondEvent.start_time)}
+            </div>
+            {secondEvent.location && (
+              <div className="text-xs text-white/70">
+                📍 {secondEvent.location.length > 25 
+                  ? secondEvent.location.substring(0, 22) + '...'
+                  : secondEvent.location}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
