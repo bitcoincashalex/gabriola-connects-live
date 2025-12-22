@@ -1,6 +1,6 @@
 // components/NextEventWidget.tsx
 // Shows next 2 upcoming events - REDESIGNED
-// Version: 4.3.0 - Shows 2 events instead of 1
+// Version: 4.3.1 - Removed "Next:" label, made 2nd event bigger and more readable
 // Date: 2025-12-22
 
 'use client';
@@ -227,23 +227,25 @@ export function NextEventWidget() {
         )}
       </div>
 
-      {/* SECOND Event (if exists) - Compact */}
+      {/* SECOND Event (if exists) - Bigger without "Next:" label */}
       {secondEvent && (
         <>
-          <div className="border-t border-white/20 pt-2">
-            <div className="text-xs text-white/70 mb-1">Next:</div>
-            <div className="text-sm font-medium text-white line-clamp-1">
-              {secondEvent.title.length > 35 
-                ? secondEvent.title.substring(0, 32) + '...'
+          <div className="border-t border-white/20 pt-2.5">
+            {/* Title - Bigger and more readable */}
+            <div className="text-base font-semibold text-white line-clamp-1">
+              {secondEvent.title.length > 40 
+                ? secondEvent.title.substring(0, 37) + '...'
                 : secondEvent.title}
             </div>
-            <div className="text-sm text-white/80">
+            {/* Date & Time - Bigger */}
+            <div className="text-base font-medium text-white/90 mt-1">
               {formatDateDisplay(secondEvent.start_date)} • {formatTimeDisplay(secondEvent.start_time)}
             </div>
+            {/* Location - More readable */}
             {secondEvent.location && (
-              <div className="text-xs text-white/70">
-                📍 {secondEvent.location.length > 25 
-                  ? secondEvent.location.substring(0, 22) + '...'
+              <div className="text-sm text-white/80 mt-0.5">
+                📍 {secondEvent.location.length > 30 
+                  ? secondEvent.location.substring(0, 27) + '...'
                   : secondEvent.location}
               </div>
             )}
