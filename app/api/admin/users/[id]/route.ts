@@ -1,7 +1,7 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.3 - Added alert_organization field (FIXED: "No valid fields" error)
-// Date: 2025-12-20
+// Version: 1.0.4 - FIXED: Added 'role' field to allowed fields (was causing 400 error)
+// Date: 2025-12-21
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -53,6 +53,8 @@ export async function PATCH(
 
     // Validate that we're only updating allowed fields
     const allowedFields = [
+      // User role
+      'role',
       // Admin roles
       'is_super_admin',
       'admin_events',
