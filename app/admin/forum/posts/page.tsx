@@ -284,7 +284,7 @@ export default function PostModerationPage() {
 
   const handleMoveToDeleted = async (postId: string) => {
     if (!isForumAdmin) return;
-    if (!confirm('Move this post to deleted posts? Only super admin can restore it after this.')) return;
+    if (!confirm('Are you sure you want to delete this post?')) return;
 
     try {
       // 1. Get the post data
