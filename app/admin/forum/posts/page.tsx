@@ -1,6 +1,6 @@
 // app/admin/forum/posts/page.tsx
-// Version: 1.0.0 - Post Moderation Admin Page
-// Date: 2025-12-11
+// Version: 2.1.0 - Correct two-level delete: soft delete in bbs_posts, Forum Admin can move to bbs_deleted_posts
+// Date: 2025-12-21
 
 'use client';
 
@@ -81,6 +81,7 @@ export default function PostModerationPage() {
 
   const fetchPosts = async () => {
     try {
+      // Only fetch from bbs_posts (includes soft-deleted with deleted_at)
       const { data, error } = await supabase
         .from('bbs_posts')
         .select('*')
@@ -215,18 +216,7 @@ export default function PostModerationPage() {
 
     setActionLoading(true);
     try {
-      // Store in deleted_posts table first
-      const { error: backupError } = await supabase
-        .from('bbs_deleted_posts')
-        .insert({
-          original_id: selectedPost.id,
-          data: selectedPost,
-          deleted_by: user?.id
-        });
-
-      if (backupError) throw backupError;
-
-      // Soft delete - mark as deleted
+      // Soft delete - mark as deleted in bbs_posts
       const { error: deleteError } = await supabase
         .from('bbs_posts')
         .update({
@@ -250,12 +240,96 @@ export default function PostModerationPage() {
       setShowDeleteModal(false);
       setDeleteReason('');
       setSelectedPost(null);
+      alert('Post soft deleted. You can restore it or permanently delete it from the admin panel.');
       fetchPosts();
     } catch (error) {
       console.error('Error deleting post:', error);
       alert('Failed to delete post');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleRestorePost = async (postId: string) => {
+    if (!isForumAdmin) return;
+    if (!confirm('Restore this post? It will become visible in the forum again.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('bbs_posts')
+        .update({
+          deleted_at: null,
+          deleted_by: null,
+          is_active: true
+        })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      // Log action
+      await supabase.rpc('log_moderation_action', {
+        p_moderator_id: user?.id,
+        p_action_type: 'restore_post',
+        p_target_type: 'post',
+        p_target_id: postId
+      });
+
+      alert('Post restored successfully!');
+      fetchPosts();
+    } catch (error) {
+      console.error('Error restoring post:', error);
+      alert('Failed to restore post');
+    }
+  };
+
+  const handleMoveToDeleted = async (postId: string) => {
+    if (!isForumAdmin) return;
+    if (!confirm('Move this post to deleted posts? Only super admin can restore it after this.')) return;
+
+    try {
+      // 1. Get the post data
+      const { data: post, error: fetchError } = await supabase
+        .from('bbs_posts')
+        .select('*')
+        .eq('id', postId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!post) throw new Error('Post not found');
+
+      // 2. Move to bbs_deleted_posts
+      const { error: moveError } = await supabase
+        .from('bbs_deleted_posts')
+        .insert({
+          original_id: post.id,
+          data: post,
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id
+        });
+
+      if (moveError) throw moveError;
+
+      // 3. Delete from bbs_posts
+      const { error: deleteError } = await supabase
+        .from('bbs_posts')
+        .delete()
+        .eq('id', postId);
+
+      if (deleteError) throw deleteError;
+
+      // 4. Log action
+      await supabase.rpc('log_moderation_action', {
+        p_moderator_id: user?.id,
+        p_action_type: 'move_to_deleted',
+        p_target_type: 'post',
+        p_target_id: postId
+      });
+
+      alert('Post moved to deleted posts. Only super admin can access it now.');
+      fetchPosts();
+    } catch (error) {
+      console.error('Error moving post to deleted:', error);
+      alert('Failed to move post: ' + (error as Error).message);
     }
   };
 
@@ -289,6 +363,17 @@ export default function PostModerationPage() {
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Post Moderation</h1>
           <p className="text-gray-600">Review, hide, pin, and manage forum posts</p>
+          
+          {/* Super Admin Link to Deleted Posts */}
+          {user?.is_super_admin && (
+            <Link
+              href="/admin/forum/deleted-posts"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium"
+            >
+              <Trash2 className="w-4 h-4" />
+              View Permanently Deleted Posts ({filteredPosts.filter(p => p.deleted_at).length} soft-deleted here)
+            </Link>
+          )}
         </div>
 
         {/* Stats Bar */}
@@ -435,13 +520,21 @@ export default function PostModerationPage() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
-                  <Link
-                    href={`/community/thread/${post.id}`}
-                    target="_blank"
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition"
-                  >
-                    View Post
-                  </Link>
+                  {post.deleted_at ? (
+                    // Soft-deleted post - show disabled View link
+                    <span className="px-3 py-1 bg-gray-200 text-gray-500 rounded-lg text-sm cursor-not-allowed">
+                      View Post (Deleted)
+                    </span>
+                  ) : (
+                    // Active post - show working link
+                    <Link
+                      href={`/community/thread/${post.id}`}
+                      target="_blank"
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 transition"
+                    >
+                      View Post
+                    </Link>
+                  )}
 
                   {!post.deleted_at && (
                     <>
@@ -483,6 +576,27 @@ export default function PostModerationPage() {
                           </button>
                         </>
                       )}
+                    </>
+                  )}
+
+                  {/* Actions for SOFT-DELETED posts - Forum Admin can restore or permanently delete */}
+                  {post.deleted_at && isForumAdmin && (
+                    <>
+                      <button
+                        onClick={() => handleRestorePost(post.id)}
+                        className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200 transition flex items-center gap-1 font-medium"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                        Restore Post
+                      </button>
+
+                      <button
+                        onClick={() => handleMoveToDeleted(post.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition flex items-center gap-1 font-medium"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Permanently
+                      </button>
                     </>
                   )}
 
