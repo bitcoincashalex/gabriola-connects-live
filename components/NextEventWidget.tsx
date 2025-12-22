@@ -1,12 +1,12 @@
 // components/NextEventWidget.tsx
 // Shows next upcoming event - REDESIGNED
-// Version: 4.0.0 - Big icon left, big title right (like Alerts)
-// Date: 2025-12-11
+// Version: 4.1.0 - Added query timeout to prevent infinite loading on stale auth
+// Date: 2025-12-22
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
 import { Calendar } from 'lucide-react';
 
@@ -29,28 +29,32 @@ export function NextEventWidget() {
         const today = format(now, 'yyyy-MM-dd');
         const currentTime = format(now, 'HH:mm:ss');
 
-        // Try to get events happening later TODAY
-        let { data, error } = await supabase
-          .from('events')
-          .select('id, title, start_date, start_time, location')
-          .eq('is_approved', true)
-          .is('deleted_at', null)
-          .eq('start_date', today)
-          .gt('start_time', currentTime)
-          .order('start_time', { ascending: true })
-          .limit(1);
-
-        // If no events later today, get first event from tomorrow onwards
-        if (!data || data.length === 0) {
-          const result = await supabase
+        // Try to get events happening later TODAY (with timeout)
+        let { data, error } = await queryWithTimeout(async () =>
+          supabase
             .from('events')
             .select('id, title, start_date, start_time, location')
             .eq('is_approved', true)
             .is('deleted_at', null)
-            .gt('start_date', today)
-            .order('start_date', { ascending: true })
+            .eq('start_date', today)
+            .gt('start_time', currentTime)
             .order('start_time', { ascending: true })
-            .limit(1);
+            .limit(1)
+        );
+
+        // If no events later today, get first event from tomorrow onwards
+        if (!data || data.length === 0) {
+          const result = await queryWithTimeout(async () =>
+            supabase
+              .from('events')
+              .select('id, title, start_date, start_time, location')
+              .eq('is_approved', true)
+              .is('deleted_at', null)
+              .gt('start_date', today)
+              .order('start_date', { ascending: true })
+              .order('start_time', { ascending: true })
+              .limit(1)
+          );
           
           data = result.data;
           error = result.error;
