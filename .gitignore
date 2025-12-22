@@ -35,3 +35,10 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# Backup and temp files
+*.txt
+*Copy*
+*.bak
+*.backup
+Backups/

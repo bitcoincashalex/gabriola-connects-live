@@ -1,6 +1,6 @@
 // Path: components/Ferry.tsx
-// Version: 2.2.0 - Last updated now shows date and time
-// Date: 2025-12-20
+// Version: 2.2.1 - Changed timestamp format to readable date/time (December 21st 2025, 3:50:00 pm)
+// Date: 2025-12-21
 
 'use client';
 
@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { getMockFerryStatus } from '@/lib/data';
 import { Anchor, RefreshCw, Clock, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { format } from 'date-fns';
 
 interface Sailing {
   time: string;
@@ -171,7 +172,7 @@ export default function Ferry() {
           )}
 
           <div className="text-xs text-gray-500 mt-3">
-            Last updated: {status.lastUpdated.toLocaleString()}
+            Last updated: {format(status.lastUpdated, 'MMMM do yyyy, h:mm:ss a')}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-300">

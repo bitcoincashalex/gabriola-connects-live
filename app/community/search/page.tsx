@@ -1,7 +1,7 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 4.0.0 - MAJOR: Added all new filters from main search (alert org, event org/registration/accessibility, directory pet/wifi)
-// Date: 2025-12-20
+// Version: 4.0.1 - Fixed footer layout (full width at bottom)
+// Date: 2025-12-21
 
 'use client';
 
@@ -558,7 +558,9 @@ export default function CommunitySearchPage() {
   const filterCount = activeFilterCount();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Advanced Search</h1>
@@ -1297,6 +1299,8 @@ export default function CommunitySearchPage() {
         onClose={() => setSelectedBusiness(null)}
       />
       
+        </div>
+      </main>
       <Footer />
     </div>
   );

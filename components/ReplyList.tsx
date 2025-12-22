@@ -1,6 +1,6 @@
 // Path: components/ReplyList.tsx
-// Version: 5.0.0 - Added Edit button for reply authors
-// Date: 2025-12-20
+// Version: 5.1.0 - Added multi-image support from bbs_reply_images table
+// Date: 2025-12-21
 
 'use client';
 
@@ -13,7 +13,9 @@ import ReplyForm from '@/components/ReplyForm';
 import SendMessageModal from '@/components/SendMessageModal';
 import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
+import ImageGallery from '@/components/ImageGallery';
 import EditReplyModal from '@/components/EditReplyModal';
+import LinkifyText from '@/components/LinkifyText';
 
 interface Reply {
   id: string;
@@ -149,6 +151,28 @@ export default function ReplyList({ postId, onRefresh }: Props) {
     const isReplying = replyingTo === reply.id;
     const canMessage = user && !reply.is_anonymous && reply.user_id !== user.id;
 
+    // Multi-image support
+    const [images, setImages] = useState<any[]>([]);
+    const [imagesLoading, setImagesLoading] = useState(true);
+
+    useEffect(() => {
+      fetchReplyImages();
+    }, [reply.id]);
+
+    const fetchReplyImages = async () => {
+      setImagesLoading(true);
+      const { data, error } = await supabase
+        .from('bbs_reply_images')
+        .select('*')
+        .eq('reply_id', reply.id)
+        .order('display_order', { ascending: true });
+
+      if (!error && data) {
+        setImages(data);
+      }
+      setImagesLoading(false);
+    };
+
     return (
       <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200' : ''}`}>
         <div className="bg-white rounded-xl shadow-sm p-5 mb-4 relative group">
@@ -271,23 +295,16 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                 </a>
               )}
 
-              {/* Image */}
-              {reply.image_url && (
+              {/* Multi-Image Gallery */}
+              {!imagesLoading && images.length > 0 && (
                 <div className="mb-3">
-                  <img 
-                    src={reply.image_url} 
-                    alt="Reply attachment" 
-                    onClick={() => setLightboxImage(reply.image_url)}
-                    className="max-w-full h-auto rounded-lg border-2 border-gray-200 cursor-pointer hover:border-gabriola-green transition"
-                    style={{ maxHeight: '400px' }}
-                    title="Click to view full size"
-                  />
+                  <ImageGallery images={images} />
                 </div>
               )}
 
               {/* Body */}
               <div className="whitespace-pre-wrap text-gray-800 mb-3">
-                {reply.body}
+                <LinkifyText>{reply.body}</LinkifyText>
               </div>
 
               {/* Actions */}

@@ -1,7 +1,7 @@
 // app/search/page.tsx
 // Complete schemas: Alert (15 fields), DirectoryBusiness (73 fields), Event (62 fields), FerrySchedule (12 fields)
-// Version: 4.0.0 - MAJOR: Expanded search fields + added advanced filters (alerts org, events org/registration/accessibility, directory amenities)
-// Date: 2025-12-20
+// Version: 4.0.1 - Fixed footer layout (full width at bottom)
+// Date: 2025-12-21
 
 'use client';
 
@@ -536,7 +536,9 @@ function SearchPageContent() {
     wheelchairAccessible || acceptsCredit || offersDelivery || petFriendly || hasWifi || hasParking;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 py-8">
       
       {/* Search Input Section */}
       <div className="mb-8">
@@ -1176,6 +1178,8 @@ function SearchPageContent() {
         </div>
       )}
       
+        </div>
+      </main>
       <Footer />
     </div>
   );
