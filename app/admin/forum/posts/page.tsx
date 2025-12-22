@@ -301,6 +301,7 @@ export default function PostModerationPage() {
       const { error: moveError } = await supabase
         .from('bbs_deleted_posts')
         .insert({
+          id: crypto.randomUUID(), // Generate UUID for id field
           original_id: post.id,
           data: post,
           deleted_at: new Date().toISOString(),
