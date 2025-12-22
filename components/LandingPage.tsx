@@ -1,6 +1,6 @@
 // components/LandingPage.tsx
-// v5.0.0 - Fixed navigation: Community card → /community-hub, Forum emoji → /community
-// Date: 2025-12-20
+// v5.0.1 - Fixed Firefox z-index bug (card background covering widget content)
+// Date: 2025-12-22
 'use client';
 
 import Link from 'next/link';
@@ -413,7 +413,7 @@ export default function LandingPage() {
 
                 <div className={`
                   absolute -bottom-12 -right-12 w-48 h-48 
-                  rounded-full bg-white/10
+                  rounded-full bg-white/10 -z-10
                   transform transition-transform duration-500
                   ${isHovered ? 'scale-150' : 'scale-100'}
                 `} />
