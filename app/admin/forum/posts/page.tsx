@@ -1,5 +1,5 @@
 // app/admin/forum/posts/page.tsx
-// Version: 2.1.0 - Correct two-level delete: soft delete in bbs_posts, Forum Admin can move to bbs_deleted_posts
+// Version: 2.1.1 - Changed alert message to not mention super admin
 // Date: 2025-12-21
 
 'use client';
@@ -326,7 +326,7 @@ export default function PostModerationPage() {
         p_target_id: postId
       });
 
-      alert('Post moved to deleted posts. Only super admin can access it now.');
+      alert('Post deleted successfully.');
       fetchPosts();
     } catch (error) {
       console.error('Error moving post to deleted:', error);
