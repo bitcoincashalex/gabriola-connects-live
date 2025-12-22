@@ -1,11 +1,12 @@
 // components/AlertsWidget.tsx
-// v1.0.0 - Shows top active alert summary for landing page
-// Date: 2025-12-11
+// v2.0.0 - Shows top active alert summary for landing page + timeout handling
+// Date: 2025-12-22
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
 import { AlertTriangle, Info, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 interface Alert {
   id: string;
@@ -19,6 +20,7 @@ interface Alert {
 export function AlertsWidget() {
   const [topAlert, setTopAlert] = useState<Alert | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     fetchTopAlert();
@@ -26,13 +28,16 @@ export function AlertsWidget() {
 
   const fetchTopAlert = async () => {
     try {
-      // Get all active alerts (can't sort severity properly in SQL)
-      const { data, error } = await supabase
-        .from('alerts')
-        .select('id, title, message, severity, category, created_at')
-        .eq('active', true)
-        .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
-        .order('created_at', { ascending: false });
+      setHasError(false);
+      // Get all active alerts (with timeout)
+      const { data, error } = await queryWithTimeout(async () =>
+        supabase
+          .from('alerts')
+          .select('id, title, message, severity, category, created_at')
+          .eq('active', true)
+          .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`)
+          .order('created_at', { ascending: false })
+      );
 
       if (error || !data || data.length === 0) {
         setTopAlert(null);
@@ -60,6 +65,8 @@ export function AlertsWidget() {
       setTopAlert(sortedAlerts[0]);
     } catch (error) {
       console.error('Error fetching top alert:', error);
+      setHasError(true);
+      setTopAlert(null);
     } finally {
       setLoading(false);
     }
@@ -119,6 +126,22 @@ export function AlertsWidget() {
     return (
       <div className="text-white/70 text-sm">
         Loading alerts...
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="text-center py-2">
+        <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white/90" />
+        <p className="font-medium text-sm mb-1 text-white">Unable to load alerts</p>
+        <p className="text-xs text-white/70 mb-3">Sign in to see the latest</p>
+        <Link
+          href="/signin"
+          className="inline-block px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+        >
+          Sign In
+        </Link>
       </div>
     );
   }

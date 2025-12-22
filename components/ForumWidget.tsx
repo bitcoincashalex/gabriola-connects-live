@@ -1,19 +1,20 @@
 // components/ForumWidget.tsx
-// Shows active discussion count and latest topic - REDESIGNED
-// Version: 5.5.0 - BALANCED fix (halfway between original and ultra) + correct URL
-// Date: 2025-12-20
+// Shows active discussion count and latest topics - REDESIGNED
+// Version: 6.0.0 - Added timeout handling + 3 topics + better text sizing
+// Date: 2025-12-22
 
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { MessageSquare } from 'lucide-react';
+import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
+import { MessageSquare, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function ForumWidget() {
   const [activeCount, setActiveCount] = useState(0);
-  const [latestTopic, setLatestTopic] = useState('');
+  const [latestTopics, setLatestTopics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     fetchForumStats();
@@ -37,30 +38,40 @@ export function ForumWidget() {
 
   const fetchForumStats = async () => {
     try {
-      // Get active discussion count
-      const { count } = await supabase
-        .from('bbs_posts')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .is('deleted_at', null);
+      setHasError(false);
+      
+      // Get active discussion count (with timeout)
+      const { count } = await queryWithTimeout(async () =>
+        supabase
+          .from('bbs_posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true)
+          .is('deleted_at', null)
+      );
 
       setActiveCount(count || 0);
 
-      // Get latest topic
-      const { data: latest } = await supabase
-        .from('bbs_posts')
-        .select('title')
-        .eq('is_active', true)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // Get latest 3 topics (with timeout)
+      const { data: latest } = await queryWithTimeout(async () =>
+        supabase
+          .from('bbs_posts')
+          .select('title')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(3)
+      );
 
-      if (latest) {
-        setLatestTopic(latest.title);
+      if (latest && latest.length > 0) {
+        setLatestTopics(latest.map(post => post.title));
+      } else {
+        setLatestTopics([]);
       }
     } catch (error) {
       console.error('Error fetching forum stats:', error);
+      setHasError(true);
+      setActiveCount(0);
+      setLatestTopics([]);
     } finally {
       setLoading(false);
     }
@@ -79,14 +90,13 @@ export function ForumWidget() {
 
       {/* Content */}
       <div className="relative">
-        {/* Header - BALANCED: Halfway between original (w-10, p-4, gap-4) and ultra (w-5, p-1.5, gap-1) */}
+        {/* Header - Updated text sizing */}
         <div className="flex items-center gap-2.5 mb-3">
-          {/* Medium-sized icon - was 10, became 5, now 7.5 (using w-8) */}
           <div className="p-2.5 bg-white/20 rounded-full flex-shrink-0">
             <MessageSquare className="w-8 h-8" />
           </div>
-          {/* Medium title - was text-2xl, became text-lg, now text-xl */}
-          <h3 className="text-xl font-bold leading-tight">Community</h3>
+          {/* Bigger title */}
+          <h3 className="text-2xl font-bold leading-tight">Community</h3>
         </div>
 
         {/* Description - Two lines, readable size */}
@@ -101,18 +111,38 @@ export function ForumWidget() {
             <div className="h-6 bg-white/20 rounded animate-pulse"></div>
             <div className="h-4 bg-white/20 rounded w-3/4 animate-pulse"></div>
           </div>
+        ) : hasError ? (
+          /* Timeout Error State */
+          <div className="text-center py-2">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-90" />
+            <p className="font-medium text-sm mb-1">Unable to load discussions</p>
+            <p className="text-xs text-blue-100 mb-3">Sign in to see the latest</p>
+            <Link
+              href="/signin"
+              className="inline-block px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Sign In
+            </Link>
+          </div>
         ) : (
           <>
-            {/* Active Discussions */}
+            {/* Active Discussions - Smaller text */}
             <div className="mb-2">
-              <p className="text-2xl sm:text-3xl font-bold">{activeCount} active discussions</p>
+              <p className="text-xl font-semibold">{activeCount} active discussions</p>
             </div>
 
-            {/* Latest Topic */}
-            {latestTopic && (
+            {/* Latest 3 Topics */}
+            {latestTopics.length > 0 && (
               <div className="pt-2 border-t border-white/20">
-                <p className="text-xs text-blue-100">Latest:</p>
-                <p className="font-medium text-sm truncate">{latestTopic}</p>
+                <p className="text-xs text-blue-100 mb-1">Latest:</p>
+                <div className="space-y-1">
+                  {latestTopics.map((topic, idx) => (
+                    <p key={idx} className="text-xs font-medium truncate leading-tight">
+                      • {topic}
+                    </p>
+                  ))}
+                </div>
               </div>
             )}
           </>
