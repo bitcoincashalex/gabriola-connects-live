@@ -1,5 +1,5 @@
 // app/admin/forum/posts/page.tsx
-// Version: 2.1.1 - Changed alert message to not mention super admin
+// Version: 3.0.0 - MINIMAL LOGGING: Only logs delete operations (removed hide/pin logging)
 // Date: 2025-12-21
 
 'use client';
@@ -146,14 +146,6 @@ export default function PostModerationPage() {
 
       if (error) throw error;
 
-      // Log action
-      await supabase.rpc('log_moderation_action', {
-        p_moderator_id: user?.id,
-        p_action_type: currentStatus ? 'unhide_post' : 'hide_post',
-        p_target_type: 'post',
-        p_target_id: postId
-      });
-
       fetchPosts();
     } catch (error) {
       console.error('Error toggling hidden:', error);
@@ -169,14 +161,6 @@ export default function PostModerationPage() {
         .eq('id', postId);
 
       if (error) throw error;
-
-      // Log action
-      await supabase.rpc('log_moderation_action', {
-        p_moderator_id: user?.id,
-        p_action_type: currentStatus ? 'unpin_post' : 'pin_post',
-        p_target_type: 'post',
-        p_target_id: postId
-      });
 
       fetchPosts();
     } catch (error) {
@@ -195,14 +179,6 @@ export default function PostModerationPage() {
         .eq('id', postId);
 
       if (error) throw error;
-
-      // Log action
-      await supabase.rpc('log_moderation_action', {
-        p_moderator_id: user?.id,
-        p_action_type: currentStatus ? 'global_unpin_post' : 'global_pin_post',
-        p_target_type: 'post',
-        p_target_id: postId
-      });
 
       fetchPosts();
     } catch (error) {
