@@ -1,5 +1,5 @@
 // components/ThreadCard.tsx
-// Version: 7.0.5 - Added onConflict to upsert to prevent 409 errors
+// Version: 7.0.6 - Added comprehensive logging + fetch actual score after vote
 // Date: 2025-12-22
 
 'use client';
@@ -87,41 +87,83 @@ export default function ThreadCard({
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!user || voting) return;
     
+    console.log(`[ThreadCard] Voting ${voteType} on post ${thread.id}`);
     setVoting(true);
     
-    // If clicking same vote, remove it
-    if (userVote === voteType) {
-      // Delete vote
-      await supabase
-        .from('bbs_post_votes')
-        .delete()
-        .eq('post_id', thread.id)
-        .eq('user_id', user.id);
+    try {
+      // If clicking same vote, remove it
+      if (userVote === voteType) {
+        console.log(`[ThreadCard] Removing ${voteType} vote`);
+        // Delete vote
+        const { error: deleteError } = await supabase
+          .from('bbs_post_votes')
+          .delete()
+          .eq('post_id', thread.id)
+          .eq('user_id', user.id);
+        
+        if (deleteError) {
+          console.error('[ThreadCard] Error deleting vote:', deleteError);
+        } else {
+          console.log('[ThreadCard] Vote deleted successfully');
+          setUserVote(null);
+          // Optimistically update UI
+          setVoteScore((prev: number) => prev + (voteType === 'upvote' ? -1 : 1));
+        }
+      } else {
+        // Insert or update vote - specify conflict resolution
+        console.log(`[ThreadCard] Upserting ${voteType} vote (previous: ${userVote})`);
+        const { error: upsertError } = await supabase
+          .from('bbs_post_votes')
+          .upsert({
+            post_id: thread.id,
+            user_id: user.id,
+            vote_type: voteType,
+          }, {
+            onConflict: 'post_id,user_id'  // Tell upsert which columns form unique constraint
+          });
+        
+        if (upsertError) {
+          console.error('[ThreadCard] Error upserting vote:', upsertError);
+        } else {
+          console.log('[ThreadCard] Vote upserted successfully');
+          // Optimistically update UI
+          const scoreDelta = voteType === 'upvote' ? 1 : -1;
+          const previousDelta = userVote === 'upvote' ? -1 : userVote === 'downvote' ? 1 : 0;
+          setVoteScore((prev: number) => prev + scoreDelta + previousDelta);
+          setUserVote(voteType);
+        }
+      }
       
-      setUserVote(null);
-      setVoteScore((prev: number) => prev + (voteType === 'upvote' ? -1 : 1));
-    } else {
-      // Insert or update vote - specify conflict resolution
-      await supabase
-        .from('bbs_post_votes')
-        .upsert({
-          post_id: thread.id,
-          user_id: user.id,
-          vote_type: voteType,
-        }, {
-          onConflict: 'post_id,user_id'  // Tell upsert which columns form unique constraint
-        });
+      // Update post vote_score in database and fetch the actual calculated score
+      console.log('[ThreadCard] Calling calculate_post_vote_score RPC...');
+      const { data: rpcData, error: rpcError } = await supabase.rpc('calculate_post_vote_score', { post_uuid: thread.id });
       
-      const scoreDelta = voteType === 'upvote' ? 1 : -1;
-      const previousDelta = userVote === 'upvote' ? -1 : userVote === 'downvote' ? 1 : 0;
-      setVoteScore((prev: number) => prev + scoreDelta + previousDelta);
-      setUserVote(voteType);
+      if (rpcError) {
+        console.error('[ThreadCard] RPC error:', rpcError);
+      } else {
+        console.log('[ThreadCard] RPC result:', rpcData);
+      }
+      
+      // Fetch the actual score from database to ensure accuracy
+      console.log('[ThreadCard] Fetching actual vote_score from database...');
+      const { data: postData, error: fetchError } = await supabase
+        .from('bbs_posts')
+        .select('vote_score')
+        .eq('id', thread.id)
+        .single();
+      
+      if (fetchError) {
+        console.error('[ThreadCard] Error fetching score:', fetchError);
+      } else if (postData) {
+        console.log('[ThreadCard] Actual score from DB:', postData.vote_score);
+        setVoteScore(postData.vote_score || 0);
+      }
+      
+    } catch (error) {
+      console.error('[ThreadCard] Vote error:', error);
+    } finally {
+      setVoting(false);
     }
-    
-    // Update post vote_score in database
-    await supabase.rpc('calculate_post_vote_score', { post_uuid: thread.id });
-    
-    setVoting(false);
   };
 
   const handlePin = async () => {
