@@ -1,6 +1,6 @@
 // components/ThreadCard.tsx
-// Version: 7.0.3 - Added auto-linkify for URLs in body text
-// Date: 2025-12-21
+// Version: 7.0.4 - Fixed voting: changed up/down to upvote/downvote + removed .single()
+// Date: 2025-12-22
 
 'use client';
 
@@ -36,7 +36,7 @@ export default function ThreadCard({
   const [showEditModal, setShowEditModal] = useState(false);
   const [images, setImages] = useState<any[]>([]);
   const [imagesLoading, setImagesLoading] = useState(true);
-  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
+  const [userVote, setUserVote] = useState<'upvote' | 'downvote' | null>(null);
   const [voteScore, setVoteScore] = useState(thread.vote_score || 0);
   const [voting, setVoting] = useState(false);
 
@@ -65,19 +65,26 @@ export default function ThreadCard({
   const fetchUserVote = async () => {
     if (!user) return;
     
-    const { data } = await supabase
+    // FIX: Use array response to avoid 406 error when no vote exists
+    const { data, error } = await supabase
       .from('bbs_post_votes')
       .select('vote_type')
       .eq('post_id', thread.id)
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
 
-    if (data) {
-      setUserVote(data.vote_type);
+    if (error) {
+      console.error('Error fetching vote:', error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setUserVote(data[0].vote_type as 'upvote' | 'downvote');
+    } else {
+      setUserVote(null);
     }
   };
 
-  const handleVote = async (voteType: 'up' | 'down') => {
+  const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!user || voting) return;
     
     setVoting(true);
@@ -92,7 +99,7 @@ export default function ThreadCard({
         .eq('user_id', user.id);
       
       setUserVote(null);
-      setVoteScore((prev: number) => prev + (voteType === 'up' ? -1 : 1));
+      setVoteScore((prev: number) => prev + (voteType === 'upvote' ? -1 : 1));
     } else {
       // Insert or update vote
       await supabase
@@ -103,8 +110,8 @@ export default function ThreadCard({
           vote_type: voteType,
         });
       
-      const scoreDelta = voteType === 'up' ? 1 : -1;
-      const previousDelta = userVote === 'up' ? -1 : userVote === 'down' ? 1 : 0;
+      const scoreDelta = voteType === 'upvote' ? 1 : -1;
+      const previousDelta = userVote === 'upvote' ? -1 : userVote === 'downvote' ? 1 : 0;
       setVoteScore((prev: number) => prev + scoreDelta + previousDelta);
       setUserVote(voteType);
     }
@@ -357,10 +364,10 @@ export default function ThreadCard({
                   onClick={(e) => e.preventDefault()}
                 >
                   <button
-                    onClick={() => handleVote('up')}
+                    onClick={() => handleVote('upvote')}
                     disabled={voting}
                     className={`p-1 rounded hover:bg-gray-100 transition ${
-                      userVote === 'up' ? 'text-green-600' : 'text-gray-400'
+                      userVote === 'upvote' ? 'text-green-600' : 'text-gray-400'
                     }`}
                     title="Upvote"
                   >
@@ -370,10 +377,10 @@ export default function ThreadCard({
                     {voteScore}
                   </span>
                   <button
-                    onClick={() => handleVote('down')}
+                    onClick={() => handleVote('downvote')}
                     disabled={voting}
                     className={`p-1 rounded hover:bg-gray-100 transition ${
-                      userVote === 'down' ? 'text-red-600' : 'text-gray-400'
+                      userVote === 'downvote' ? 'text-red-600' : 'text-gray-400'
                     }`}
                     title="Downvote"
                   >
