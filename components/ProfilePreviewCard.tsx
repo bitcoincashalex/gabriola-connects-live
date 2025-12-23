@@ -1,6 +1,6 @@
 // Path: components/ProfilePreviewCard.tsx
-// Version: 1.0.0 - Hover preview card for user profiles
-// Date: 2025-12-20
+// Version: 1.0.2 - Fixed hover + from=forum + PRIVACY: exclude anonymous posts
+// Date: 2025-12-22
 
 'use client';
 
@@ -20,6 +20,7 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const fetchProfile = async () => {
     if (profile || loading) return; // Already loaded or loading
@@ -44,7 +45,15 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
       .single();
 
     if (!error && data) {
-      setProfile(data);
+      // Count only non-anonymous posts for privacy
+      const { count: nonAnonymousPostCount } = await supabase
+        .from('bbs_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .eq('is_anonymous', false);
+      
+      setProfile({ ...data, posts_count: nonAnonymousPostCount || 0 });
     }
     
     setLoading(false);
@@ -66,10 +75,29 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
       setHoverTimeout(null);
     }
     
-    // Delay hiding card by 200ms to allow moving to card
-    setTimeout(() => {
+    // Set a timeout to hide the card
+    const timeout = setTimeout(() => {
       setShowCard(false);
-    }, 200);
+    }, 400);
+    setHideTimeout(timeout);
+  };
+  
+  const handleCardMouseEnter = () => {
+    // Cancel hide timeout if mouse enters card
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      setHideTimeout(null);
+    }
+    setShowCard(true);
+  };
+  
+  const handleCardMouseLeave = () => {
+    // Hide immediately when leaving card
+    setShowCard(false);
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      setHideTimeout(null);
+    }
   };
 
   return (
@@ -85,8 +113,8 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
       {showCard && profile && (
         <div 
           className="absolute z-50 w-80 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-6 mt-2 left-0"
-          onMouseEnter={() => setShowCard(true)}
-          onMouseLeave={() => setShowCard(false)}
+          onMouseEnter={handleCardMouseEnter}
+          onMouseLeave={handleCardMouseLeave}
         >
           {/* Header */}
           <div className="flex items-start gap-4 mb-4">
@@ -161,7 +189,7 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
 
           {/* View Profile Button */}
           <Link
-            href={`/profile/${profile.id}`}
+            href={`/profile/${profile.id}?from=forum`}
             className="block w-full text-center bg-gabriola-green text-white px-4 py-2 rounded-lg font-medium hover:bg-gabriola-green-dark transition"
             onClick={() => setShowCard(false)}
           >

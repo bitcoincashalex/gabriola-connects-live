@@ -1,11 +1,11 @@
 // Path: app/profile/[userId]/page.tsx
-// Version: 2.0.1 - Smart back navigation (forum vs home based on referrer)
+// Version: 2.0.3 - PRIVACY: Exclude anonymous posts from profile display
 // Date: 2025-12-22
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ import SendMessageModal from '@/components/SendMessageModal';
 export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useUser();
   const [profile, setProfile] = useState<any>(null);
   const [recentPosts, setRecentPosts] = useState<any[]>([]);
@@ -35,17 +36,23 @@ export default function ProfilePage() {
     }
   }, [params.userId, authLoading]);
 
-  // Smart back navigation based on referrer
+  // Smart back navigation based on query param or referrer
   useEffect(() => {
+    const from = searchParams.get('from');
     const referrer = document.referrer;
     const isOwnProfile = params.userId === user?.id;
     
-    // If came from forum, go back to forum
-    if (referrer && (referrer.includes('/community') || referrer.includes('/thread/'))) {
+    // Priority 1: Check query parameter (most reliable)
+    if (from === 'forum') {
+      setBackText('Back to Forum');
+      setBackUrl('/community');
+    }
+    // Priority 2: Check referrer
+    else if (referrer && (referrer.includes('/community') || referrer.includes('/thread/'))) {
       setBackText('Back to Forum');
       setBackUrl('/community');
     } 
-    // If viewing own profile (likely from header), go home
+    // Priority 3: If viewing own profile (likely from header), go home
     else if (isOwnProfile) {
       setBackText('Back to Home');
       setBackUrl('/');
@@ -55,7 +62,7 @@ export default function ProfilePage() {
       setBackText('Back to Home');
       setBackUrl('/');
     }
-  }, [params.userId, user]);
+  }, [params.userId, user, searchParams]);
 
   const fetchProfile = async () => {
     // Fetch user profile
@@ -90,17 +97,30 @@ export default function ProfilePage() {
 
     setProfile(profileData);
 
-    // Fetch recent posts (if not banned)
+    // Fetch recent posts (if not banned) - EXCLUDE anonymous posts
     if (!profileData.is_banned) {
+      // Get count of non-anonymous posts only
+      const { count: nonAnonymousPostCount } = await supabase
+        .from('bbs_posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileData.id)
+        .eq('is_active', true)
+        .eq('is_anonymous', false);
+      
+      // Fetch recent non-anonymous posts
       const { data: postsData } = await supabase
         .from('bbs_posts')
         .select('id, title, created_at, vote_score, reply_count, category')
         .eq('user_id', profileData.id)
         .eq('is_active', true)
+        .eq('is_anonymous', false)  // ✅ Only show non-anonymous posts
         .order('created_at', { ascending: false })
         .limit(5);
 
       setRecentPosts(postsData || []);
+      
+      // Update profile with accurate non-anonymous post count
+      setProfile({ ...profileData, posts_count: nonAnonymousPostCount || 0 });
 
       // Fetch recent events
       const { data: eventsData } = await supabase

@@ -1,6 +1,6 @@
 // components/ReplyItem.tsx
-// Version: 6.0.2 - Added auto-linkify for URLs in reply body
-// Date: 2025-12-21
+// Version: 6.0.3 - Added ProfilePreviewCard for reply authors (clickable)
+// Date: 2025-12-22
 
 'use client';
 
@@ -12,6 +12,7 @@ import { useUser } from '@/components/AuthProvider';
 import ImageGallery from './ImageGallery';
 import EditReplyModal from './EditReplyModal';
 import LinkifyText from './LinkifyText';
+import ProfilePreviewCard from './ProfilePreviewCard';
 
 export default function ReplyItem({ reply, depth, onRefresh }: { reply: any; depth: number; onRefresh?: () => void }) {
   const { user } = useUser();
@@ -206,7 +207,17 @@ export default function ReplyItem({ reply, depth, onRefresh }: { reply: any; dep
 
           {/* Header */}
           <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
-            <span className="font-medium">{reply.display_name}</span>
+            {/* Author name - clickable if not anonymous */}
+            {reply.is_anonymous ? (
+              <span className="font-medium">{reply.display_name}</span>
+            ) : (
+              <ProfilePreviewCard userId={reply.user_id}>
+                <span className="font-medium text-gabriola-green hover:underline cursor-pointer">
+                  {reply.display_name}
+                </span>
+              </ProfilePreviewCard>
+            )}
+            
             {reply.is_anonymous && <span className="text-xs bg-gray-200 px-2 py-1 rounded">Anonymous</span>}
             <span>•</span>
             <time>{formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}</time>
