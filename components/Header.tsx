@@ -1,13 +1,13 @@
 // components/Header.tsx
-// Version: 2.6.0 - Added Alert Organizations link to admin dropdown
-// Date: 2025-12-20
+// Version: 2.7.0 - Added My Posts and My Events navigation links
+// Date: 2025-12-22
 'use client';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship, AlertTriangle, Search } from 'lucide-react';
+import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship, AlertTriangle, Search, MessageSquare, Calendar } from 'lucide-react';
 import HeaderSearch from './HeaderSearch';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
@@ -251,6 +251,36 @@ export default function Header() {
                       <span>Settings</span>
                     </Link>
 
+                    {/* My Posts - Only show if user has created posts or replies */}
+                    {((user as any).posts_count > 0 || (user as any).replies_count > 0) && (
+                      <Link
+                        href="/my-posts"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
+                      >
+                        <MessageSquare className="w-5 h-5 text-gray-600" />
+                        <span>My Posts</span>
+                        <span className="ml-auto text-xs text-gray-500">
+                          ({((user as any).posts_count || 0) + ((user as any).replies_count || 0)})
+                        </span>
+                      </Link>
+                    )}
+
+                    {/* My Events - Only show if user has created events */}
+                    {(user as any).events_created_count > 0 && (
+                      <Link
+                        href="/my-events"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
+                      >
+                        <Calendar className="w-5 h-5 text-gray-600" />
+                        <span>My Events</span>
+                        <span className="ml-auto text-xs text-gray-500">
+                          ({(user as any).events_created_count})
+                        </span>
+                      </Link>
+                    )}
+
                     {/* Admin section - Only show if user has ANY admin access */}
                     {hasAnyAdminAccess && (
                       <>
@@ -448,6 +478,29 @@ export default function Header() {
                   >
                     Settings
                   </Link>
+                  
+                  {/* My Posts - Mobile */}
+                  {((user as any).posts_count > 0 || (user as any).replies_count > 0) && (
+                    <Link
+                      href="/my-posts"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full py-3 hover:bg-white/10"
+                    >
+                      My Posts ({((user as any).posts_count || 0) + ((user as any).replies_count || 0)})
+                    </Link>
+                  )}
+                  
+                  {/* My Events - Mobile */}
+                  {(user as any).events_created_count > 0 && (
+                    <Link
+                      href="/my-events"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full py-3 hover:bg-white/10"
+                    >
+                      My Events ({(user as any).events_created_count})
+                    </Link>
+                  )}
+                  
                   {hasAnyAdminAccess && (
                     <Link
                       href="/admin/users"
