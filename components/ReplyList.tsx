@@ -1,6 +1,6 @@
 // Path: components/ReplyList.tsx
-// Version: 5.1.0 - Added multi-image support from bbs_reply_images table
-// Date: 2025-12-21
+// Version: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
+// Date: 2025-12-22
 
 'use client';
 
@@ -16,6 +16,7 @@ import ImageLightbox from '@/components/ImageLightbox';
 import ImageGallery from '@/components/ImageGallery';
 import EditReplyModal from '@/components/EditReplyModal';
 import LinkifyText from '@/components/LinkifyText';
+import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 
 interface Reply {
   id: string;
@@ -243,7 +244,16 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                 
                 {/* Name and Badges */}
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium text-gabriola-green">{reply.display_name}</span>
+                  {/* Author name - clickable if not anonymous */}
+                  {reply.is_anonymous ? (
+                    <span className="font-medium text-gabriola-green">{reply.display_name}</span>
+                  ) : (
+                    <ProfilePreviewCard userId={reply.user_id}>
+                      <span className="font-medium text-gabriola-green hover:underline cursor-pointer">
+                        {reply.display_name}
+                      </span>
+                    </ProfilePreviewCard>
+                  )}
                   
                   {/* Resident Badge - only if not anonymous */}
                   {!reply.is_anonymous && reply.author?.is_resident && (
