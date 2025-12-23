@@ -1,5 +1,5 @@
 // Path: components/ProfilePreviewCard.tsx
-// Version: 1.1.0 - COMPLETE REWRITE: Mobile click support + simplified positioning
+// Version: 1.1.1 - Fixed: Added onTouchStart handler + improved positioning
 // Date: 2025-12-22
 
 'use client';
@@ -37,26 +37,48 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
     const rect = triggerRef.current.getBoundingClientRect();
     const cardWidth = 320;
     const cardHeight = 400;
-    const gap = 8;
+    const gap = 4;
     const padding = 16;
     
     let top = 0;
     let left = 0;
     
-    // Vertical: Check if there's room below, otherwise show above
-    const spaceBelow = window.innerHeight - rect.bottom;
+    // Vertical positioning
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    
     if (spaceBelow >= cardHeight + gap) {
-      // Show below
+      // Show below trigger
       top = rect.bottom + window.scrollY + gap;
-    } else {
-      // Show above
+    } else if (spaceAbove >= cardHeight + gap) {
+      // Show above trigger
       top = rect.top + window.scrollY - cardHeight - gap;
+    } else {
+      // Not enough space either way - position below but ensure visible
+      // Put card at the top of viewport with padding
+      if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+        // More space above - show above
+        top = Math.max(window.scrollY + padding, rect.top + window.scrollY - cardHeight - gap);
+      } else {
+        // Show below
+        top = rect.bottom + window.scrollY + gap;
+        // But if it goes off bottom, shift up
+        const cardBottom = top + cardHeight;
+        const viewportBottom = window.scrollY + viewportHeight;
+        if (cardBottom > viewportBottom) {
+          top = viewportBottom - cardHeight - padding;
+        }
+      }
     }
     
-    // Horizontal: Keep on screen
+    // Horizontal positioning
     left = rect.left + window.scrollX;
-    if (left + cardWidth > window.innerWidth) {
-      left = window.innerWidth - cardWidth - padding;
+    
+    // Keep within viewport
+    const viewportWidth = window.innerWidth;
+    if (left + cardWidth > viewportWidth - padding) {
+      left = viewportWidth - cardWidth - padding;
     }
     left = Math.max(padding, left);
     
@@ -90,8 +112,11 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
   };
 
   const handleShow = (e?: React.MouseEvent | React.TouchEvent) => {
-    // Stop propagation to prevent interference with other elements
-    e?.stopPropagation();
+    // For touch/click events, stop propagation to prevent bubbling
+    if (e && (e.type === 'click' || e.type === 'touchstart')) {
+      e.stopPropagation();
+      // Don't preventDefault - that breaks touch behavior
+    }
     
     // Clear any existing timeouts
     if (hoverTimeoutRef.current) {
@@ -105,8 +130,8 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
     const pos = calculatePosition();
     setPosition(pos);
     
-    // Show immediately on click (mobile), or after delay on hover (desktop)
-    if (e?.type === 'click' || e?.type === 'touchstart') {
+    // Show immediately on touch/click, or after delay on hover
+    if (e && (e.type === 'click' || e.type === 'touchstart')) {
       setShowCard(true);
       fetchProfile();
     } else {
@@ -165,6 +190,7 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
       onMouseEnter={handleCardEnter}
       onMouseLeave={handleCardLeave}
       onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div className="flex items-start gap-4 mb-4">
@@ -273,6 +299,7 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
         onMouseEnter={handleShow}
         onMouseLeave={handleHide}
         onClick={handleShow}
+        onTouchStart={handleShow}
       >
         {children}
       </div>
