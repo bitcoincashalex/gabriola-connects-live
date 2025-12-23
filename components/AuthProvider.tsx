@@ -1,6 +1,6 @@
 // Path: components/AuthProvider.tsx
-// Version: 3.1.0 - PERFORMANCE: Select 43 specific fields + type assertion (2s → <100ms)
-// Date: 2025-12-20
+// Version: 3.2.0 - BULLETPROOF FIX: Detect and clear stale sessions on load
+// Date: 2025-12-22
 
 'use client';
 
@@ -15,6 +15,18 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
 
+// Helper to detect stale sessions (>7 days old or invalid)
+function isSessionStale(session: any): boolean {
+  if (!session?.expires_at) return true;
+  
+  const expiresAt = new Date(session.expires_at * 1000); // Convert to milliseconds
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  // Session is stale if it expires in the past or was created more than 7 days ago
+  return expiresAt < now || expiresAt < sevenDaysAgo;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +40,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       try {
         console.log('🟢 AuthProvider: Getting session...');
+        
+        // BULLETPROOF FIX PART 1: Detect and clear stale sessions
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // If session error or session is stale (>7 days old), clear it
+        if (sessionError || (session && isSessionStale(session))) {
+          console.warn('⚠️ Stale or invalid session detected - clearing...');
+          await supabase.auth.signOut({ scope: 'local' });
+          if (!mounted) return;
+          setUser(null);
+          setLoading(false);
+          return;
+        }
         
         if (!mounted) return;
         

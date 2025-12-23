@@ -2,12 +2,13 @@
   "name": "Gabriola Connects",
   "short_name": "GabriolaConnects",
   "description": "Your Island Community Hub - Events, Forum, Directory, Ferry, and Alerts for Gabriola Island, BC",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2d5f3f",
   "orientation": "portrait-primary",
   "scope": "/",
+  "id": "/",
   "icons": [
     {
       "src": "/icons/icon-48x48.png",
@@ -52,9 +53,11 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [],
   "categories": ["social", "news", "lifestyle"],
   "related_applications": [],
   "prefer_related_applications": false,
   "lang": "en-CA",
-  "dir": "ltr"
+  "dir": "ltr",
+  "iarc_rating_id": ""
 }

@@ -1,8 +1,8 @@
 // public/sw.js
-// v1.1.1 - Service Worker with auto-update notification support
-// Date: 2024-12-13
+// v1.2.0 - BULLETPROOF FIX: Never cache auth/Supabase to prevent stale tokens
+// Date: 2025-12-22
 
-const CACHE_NAME = 'gabriola-connects-v1.1.0';
+const CACHE_NAME = 'gabriola-connects-v1.2.0';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json'
@@ -47,11 +47,20 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip API calls and Supabase requests (always need fresh data)
+  // BULLETPROOF FIX PART 3: NEVER cache auth or Supabase requests
+  // This prevents stale token issues
   if (
     event.request.url.includes('/api/') ||
-    event.request.url.includes('supabase.co')
+    event.request.url.includes('supabase.co') ||
+    event.request.url.includes('/auth/') ||
+    event.request.url.includes('token') ||
+    event.request.url.includes('session') ||
+    event.request.url.includes('signin') ||
+    event.request.url.includes('signout') ||
+    event.request.url.includes('callback')
   ) {
+    // Always fetch fresh - never use cache for auth
+    event.respondWith(fetch(event.request));
     return;
   }
 
