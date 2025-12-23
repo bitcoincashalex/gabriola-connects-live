@@ -1,6 +1,6 @@
 // Path: app/profile/[userId]/page.tsx
-// Version: 2.0.0 - ENHANCED: Display website, Facebook, resident since
-// Date: 2025-12-20
+// Version: 2.0.1 - Smart back navigation (forum vs home based on referrer)
+// Date: 2025-12-22
 
 'use client';
 
@@ -26,12 +26,36 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [backText, setBackText] = useState('Back');
+  const [backUrl, setBackUrl] = useState('/');
 
   useEffect(() => {
     if (!authLoading) {
       fetchProfile();
     }
   }, [params.userId, authLoading]);
+
+  // Smart back navigation based on referrer
+  useEffect(() => {
+    const referrer = document.referrer;
+    const isOwnProfile = params.userId === user?.id;
+    
+    // If came from forum, go back to forum
+    if (referrer && (referrer.includes('/community') || referrer.includes('/thread/'))) {
+      setBackText('Back to Forum');
+      setBackUrl('/community');
+    } 
+    // If viewing own profile (likely from header), go home
+    else if (isOwnProfile) {
+      setBackText('Back to Home');
+      setBackUrl('/');
+    }
+    // Default: back to home
+    else {
+      setBackText('Back to Home');
+      setBackUrl('/');
+    }
+  }, [params.userId, user]);
 
   const fetchProfile = async () => {
     // Fetch user profile
@@ -138,11 +162,11 @@ export default function ProfilePage() {
           <h1 className="text-4xl font-bold text-gray-800 mb-4">User Not Found</h1>
           <p className="text-gray-600 mb-8">This user doesn't exist or has been deleted.</p>
           <Link 
-            href="/community" 
+            href={backUrl}
             className="inline-flex items-center gap-2 bg-gabriola-green text-white px-6 py-3 rounded-lg font-bold hover:bg-gabriola-green-dark"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Forum
+            {backText}
           </Link>
         </div>
       </div>
@@ -155,11 +179,11 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <Link 
-            href="/community" 
+            href={backUrl}
             className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
+            {backText}
           </Link>
 
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
@@ -187,11 +211,11 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Back link */}
         <Link 
-          href="/community" 
+          href={backUrl}
           className="inline-flex items-center gap-2 text-gabriola-green hover:underline mb-8"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Forum
+          {backText}
         </Link>
 
         {/* Profile Header */}

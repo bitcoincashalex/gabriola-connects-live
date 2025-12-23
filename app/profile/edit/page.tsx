@@ -1,6 +1,6 @@
 // app/profile/edit/page.tsx
-// Version: 3.0.0 - ENHANCED: Added website, Facebook, resident toggle, resident_since
-// Date: 2025-12-20
+// Version: 3.0.1 - Added visual feedback for required fields (first/last name)
+// Date: 2025-12-22
 
 'use client';
 
@@ -206,6 +206,21 @@ export default function ProfileEditPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Profile</h1>
 
           <div className="space-y-8">
+            {/* Required fields notice */}
+            {(!firstName.trim() || !lastName.trim()) && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Bell className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-900">Required Information</p>
+                    <p className="text-sm text-amber-800 mt-1">
+                      Please fill in your first and last name below to save your profile.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Profile Photo */}
             <div>
               <label className="block font-bold text-gray-900 mb-3">
@@ -292,27 +307,39 @@ export default function ProfileEditPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block font-bold text-gray-900 mb-2">
-                  First Name *
+                  First Name <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={firstName}
                   onChange={e => setFirstName(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent ${
+                    !firstName.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                  }`}
+                  placeholder="Enter your first name"
                   required
                 />
+                {!firstName.trim() && (
+                  <p className="text-sm text-red-600 mt-1">Required field</p>
+                )}
               </div>
               <div>
                 <label className="block font-bold text-gray-900 mb-2">
-                  Last Name *
+                  Last Name <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={lastName}
                   onChange={e => setLastName(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent ${
+                    !lastName.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                  }`}
+                  placeholder="Enter your last name"
                   required
                 />
+                {!lastName.trim() && (
+                  <p className="text-sm text-red-600 mt-1">Required field</p>
+                )}
               </div>
             </div>
 
@@ -720,12 +747,18 @@ export default function ProfileEditPage() {
             <button
               onClick={handleSave}
               disabled={saving || !firstName.trim() || !lastName.trim()}
-              className="w-full bg-gabriola-green text-white py-4 rounded-xl font-bold text-lg hover:bg-gabriola-green-dark disabled:opacity-50 flex items-center justify-center gap-3"
+              title={(!firstName.trim() || !lastName.trim()) ? 'Please fill in your first and last name' : 'Save your profile changes'}
+              className="w-full bg-gabriola-green text-white py-4 rounded-xl font-bold text-lg hover:bg-gabriola-green-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all"
             >
               {saving ? (
                 <>
                   <Loader2 className="w-6 h-6 animate-spin" />
                   Saving...
+                </>
+              ) : (!firstName.trim() || !lastName.trim()) ? (
+                <>
+                  <Save className="w-6 h-6" />
+                  Fill Required Fields to Save
                 </>
               ) : (
                 <>
