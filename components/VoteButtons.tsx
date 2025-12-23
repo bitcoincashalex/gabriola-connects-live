@@ -1,6 +1,6 @@
 // components/VoteButtons.tsx
 // Reusable upvote/downvote component for posts and replies
-// Version: 1.2.0 - Fixed 406 error (removed maybeSingle) + added error logging
+// Version: 1.2.1 - Changed insert to upsert to prevent 409 conflicts
 // Date: 2025-12-22
 
 'use client';
@@ -130,9 +130,12 @@ export default function VoteButtons({
 
         console.log('Inserting vote:', voteData); // DEBUG: Check what we're sending
 
+        // Use upsert instead of insert to handle race conditions
         const { error } = await supabase
           .from(tableName)
-          .insert(voteData);
+          .upsert(voteData, {
+            onConflict: idColumn === 'post_id' ? 'post_id,user_id' : 'reply_id,user_id'
+          });
 
         if (!error) {
           setUserVote(voteType);

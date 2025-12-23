@@ -1,5 +1,5 @@
 // components/ThreadCard.tsx
-// Version: 7.0.4 - Fixed voting: changed up/down to upvote/downvote + removed .single()
+// Version: 7.0.5 - Added onConflict to upsert to prevent 409 errors
 // Date: 2025-12-22
 
 'use client';
@@ -101,13 +101,15 @@ export default function ThreadCard({
       setUserVote(null);
       setVoteScore((prev: number) => prev + (voteType === 'upvote' ? -1 : 1));
     } else {
-      // Insert or update vote
+      // Insert or update vote - specify conflict resolution
       await supabase
         .from('bbs_post_votes')
         .upsert({
           post_id: thread.id,
           user_id: user.id,
           vote_type: voteType,
+        }, {
+          onConflict: 'post_id,user_id'  // Tell upsert which columns form unique constraint
         });
       
       const scoreDelta = voteType === 'upvote' ? 1 : -1;
