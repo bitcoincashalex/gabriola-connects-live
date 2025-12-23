@@ -19,7 +19,7 @@ export default function StrachanPage() {
           </h1>
           
           <p className="text-gabriola-sand/90 text-lg text-center">
-            Over three decades on Gabriola Island
+            Over 3 decades on Gabriola Island
           </p>
 		  <p className="text-gabriola-sand/90 text-lg text-center">
             Building Community Connections
