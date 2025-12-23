@@ -1,10 +1,10 @@
 // Path: components/ProfilePreviewCard.tsx
-// Version: 1.0.2 - Fixed hover + from=forum + PRIVACY: exclude anonymous posts
+// Version: 1.0.4 - CRITICAL: Fixed positioning to escape nested containers
 // Date: 2025-12-22
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Calendar, MessageCircle, CalendarDays, Award } from 'lucide-react';
@@ -21,6 +21,8 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
   const [loading, setLoading] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [hideTimeout, setHideTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [cardPosition, setCardPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   const fetchProfile = async () => {
     if (profile || loading) return; // Already loaded or loading
@@ -60,6 +62,15 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
   };
 
   const handleMouseEnter = () => {
+    // Calculate position from trigger element
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCardPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX
+      });
+    }
+    
     // Delay showing card by 500ms to avoid accidental hovers
     const timeout = setTimeout(() => {
       setShowCard(true);
@@ -75,10 +86,10 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
       setHoverTimeout(null);
     }
     
-    // Set a timeout to hide the card
+    // Longer delay to allow moving to card without flicker (increased to 600ms)
     const timeout = setTimeout(() => {
       setShowCard(false);
-    }, 400);
+    }, 600);
     setHideTimeout(timeout);
   };
   
@@ -102,17 +113,27 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
 
   return (
     <div 
+      ref={triggerRef}
       className="relative inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Trigger element (username) */}
       {children}
+      
+      {/* Invisible bridge to prevent hover gap */}
+      {showCard && (
+        <div className="absolute top-full left-0 w-full h-2" />
+      )}
 
-      {/* Hover Card */}
+      {/* Hover Card - Using fixed positioning to escape parent containers */}
       {showCard && profile && (
         <div 
-          className="absolute z-50 w-80 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-6 mt-2 left-0"
+          className="fixed z-[9999] w-80 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-6 pointer-events-auto"
+          style={{
+            top: `${cardPosition.top}px`,
+            left: `${cardPosition.left}px`,
+          }}
           onMouseEnter={handleCardMouseEnter}
           onMouseLeave={handleCardMouseLeave}
         >
@@ -200,7 +221,13 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
 
       {/* Loading State */}
       {showCard && loading && (
-        <div className="absolute z-50 w-80 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-6 mt-2 left-0">
+        <div 
+          className="fixed z-[9999] w-80 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-6 pointer-events-auto"
+          style={{
+            top: `${cardPosition.top}px`,
+            left: `${cardPosition.left}px`,
+          }}
+        >
           <div className="animate-pulse">
             <div className="flex gap-4 mb-4">
               <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
