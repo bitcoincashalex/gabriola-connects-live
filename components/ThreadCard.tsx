@@ -1,5 +1,5 @@
 // components/ThreadCard.tsx
-// Version: 7.0.6 - Added comprehensive logging + fetch actual score after vote
+// Version: 7.0.7 - Removed redundant RPC call (trigger handles score update)
 // Date: 2025-12-22
 
 'use client';
@@ -134,18 +134,7 @@ export default function ThreadCard({
         }
       }
       
-      // Update post vote_score in database and fetch the actual calculated score
-      console.log('[ThreadCard] Calling calculate_post_vote_score RPC...');
-      const { data: rpcData, error: rpcError } = await supabase.rpc('calculate_post_vote_score', { post_uuid: thread.id });
-      
-      if (rpcError) {
-        console.error('[ThreadCard] RPC error:', rpcError);
-      } else {
-        console.log('[ThreadCard] RPC result:', rpcData);
-      }
-      
-      // Fetch the actual score from database to ensure accuracy
-      console.log('[ThreadCard] Fetching actual vote_score from database...');
+      // Fetch score from database (trigger updated it automatically)
       const { data: postData, error: fetchError } = await supabase
         .from('bbs_posts')
         .select('vote_score')
@@ -155,7 +144,7 @@ export default function ThreadCard({
       if (fetchError) {
         console.error('[ThreadCard] Error fetching score:', fetchError);
       } else if (postData) {
-        console.log('[ThreadCard] Actual score from DB:', postData.vote_score);
+        console.log('[ThreadCard] Score from DB:', postData.vote_score);
         setVoteScore(postData.vote_score || 0);
       }
       
