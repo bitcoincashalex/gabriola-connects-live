@@ -1,5 +1,5 @@
 // Path: components/ProfilePreviewCard.tsx
-// Version: 1.0.4 - CRITICAL: Fixed positioning to escape nested containers
+// Version: 1.0.5 - Smart positioning: appears above/below based on available space
 // Date: 2025-12-22
 
 'use client';
@@ -62,13 +62,42 @@ export default function ProfilePreviewCard({ userId, children }: ProfilePreviewC
   };
 
   const handleMouseEnter = () => {
-    // Calculate position from trigger element
+    // Calculate smart position from trigger element
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setCardPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX
-      });
+      const cardWidth = 320; // w-80 = 320px
+      const cardHeight = 400; // Approximate height
+      const gap = 8; // Gap between trigger and card
+      const padding = 16; // Padding from viewport edges
+      
+      let top = 0;
+      let left = 0;
+      
+      // Calculate vertical position (above or below)
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      if (spaceBelow >= cardHeight + gap) {
+        // Enough space below - position below trigger
+        top = rect.bottom + window.scrollY + gap;
+      } else if (spaceAbove >= cardHeight + gap) {
+        // Not enough space below but enough above - position above trigger
+        top = rect.top + window.scrollY - cardHeight - gap;
+      } else {
+        // Not enough space either way - position below but ensure top of card is visible
+        top = Math.max(window.scrollY + padding, rect.bottom + window.scrollY + gap);
+      }
+      
+      // Calculate horizontal position (ensure card stays on screen)
+      if (rect.left + cardWidth + padding > window.innerWidth) {
+        // Card would go off right edge - align right edge of card with right edge of viewport
+        left = window.innerWidth - cardWidth - padding + window.scrollX;
+      } else {
+        // Enough space on right - align with trigger
+        left = Math.max(padding, rect.left) + window.scrollX;
+      }
+      
+      setCardPosition({ top, left });
     }
     
     // Delay showing card by 500ms to avoid accidental hovers
