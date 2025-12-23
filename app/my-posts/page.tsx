@@ -1,5 +1,5 @@
 // app/my-posts/page.tsx
-// Version: 1.0.0 - My Posts management (threads + replies)
+// Version: 1.0.2 - Simplified: Single "View Post" button (removed redundant Edit)
 // Date: 2025-12-22
 
 'use client';
@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { 
-  MessageSquare, ArrowLeft, Search, Filter, Trash2, Edit, 
+  MessageSquare, ArrowLeft, Search, Filter, Trash2, 
   Eye, ThumbsUp, ThumbsDown, Loader2, AlertCircle 
 } from 'lucide-react';
 
@@ -427,31 +427,19 @@ export default function MyPostsPage() {
                         ? `/community/thread/${post.id}` 
                         : `/community/thread/${post.thread_id}#reply-${post.id}`}
                       className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                      title="View"
+                      title="View Post"
                     >
                       <Eye className="w-4 h-4" />
                     </Link>
                     
                     {post.is_active && (
-                      <>
-                        <Link
-                          href={post.type === 'thread'
-                            ? `/community/thread/${post.id}/edit`
-                            : `/community/thread/${post.thread_id}?edit-reply=${post.id}`}
-                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        
-                        <button
-                          onClick={() => handleDelete(post)}
-                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
+                      <button
+                        onClick={() => handleDelete(post)}
+                        className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                 </div>
