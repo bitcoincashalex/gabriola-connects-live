@@ -1,7 +1,7 @@
 // components/VoteButtons.tsx
 // Reusable upvote/downvote component for posts and replies
-// Version: 1.1.0 - Added check to prevent voting on own content
-// Date: 2024-12-13
+// Version: 1.2.0 - Fixed 406 error (removed maybeSingle) + added error logging
+// Date: 2025-12-22
 
 'use client';
 
@@ -44,15 +44,22 @@ export default function VoteButtons({
     }
 
     const fetchUserVote = async () => {
-      const { data } = await supabase
+      // FIX: Use array response to avoid 406 error when no vote exists
+      const { data, error } = await supabase
         .from(tableName)
         .select('vote_type')
         .eq(idColumn, itemId)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Returns null when user hasn't voted yet
+        .eq('user_id', user.id);
 
-      if (data) {
-        setUserVote(data.vote_type as 'upvote' | 'downvote');
+      if (error) {
+        console.error('Error fetching vote:', error);
+        setUserVote(null);
+        return;
+      }
+
+      // Check if array has results
+      if (data && data.length > 0) {
+        setUserVote(data[0].vote_type as 'upvote' | 'downvote');
       } else {
         setUserVote(null);
       }
@@ -86,13 +93,18 @@ export default function VoteButtons({
           const newScore = score + change;
           setScore(newScore);
           onScoreChange?.(newScore);
+        } else {
+          console.error('Error deleting vote:', error);
         }
       }
       // Case 2: User has existing vote (update it)
       else if (userVote) {
         const { error } = await supabase
           .from(tableName)
-          .update({ vote_type: voteType, updated_at: new Date().toISOString() })
+          .update({ 
+            vote_type: voteType,  // Explicitly 'upvote' or 'downvote'
+            updated_at: new Date().toISOString() 
+          })
           .eq(idColumn, itemId)
           .eq('user_id', user.id);
 
@@ -103,17 +115,24 @@ export default function VoteButtons({
           const newScore = score + change;
           setScore(newScore);
           onScoreChange?.(newScore);
+        } else {
+          console.error('Error updating vote:', error);
         }
       }
       // Case 3: No existing vote (insert new)
       else {
+        // EXPLICIT: Ensure vote_type is exactly 'upvote' or 'downvote'
+        const voteData: any = {
+          [idColumn]: itemId,
+          user_id: user.id,
+          vote_type: voteType  // TypeScript ensures this is 'upvote' | 'downvote'
+        };
+
+        console.log('Inserting vote:', voteData); // DEBUG: Check what we're sending
+
         const { error } = await supabase
           .from(tableName)
-          .insert({
-            [idColumn]: itemId,
-            user_id: user.id,
-            vote_type: voteType,
-          });
+          .insert(voteData);
 
         if (!error) {
           setUserVote(voteType);
@@ -121,6 +140,9 @@ export default function VoteButtons({
           const newScore = score + change;
           setScore(newScore);
           onScoreChange?.(newScore);
+        } else {
+          console.error('Error inserting vote:', error);
+          console.error('Vote data that failed:', voteData); // DEBUG
         }
       }
     } catch (error) {
