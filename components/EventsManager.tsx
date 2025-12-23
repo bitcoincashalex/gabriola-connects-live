@@ -1,6 +1,6 @@
 // Path: components/EventsManager.tsx
-// Version: 4.0.0 - MASSIVELY ENHANCED: 40+ fields (registration, organizer, tags, recurring, parking, etc.)
-// Date: 2025-12-20
+// Version: 4.2.0 - Added Category, Venue, Organization sort options
+// Date: 2025-12-22
 
 'use client';
 
@@ -109,6 +109,8 @@ export default function EventsManager() {
   });
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date-asc' | 'date-desc' | 'title' | 'category' | 'venue' | 'organization'>('date-asc');
 
   useEffect(() => {
     fetchEvents();
@@ -407,12 +409,50 @@ export default function EventsManager() {
   if (loading) return <div className="text-center py-20 text-2xl">Loading events...</div>;
 
   const today = new Date();
-  const upcoming = events.filter(e => 
+  
+  // Filter events by search query
+  const filteredEvents = events.filter(event => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      event.title.toLowerCase().includes(query) ||
+      event.description.toLowerCase().includes(query) ||
+      event.location?.toLowerCase().includes(query) ||
+      event.category?.toLowerCase().includes(query)
+    );
+  });
+  
+  // Sort filtered events
+  const sortedEvents = [...filteredEvents].sort((a, b) => {
+    if (sortBy === 'date-asc') {
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+    } else if (sortBy === 'date-desc') {
+      return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+    } else if (sortBy === 'title') {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === 'category') {
+      const catA = a.category || '';
+      const catB = b.category || '';
+      return catA.localeCompare(catB);
+    } else if (sortBy === 'venue') {
+      const venueA = a.location || '';
+      const venueB = b.location || '';
+      return venueA.localeCompare(venueB);
+    } else if (sortBy === 'organization') {
+      const orgA = a.organizer_organization || '';
+      const orgB = b.organizer_organization || '';
+      return orgA.localeCompare(orgB);
+    }
+    return 0;
+  });
+  
+  // Split into upcoming and past
+  const upcoming = sortedEvents.filter(e => 
     isAfter(e.start_date, today) || isSameDay(e.start_date, today)
   );
-  const past = events
-    .filter(e => isBefore(e.start_date, today))
-    .reverse(); // Show past events newest first (descending order)
+  const past = sortedEvents
+    .filter(e => isBefore(e.start_date, today));
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -438,6 +478,51 @@ export default function EventsManager() {
           </div>
         </div>
       )}
+
+      {/* Search and Sort Controls */}
+      <div className="mb-8 flex flex-col md:flex-row gap-4">
+        {/* Search */}
+        <div className="flex-1">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events by title, description, location, or category..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Sort */}
+        <div className="md:w-64">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+          >
+            <option value="date-asc">Date (Soonest First)</option>
+            <option value="date-desc">Date (Latest First)</option>
+            <option value="title">Title (A-Z)</option>
+            <option value="category">Category (A-Z)</option>
+            <option value="venue">Venue (A-Z)</option>
+            <option value="organization">Organization (A-Z)</option>
+          </select>
+        </div>
+      </div>
 
       {/* Upcoming Events */}
       <section className="mb-16">

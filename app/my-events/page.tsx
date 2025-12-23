@@ -1,5 +1,5 @@
 // app/my-events/page.tsx
-// Version: 1.0.0 - Initial creation: User's event management page
+// Version: 1.0.1 - Added inline edit modal (like EventsManager), removed View Details
 // Date: 2025-12-22
 
 'use client';
@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import Link from 'next/link';
-import { Calendar, MapPin, Users, Edit, Trash2, Plus, Clock, Filter, ArrowUpDown } from 'lucide-react';
+import { Calendar, MapPin, Users, Edit, Trash2, Plus, Clock, Filter, ArrowUpDown, X, Upload, AlertCircle } from 'lucide-react';
 import { format, isPast, isFuture, parseISO } from 'date-fns';
 
 interface Event {
@@ -17,12 +17,21 @@ interface Event {
   description: string;
   start_date: string;
   end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
   location: string;
   category: string;
   image_url: string | null;
   created_at: string;
   attendance_count: number;
   is_active: boolean;
+  fees: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  organizer_name: string | null;
+  organizer_organization: string | null;
+  registration_url: string | null;
+  accessibility_info: string | null;
 }
 
 export default function MyEventsPage() {
@@ -34,6 +43,29 @@ export default function MyEventsPage() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title'>('date-desc');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    start_date: '',
+    end_date: '',
+    start_time: '',
+    end_time: '',
+    location: '',
+    fees: '',
+    contact_email: '',
+    contact_phone: '',
+    organizer_name: '',
+    organizer_organization: '',
+    registration_url: '',
+    accessibility_info: '',
+    image_url: '',
+  });
 
   useEffect(() => {
     if (user) {
@@ -63,7 +95,7 @@ export default function MyEventsPage() {
     setLoading(false);
   };
 
-  const applyFiltersAndSort = () => {
+  const applyFiltersAndSort() {
     let filtered = [...events];
 
     // Apply filter
@@ -83,6 +115,87 @@ export default function MyEventsPage() {
     }
 
     setFilteredEvents(filtered);
+  }
+
+  const openEditModal = (event: Event) => {
+    setEditingEvent(event);
+    setForm({
+      title: event.title,
+      description: event.description,
+      category: event.category || '',
+      start_date: format(parseISO(event.start_date), 'yyyy-MM-dd'),
+      end_date: event.end_date ? format(parseISO(event.end_date), 'yyyy-MM-dd') : '',
+      start_time: event.start_time || '',
+      end_time: event.end_time || '',
+      location: event.location,
+      fees: event.fees || '',
+      contact_email: event.contact_email || '',
+      contact_phone: event.contact_phone || '',
+      organizer_name: event.organizer_name || '',
+      organizer_organization: event.organizer_organization || '',
+      registration_url: event.registration_url || '',
+      accessibility_info: event.accessibility_info || '',
+      image_url: event.image_url || '',
+    });
+    setImagePreview(event.image_url);
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingEvent(null);
+    setImagePreview(null);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `event-images/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('events')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      alert('Error uploading image');
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from('events')
+      .getPublicUrl(filePath);
+
+    setForm({ ...form, image_url: data.publicUrl });
+    setImagePreview(data.publicUrl);
+  };
+
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+
+    const payload = {
+      ...form,
+      start_date: form.start_date,
+      end_date: form.end_date || null,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+    };
+
+    const { error } = await supabase
+      .from('events')
+      .update(payload)
+      .eq('id', editingEvent.id);
+
+    if (error) {
+      alert('Error updating event: ' + error.message);
+      return;
+    }
+
+    await fetchMyEvents();
+    closeEditModal();
   };
 
   const handleDelete = async () => {
@@ -286,12 +399,9 @@ export default function MyEventsPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Link
-                              href={`/events/${event.id}`}
-                              className="text-xl font-bold text-gray-900 hover:text-gabriola-green transition"
-                            >
+                            <h3 className="text-xl font-bold text-gray-900">
                               {event.title}
-                            </Link>
+                            </h3>
                             {isUpcoming ? (
                               <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
                                 Upcoming
@@ -326,19 +436,13 @@ export default function MyEventsPage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
-                        <Link
-                          href={`/events/${event.id}`}
-                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition"
-                        >
-                          View Details
-                        </Link>
-                        <Link
-                          href={`/events/${event.id}/edit`}
+                        <button
+                          onClick={() => openEditModal(event)}
                           className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition"
                         >
                           <Edit className="w-4 h-4" />
                           Edit
-                        </Link>
+                        </button>
                         <button
                           onClick={() => confirmDelete(event)}
                           className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition"
@@ -355,6 +459,233 @@ export default function MyEventsPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && editingEvent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full my-8 shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 rounded-t-2xl flex justify-between items-center">
+              <h2 className="text-3xl font-bold text-gabriola-green">Edit Event</h2>
+              <button onClick={closeEditModal} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEvent} className="p-8 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-gray-900">Basic Information</h4>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Title *</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={e => setForm({ ...form, title: e.target.value })}
+                    required
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    required
+                    rows={4}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <input
+                    type="text"
+                    value={form.category}
+                    onChange={e => setForm({ ...form, category: e.target.value })}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-gray-900">Date & Time</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+                    <input
+                      type="date"
+                      value={form.start_date}
+                      onChange={e => setForm({ ...form, start_date: e.target.value })}
+                      required
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                    <input
+                      type="time"
+                      value={form.start_time}
+                      onChange={e => setForm({ ...form, start_time: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={form.end_date}
+                      onChange={e => setForm({ ...form, end_date: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                    <input
+                      type="time"
+                      value={form.end_time}
+                      onChange={e => setForm({ ...form, end_time: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+                <input
+                  type="text"
+                  value={form.location}
+                  onChange={e => setForm({ ...form, location: e.target.value })}
+                  required
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                />
+              </div>
+
+              {/* Contact & Organizer */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-gray-900">Contact & Organizer</h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                    <input
+                      type="email"
+                      value={form.contact_email}
+                      onChange={e => setForm({ ...form, contact_email: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
+                    <input
+                      type="tel"
+                      value={form.contact_phone}
+                      onChange={e => setForm({ ...form, contact_phone: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Organizer Name</label>
+                    <input
+                      type="text"
+                      value={form.organizer_name}
+                      onChange={e => setForm({ ...form, organizer_name: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Organization</label>
+                    <input
+                      type="text"
+                      value={form.organizer_organization}
+                      onChange={e => setForm({ ...form, organizer_organization: e.target.value })}
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-bold text-gray-900">Additional Details</h4>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fees</label>
+                  <input
+                    type="text"
+                    value={form.fees}
+                    onChange={e => setForm({ ...form, fees: e.target.value })}
+                    placeholder="e.g., Free, $10, By donation"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Registration URL</label>
+                  <input
+                    type="url"
+                    value={form.registration_url}
+                    onChange={e => setForm({ ...form, registration_url: e.target.value })}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Accessibility Info</label>
+                  <textarea
+                    value={form.accessibility_info}
+                    onChange={e => setForm({ ...form, accessibility_info: e.target.value })}
+                    rows={2}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                  />
+                </div>
+              </div>
+
+              {/* Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg mb-2" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="w-full p-3 border rounded-lg"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-gabriola-green text-white rounded-lg font-medium hover:bg-gabriola-green-dark transition"
+                >
+                  Update Event
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && eventToDelete && (
@@ -373,13 +704,11 @@ export default function MyEventsPage() {
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-gray-600 mb-1">You're about to delete:</p>
               <p className="font-medium text-gray-900">{eventToDelete.title}</p>
-              <p className="text-sm text-gray-600 mt-2">
-                {eventToDelete.attendance_count > 0 && (
-                  <span className="text-orange-600 font-medium">
-                    ⚠️ {eventToDelete.attendance_count} people are attending this event
-                  </span>
-                )}
-              </p>
+              {eventToDelete.attendance_count > 0 && (
+                <p className="text-sm text-orange-600 font-medium mt-2">
+                  ⚠️ {eventToDelete.attendance_count} people are attending this event
+                </p>
+              )}
             </div>
 
             <div className="flex gap-3">
