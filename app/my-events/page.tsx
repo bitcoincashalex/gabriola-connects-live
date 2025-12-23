@@ -1,5 +1,5 @@
 // app/my-events/page.tsx
-// Version: 1.0.1 - Added inline edit modal (like EventsManager), removed View Details
+// Version: 1.0.1b - SYNTAX FIX: Added missing semicolon
 // Date: 2025-12-22
 
 'use client';
@@ -95,7 +95,7 @@ export default function MyEventsPage() {
     setLoading(false);
   };
 
-  const applyFiltersAndSort() {
+  const applyFiltersAndSort = () => {
     let filtered = [...events];
 
     // Apply filter
@@ -115,7 +115,7 @@ export default function MyEventsPage() {
     }
 
     setFilteredEvents(filtered);
-  }
+  };
 
   const openEditModal = (event: Event) => {
     setEditingEvent(event);
