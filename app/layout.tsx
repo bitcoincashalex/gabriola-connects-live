@@ -1,8 +1,9 @@
 // app/layout.tsx
-// v4.4.0 - Added both Vercel Analytics and Google Analytics 4
-// Date: 2024-12-13
+// v4.5.0 - Added LoadingTimeout safety net for infinite loading
+// Date: 2024-12-24
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
+import LoadingTimeout from '@/components/LoadingTimeout';
 import { Analytics } from '@vercel/analytics/react';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import './globals.css';
@@ -62,6 +63,7 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           <main className="flex-1">{children}</main>
+          <LoadingTimeout />
         </AuthProvider>
         
         {/* Vercel Analytics */}
