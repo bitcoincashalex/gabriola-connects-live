@@ -1,10 +1,11 @@
 // Path: components/Calendar.tsx
-// Version: 3.0.0 - UX FIX: Moved full form link to TOP so users choose BEFORE filling out form
-// Date: 2025-12-20
+// Version: 3.0.1 - FIX: "Switch to Full Event Form" now opens in same window (removed target="_blank")
+// Date: 2025-12-23
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { Event } from '@/lib/types';
@@ -480,13 +481,12 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
               <li>Age restrictions & dress code</li>
               <li>Recurring events & tags</li>
             </ul>
-            <a 
-              href="/events" 
-              target="_blank"
+            <Link 
+              href="/events"
               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
             >
               Switch to Full Event Form →
-            </a>
+            </Link>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
