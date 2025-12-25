@@ -1,6 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 3.0.1 - FIX: "Switch to Full Event Form" now opens in same window (removed target="_blank")
-// Date: 2025-12-23
+// Version: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
+// Date: 2025-12-24
+// FIX: "Switch to Full Event Form" opens in same window (removed target="_blank")
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
 
@@ -10,7 +11,6 @@ import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-cale
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { Event } from '@/lib/types';
 import { X, MapPin, Clock, Plus, Mail, Phone, Upload, LogIn, UserCircle } from 'lucide-react';
-import { canCreateEvents } from '@/lib/auth-utils';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import EventDetailModal from '@/components/EventDetailModal';
@@ -420,19 +420,13 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                   <UserCircle className="w-5 h-5" />
                   <span>{user.username}</span>
                 </div>
-                {canCreateEvents(user) ? (
-                  <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="bg-gabriola-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {showAddForm ? 'Cancel' : 'Add Event'}
-                  </button>
-                ) : (
-                  <div className="text-xs text-gray-500 italic hidden sm:block">
-                    Contact admin to add events
-                  </div>
-                )}
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="bg-gabriola-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  {showAddForm ? 'Cancel' : 'Add Event'}
+                </button>
               </>
             ) : (
               <button
