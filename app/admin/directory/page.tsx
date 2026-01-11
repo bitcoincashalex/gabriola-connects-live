@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.0.1 - Fixed moveCategory function (arrows now work correctly)
+// Version: 2.0.2-debug - Added extensive console logging to debug arrow issues
 // Date: 2025-01-11
 
 'use client';
@@ -180,46 +180,85 @@ export default function DirectoryAdminPage() {
   };
 
   const moveCategory = async (id: string, direction: 'up' | 'down') => {
+    console.log('🔄 moveCategory called:', { id, direction });
+    
     const category = categories.find(c => c.id === id);
-    if (!category) return;
+    if (!category) {
+      console.error('❌ Category not found:', id);
+      return;
+    }
+    console.log('✅ Found category:', category.name, 'display_order:', category.display_order);
 
     // Get siblings (same parent level)
     const siblings = categories
       .filter(c => c.parent_id === category.parent_id)
       .sort((a, b) => a.display_order - b.display_order);
+    
+    console.log('👥 Siblings at this level:', siblings.map(s => ({ name: s.name, order: s.display_order })));
 
     const currentIndex = siblings.findIndex(c => c.id === id);
     const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    console.log('📍 Current index:', currentIndex, 'Swap index:', swapIndex);
 
-    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+    if (swapIndex < 0 || swapIndex >= siblings.length) {
+      console.warn('⚠️ Cannot move - already at boundary');
+      return;
+    }
 
     const swapCategory = siblings[swapIndex];
+    console.log('🔀 Swapping with:', swapCategory.name, 'display_order:', swapCategory.display_order);
 
     // Store display_order values BEFORE updating
     const categoryOrder = category.display_order;
     const swapCategoryOrder = swapCategory.display_order;
+    
+    console.log('📊 Values to swap:', { 
+      category: category.name, 
+      currentOrder: categoryOrder, 
+      willBecome: swapCategoryOrder,
+      swapWith: swapCategory.name,
+      swapCurrentOrder: swapCategoryOrder,
+      swapWillBecome: categoryOrder
+    });
 
     try {
-      // Swap display_order values
-      const { error: error1 } = await supabase
+      // Update first category
+      console.log('🔄 Updating', category.name, 'from', categoryOrder, 'to', swapCategoryOrder);
+      const { data: data1, error: error1 } = await supabase
         .from('business_categories')
         .update({ display_order: swapCategoryOrder })
-        .eq('id', category.id);
+        .eq('id', category.id)
+        .select();
 
-      if (error1) throw error1;
+      if (error1) {
+        console.error('❌ Error updating first category:', error1);
+        throw error1;
+      }
+      console.log('✅ First update successful:', data1);
 
-      const { error: error2 } = await supabase
+      // Update second category
+      console.log('🔄 Updating', swapCategory.name, 'from', swapCategoryOrder, 'to', categoryOrder);
+      const { data: data2, error: error2 } = await supabase
         .from('business_categories')
         .update({ display_order: categoryOrder })
-        .eq('id', swapCategory.id);
+        .eq('id', swapCategory.id)
+        .select();
 
-      if (error2) throw error2;
+      if (error2) {
+        console.error('❌ Error updating second category:', error2);
+        throw error2;
+      }
+      console.log('✅ Second update successful:', data2);
 
       // Refresh categories to show new order
+      console.log('🔄 Refreshing categories...');
       await fetchCategories();
+      console.log('✅ Categories refreshed');
+      
     } catch (error) {
-      console.error('Error moving category:', error);
-      alert('Failed to move category. Please try again.');
+      console.error('❌ MOVE CATEGORY FAILED:', error);
+      alert('Failed to move category. Check console for details.');
     }
   };
 
