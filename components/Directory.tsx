@@ -1,6 +1,6 @@
 // components/Directory.tsx
-// Version: 4.5.1 - Fixed sorting (removed CATEGORY_ORDER reference)
-// Date: 2025-01-11 (3 days before Jan 14 demo!)
+// Version: 4.6.0 - Categories now sorted alphabetically in dropdown (overrides display_order)
+// Date: 2025-01-11
 
 'use client';
 
@@ -162,11 +162,15 @@ export default function Directory() {
   // Build category list dynamically for display
   const allCategoryNames = useMemo(() => {
     const names = ['All'];
-    mainCategories.forEach(main => {
+    // Sort main categories alphabetically
+    const sortedMainCategories = [...mainCategories].sort((a, b) => a.name.localeCompare(b.name));
+    
+    sortedMainCategories.forEach(main => {
       names.push(main.name);
-      // Add subcategories under this main category
+      // Add subcategories under this main category (also sorted alphabetically)
       subcategories
         .filter(sub => sub.parent_id === main.id)
+        .sort((a, b) => a.name.localeCompare(b.name))
         .forEach(sub => names.push(sub.name));
     });
     names.push('Other');

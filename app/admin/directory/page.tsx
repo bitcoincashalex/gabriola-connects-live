@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.0.0 - Added Category Management (CRUD, reorder, enable/disable)
+// Version: 2.0.1 - Fixed moveCategory function (arrows now work correctly)
 // Date: 2025-01-11
 
 'use client';
@@ -195,18 +195,32 @@ export default function DirectoryAdminPage() {
 
     const swapCategory = siblings[swapIndex];
 
-    // Swap display_order
-    await supabase
-      .from('business_categories')
-      .update({ display_order: swapCategory.display_order })
-      .eq('id', category.id);
+    // Store display_order values BEFORE updating
+    const categoryOrder = category.display_order;
+    const swapCategoryOrder = swapCategory.display_order;
 
-    await supabase
-      .from('business_categories')
-      .update({ display_order: category.display_order })
-      .eq('id', swapCategory.id);
+    try {
+      // Swap display_order values
+      const { error: error1 } = await supabase
+        .from('business_categories')
+        .update({ display_order: swapCategoryOrder })
+        .eq('id', category.id);
 
-    await fetchCategories();
+      if (error1) throw error1;
+
+      const { error: error2 } = await supabase
+        .from('business_categories')
+        .update({ display_order: categoryOrder })
+        .eq('id', swapCategory.id);
+
+      if (error2) throw error2;
+
+      // Refresh categories to show new order
+      await fetchCategories();
+    } catch (error) {
+      console.error('Error moving category:', error);
+      alert('Failed to move category. Please try again.');
+    }
   };
 
   // Build dynamic category list for filter dropdown
