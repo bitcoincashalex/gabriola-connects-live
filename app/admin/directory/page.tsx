@@ -1,6 +1,6 @@
 // Path: app/admin/directory/page.tsx
-// Version: 1.0.0 - Directory Admin Dashboard
-// Date: 2024-12-10
+// Version: 2.0.0 - Added Category Management (CRUD, reorder, enable/disable)
+// Date: 2025-01-11
 
 'use client';
 
@@ -24,6 +24,14 @@ interface Business {
   created_at: string;
 }
 
+interface BusinessCategory {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+
 export default function DirectoryAdminPage() {
   const { user, loading: authLoading } = useUser();
   const router = useRouter();
@@ -31,6 +39,13 @@ export default function DirectoryAdminPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
+  // Category Management State
+  const [categories, setCategories] = useState<BusinessCategory[]>([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<BusinessCategory | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryParent, setNewCategoryParent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -43,6 +58,7 @@ export default function DirectoryAdminPage() {
         alert('Access denied: Directory Admin only');
       } else {
         fetchBusinesses();
+        fetchCategories();
       }
     }
   }, [user, authLoading, router]);
@@ -75,9 +91,126 @@ export default function DirectoryAdminPage() {
     }
   };
 
-  const categories = ['All', 'Community', 'Arts', 'Restaurant', 'Accommodation', 'Recreation', 'Health', 
-    'Pet Services', 'Shopping', 'Grocery', 'Agriculture', 'Marine', 'Construction', 
-    'Home Services', 'Professional Services', 'Utilities', 'Services', 'Other'];
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('business_categories')
+      .select('*')
+      .order('display_order');
+    
+    if (!error && data) {
+      setCategories(data as BusinessCategory[]);
+    }
+  };
+
+  const addCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    // Get max display_order for parent level
+    const siblings = newCategoryParent
+      ? categories.filter(c => c.parent_id === newCategoryParent)
+      : categories.filter(c => c.parent_id === null);
+    
+    const maxOrder = siblings.length > 0 
+      ? Math.max(...siblings.map(c => c.display_order))
+      : 0;
+
+    const { error } = await supabase
+      .from('business_categories')
+      .insert({
+        name: newCategoryName.trim(),
+        parent_id: newCategoryParent,
+        display_order: maxOrder + 1,
+        is_active: true,
+      });
+
+    if (!error) {
+      alert('Category added!');
+      setNewCategoryName('');
+      setNewCategoryParent(null);
+      await fetchCategories();
+    } else {
+      alert('Error adding category: ' + error.message);
+    }
+  };
+
+  const updateCategory = async (id: string, updates: Partial<BusinessCategory>) => {
+    const { error } = await supabase
+      .from('business_categories')
+      .update(updates)
+      .eq('id', id);
+
+    if (!error) {
+      alert('Category updated!');
+      setEditingCategory(null);
+      await fetchCategories();
+    } else {
+      alert('Error updating category: ' + error.message);
+    }
+  };
+
+  const deleteCategory = async (id: string, name: string) => {
+    // Check if any businesses use this category
+    const businessesUsingCategory = businesses.filter(b => b.category === name);
+    
+    if (businessesUsingCategory.length > 0) {
+      const confirmed = confirm(
+        `Warning: ${businessesUsingCategory.length} businesses use "${name}".\n\n` +
+        `Deleting this category will NOT delete the businesses, but they may appear uncategorized.\n\n` +
+        `Continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    if (!confirm(`Delete category "${name}"? This cannot be undone.`)) return;
+
+    const { error } = await supabase
+      .from('business_categories')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      alert('Category deleted!');
+      await fetchCategories();
+    } else {
+      alert('Error deleting category: ' + error.message);
+    }
+  };
+
+  const moveCategory = async (id: string, direction: 'up' | 'down') => {
+    const category = categories.find(c => c.id === id);
+    if (!category) return;
+
+    // Get siblings (same parent level)
+    const siblings = categories
+      .filter(c => c.parent_id === category.parent_id)
+      .sort((a, b) => a.display_order - b.display_order);
+
+    const currentIndex = siblings.findIndex(c => c.id === id);
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapCategory = siblings[swapIndex];
+
+    // Swap display_order
+    await supabase
+      .from('business_categories')
+      .update({ display_order: swapCategory.display_order })
+      .eq('id', category.id);
+
+    await supabase
+      .from('business_categories')
+      .update({ display_order: category.display_order })
+      .eq('id', swapCategory.id);
+
+    await fetchCategories();
+  };
+
+  // Build dynamic category list for filter dropdown
+  const categoryFilterOptions = ['All', ...Array.from(new Set(categories.map(c => c.name))), 'Other'];
 
   const filteredBusinesses = businesses.filter(b => {
     const matchesSearch = b.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -182,6 +315,231 @@ export default function DirectoryAdminPage() {
         </div>
       </div>
 
+      {/* Category Manager */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <button
+          onClick={() => setShowCategoryManager(!showCategoryManager)}
+          className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Edit className="w-6 h-6 text-gabriola-green" />
+            <div>
+              <h2 className="text-2xl font-bold text-gabriola-green">Manage Categories</h2>
+              <p className="text-gray-600 text-sm">
+                {categories.filter(c => c.parent_id === null).length} main categories, {' '}
+                {categories.filter(c => c.parent_id !== null).length} subcategories
+              </p>
+            </div>
+          </div>
+          <div className="text-gray-400">
+            {showCategoryManager ? '▼' : '▶'}
+          </div>
+        </button>
+
+        {showCategoryManager && (
+          <div className="p-6 pt-0 border-t">
+            {/* Add New Category */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <h3 className="font-bold text-green-900 mb-3">➕ Add New Category</h3>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  placeholder="Category name..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                />
+                <select
+                  value={newCategoryParent || ''}
+                  onChange={(e) => setNewCategoryParent(e.target.value || null)}
+                  className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                >
+                  <option value="">Main Category</option>
+                  {categories.filter(c => c.parent_id === null).map(cat => (
+                    <option key={cat.id} value={cat.id}>Subcategory of {cat.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={addCategory}
+                  className="px-6 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Category List */}
+            <div className="space-y-4">
+              {categories
+                .filter(c => c.parent_id === null)
+                .sort((a, b) => a.display_order - b.display_order)
+                .map(mainCat => (
+                  <div key={mainCat.id} className="border rounded-lg p-4 bg-gray-50">
+                    {/* Main Category */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3 flex-1">
+                        {editingCategory?.id === mainCat.id ? (
+                          <input
+                            type="text"
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                            className="flex-1 px-3 py-1 border rounded"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="font-bold text-lg text-gray-900">{mainCat.name}</span>
+                        )}
+                        {!mainCat.is_active && (
+                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Disabled</span>
+                        )}
+                        <span className="text-xs text-gray-500">
+                          ({businesses.filter(b => b.category === mainCat.name).length} businesses)
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {/* Move Up/Down */}
+                        <button
+                          onClick={() => moveCategory(mainCat.id, 'up')}
+                          className="p-1 text-gray-600 hover:bg-gray-200 rounded"
+                          title="Move Up"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => moveCategory(mainCat.id, 'down')}
+                          className="p-1 text-gray-600 hover:bg-gray-200 rounded"
+                          title="Move Down"
+                        >
+                          ▼
+                        </button>
+
+                        {/* Edit/Save */}
+                        {editingCategory?.id === mainCat.id ? (
+                          <button
+                            onClick={() => updateCategory(mainCat.id, { name: editingCategory.name })}
+                            className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                          >
+                            Save
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setEditingCategory(mainCat)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                          >
+                            Edit
+                          </button>
+                        )}
+
+                        {/* Enable/Disable */}
+                        <button
+                          onClick={() => updateCategory(mainCat.id, { is_active: !mainCat.is_active })}
+                          className={`px-3 py-1 rounded text-sm ${
+                            mainCat.is_active 
+                              ? 'bg-yellow-600 text-white' 
+                              : 'bg-green-600 text-white'
+                          }`}
+                        >
+                          {mainCat.is_active ? 'Disable' : 'Enable'}
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => deleteCategory(mainCat.id, mainCat.name)}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Subcategories */}
+                    {categories
+                      .filter(c => c.parent_id === mainCat.id)
+                      .sort((a, b) => a.display_order - b.display_order)
+                      .map(subCat => (
+                        <div key={subCat.id} className="flex items-center justify-between ml-8 mt-2 p-2 bg-white rounded border">
+                          <div className="flex items-center gap-3 flex-1">
+                            {editingCategory?.id === subCat.id ? (
+                              <input
+                                type="text"
+                                value={editingCategory.name}
+                                onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                                className="flex-1 px-2 py-1 border rounded text-sm"
+                                autoFocus
+                              />
+                            ) : (
+                              <span className="text-gray-700">↳ {subCat.name}</span>
+                            )}
+                            {!subCat.is_active && (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Disabled</span>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              ({businesses.filter(b => b.category === subCat.name).length})
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Move Up/Down */}
+                            <button
+                              onClick={() => moveCategory(subCat.id, 'up')}
+                              className="p-1 text-gray-600 hover:bg-gray-200 rounded text-xs"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              onClick={() => moveCategory(subCat.id, 'down')}
+                              className="p-1 text-gray-600 hover:bg-gray-200 rounded text-xs"
+                            >
+                              ▼
+                            </button>
+
+                            {/* Edit/Save */}
+                            {editingCategory?.id === subCat.id ? (
+                              <button
+                                onClick={() => updateCategory(subCat.id, { name: editingCategory.name })}
+                                className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                              >
+                                Save
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setEditingCategory(subCat)}
+                                className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                              >
+                                Edit
+                              </button>
+                            )}
+
+                            {/* Enable/Disable */}
+                            <button
+                              onClick={() => updateCategory(subCat.id, { is_active: !subCat.is_active })}
+                              className={`px-2 py-1 rounded text-xs ${
+                                subCat.is_active 
+                                  ? 'bg-yellow-600 text-white' 
+                                  : 'bg-green-600 text-white'
+                              }`}
+                            >
+                              {subCat.is_active ? 'Off' : 'On'}
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => deleteCategory(subCat.id, subCat.name)}
+                              className="px-2 py-1 bg-red-600 text-white rounded text-xs"
+                            >
+                              Del
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Search & Filter */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -197,7 +555,7 @@ export default function DirectoryAdminPage() {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:outline-none"
           >
-            {categories.map(cat => (
+            {categoryFilterOptions.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>

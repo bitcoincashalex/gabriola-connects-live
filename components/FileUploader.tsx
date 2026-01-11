@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const MAX_FILE_SIZE_MB = 25;
+const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function FileUploader({ onUpload }: { onUpload: (urls: string[]) => void }) {
@@ -57,7 +57,7 @@ export default function FileUploader({ onUpload }: { onUpload: (urls: string[]) 
   return (
     <div className="mb-6">
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Attach files (PDF, DOCX, images, ZIP, audio — up to 25 MB each)
+        Attach files (PDF, DOCX, images, ZIP, audio — up to 10 MB each)
       </label>
 
       <input
@@ -78,7 +78,7 @@ export default function FileUploader({ onUpload }: { onUpload: (urls: string[]) 
       )}
 
       <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        <strong>Note:</strong> Maximum file size is <strong>25 MB</strong> per file. 
+        <strong>Note:</strong> Maximum file size is <strong>10 MB</strong> per file. 
         Perfect for ferry schedules, meeting minutes, posters, or photo packs.
       </div>
     </div>
