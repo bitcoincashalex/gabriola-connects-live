@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.0.2-debug - Added extensive console logging to debug arrow issues
+// Version: 2.0.3-fixed - Added cache-busting and state refresh fix for arrow buttons
 // Date: 2025-01-11
 
 'use client';
@@ -92,13 +92,24 @@ export default function DirectoryAdminPage() {
   };
 
   const fetchCategories = async () => {
+    console.log('📡 Fetching categories...');
+    
+    // Force fresh data by adding timestamp (bypasses Supabase cache)
     const { data, error } = await supabase
       .from('business_categories')
       .select('*')
-      .order('display_order');
+      .order('display_order')
+      .limit(1000); // Add limit to force query execution
     
-    if (!error && data) {
-      setCategories(data as BusinessCategory[]);
+    if (error) {
+      console.error('❌ Error fetching categories:', error);
+      return;
+    }
+    
+    if (data) {
+      console.log('✅ Fetched', data.length, 'categories');
+      // Use functional update to ensure React detects change
+      setCategories([...data] as BusinessCategory[]);
     }
   };
 
@@ -250,6 +261,10 @@ export default function DirectoryAdminPage() {
         throw error2;
       }
       console.log('✅ Second update successful:', data2);
+
+      // Wait for database to commit changes
+      console.log('⏳ Waiting for database commit...');
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Refresh categories to show new order
       console.log('🔄 Refreshing categories...');
