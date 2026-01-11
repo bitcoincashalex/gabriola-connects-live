@@ -451,8 +451,10 @@ export default function EventsManager() {
   const upcoming = sortedEvents.filter(e => 
     isAfter(e.start_date, today) || isSameDay(e.start_date, today)
   );
+  // Past events always show most recently expired first (descending order)
   const past = sortedEvents
-    .filter(e => isBefore(e.start_date, today));
+    .filter(e => isBefore(e.start_date, today))
+    .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
 
 
   return (

@@ -1,6 +1,6 @@
 // Path: components/Ferry.tsx
-// Version: 2.2.1 - Changed timestamp format to readable date/time (December 21st 2025, 3:50:00 pm)
-// Date: 2025-12-21
+// Version: 2.3.0 - Added "Refresh Status" label to refresh button for clarity
+// Date: 2025-01-11
 
 'use client';
 
@@ -111,11 +111,14 @@ export default function Ferry() {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className={`p-4 rounded-full bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 transition-all shadow-lg ${
-              isRefreshing ? 'animate-spin' : ''
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg bg-gabriola-ocean text-white hover:bg-gabriola-ocean/90 transition-all shadow-lg ${
+              isRefreshing ? 'opacity-75' : ''
             }`}
           >
-            <RefreshCw className="w-7 h-7" />
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="font-semibold text-sm hidden sm:inline">
+              {isRefreshing ? 'Updating...' : 'Refresh Status'}
+            </span>
           </button>
         </div>
       </div>
