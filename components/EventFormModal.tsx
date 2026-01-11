@@ -1,6 +1,6 @@
 // Path: components/EventFormModal.tsx
-// Version: 1.0.0 - Shared event form modal for create/edit
-// Date: 2025-12-22
+// Version: 2.0.0 - Added accessibility checkboxes, image compression, demo message
+// Date: 2024-12-24
 
 'use client';
 
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { format } from 'date-fns';
 import { X, Upload, AlertCircle } from 'lucide-react';
+import { compressImage } from '@/lib/imageCompression';
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -78,10 +79,17 @@ export default function EventFormModal({
     // Event Details
     age_restrictions: '',
     accessibility_info: '',
+    parking_info: '',
     what_to_bring: '',
     dress_code: '',
     additional_info: '',
     weather_dependent: false,
+    
+    // Accessibility & Amenities (NEW - checkboxes)
+    wheelchair_accessible: false,
+    parking_available: false,
+    pet_friendly: false,
+    family_friendly: true,
     
     // Tags (will be comma-separated string, converted to array on save)
     tags: '',
@@ -143,6 +151,13 @@ export default function EventFormModal({
         dress_code: event.dress_code || '',
         additional_info: event.additional_info || '',
         weather_dependent: event.weather_dependent || false,
+        parking_info: event.parking_info || '',
+        
+        // Accessibility & Amenities (NEW - load from database)
+        wheelchair_accessible: event.wheelchair_accessible || false,
+        parking_available: event.parking_available || false,
+        pet_friendly: event.pet_friendly || false,
+        family_friendly: event.family_friendly ?? true,
         
         // Tags & Keywords
         tags: event.tags ? event.tags.join(', ') : '',
@@ -206,6 +221,13 @@ export default function EventFormModal({
       dress_code: '',
       additional_info: '',
       weather_dependent: false,
+      
+      // Accessibility & Amenities (NEW - reset to defaults)
+      wheelchair_accessible: false,
+      parking_available: false,
+      pet_friendly: false,
+      family_friendly: true,
+      
       tags: '',
       keywords: '',
     });
@@ -218,13 +240,27 @@ export default function EventFormModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const fileExt = file.name.split('.').pop();
+    // Compress image before upload
+    const compressionResult = await compressImage(file, {
+      maxWidth: 1920,
+      maxHeight: 1920,
+      quality: 0.85,
+      maxSizeMB: 10,
+    });
+
+    if (!compressionResult.success) {
+      alert(compressionResult.error);
+      return;
+    }
+
+    const compressedFile = compressionResult.file;
+    const fileExt = compressedFile.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `event-images/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('events')
-      .upload(filePath, file);
+      .upload(filePath, compressedFile);
 
     if (uploadError) {
       alert('Error uploading image');
@@ -343,7 +379,7 @@ export default function EventFormModal({
           <div className="mx-8 mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-yellow-800">
-              Your event will be reviewed by an admin before appearing on the calendar. We'll review it as soon as possible!
+              For demo purposes, your event will appear immediately on the calendar!
             </p>
           </div>
         )}
@@ -411,6 +447,9 @@ export default function EventFormModal({
                   onChange={handleImageUpload}
                   className="w-full p-3 border rounded-lg"
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Maximum file size: 10 MB per image
+                </p>
               </div>
             </div>
           </div>
@@ -518,13 +557,13 @@ export default function EventFormModal({
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Parking Information</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Parking Notes (Optional)</label>
                 <textarea
                   value={form.parking_info}
                   onChange={e => setForm({ ...form, parking_info: e.target.value })}
                   rows={2}
                   className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
-                  placeholder="Parking details, restrictions, etc."
+                  placeholder="E.g., Limited street parking, use municipal lot across street"
                 />
               </div>
             </div>
@@ -659,14 +698,63 @@ export default function EventFormModal({
           <div className="bg-white border-2 border-gabriola-green/20 rounded-xl p-6">
             <h4 className="text-xl font-bold text-gabriola-green-dark mb-4">ℹ️ Additional Details</h4>
             <div className="space-y-4">
+              
+              {/* NEW - Accessibility & Amenities Checkboxes */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Accessibility & Amenities
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.wheelchair_accessible}
+                      onChange={(e) => setForm({ ...form, wheelchair_accessible: e.target.checked })}
+                      className="w-4 h-4 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">♿ Wheelchair accessible</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.parking_available}
+                      onChange={(e) => setForm({ ...form, parking_available: e.target.checked })}
+                      className="w-4 h-4 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">🅿️ Parking available</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.pet_friendly}
+                      onChange={(e) => setForm({ ...form, pet_friendly: e.target.checked })}
+                      className="w-4 h-4 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">🐕 Pet friendly</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.family_friendly}
+                      onChange={(e) => setForm({ ...form, family_friendly: e.target.checked })}
+                      className="w-4 h-4 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">👨‍👩‍👧‍👦 Family friendly</span>
+                  </label>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Accessibility Info</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Additional Accessibility Notes (Optional)</label>
                 <textarea
                   value={form.accessibility_info}
                   onChange={e => setForm({ ...form, accessibility_info: e.target.value })}
                   rows={2}
                   className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
-                  placeholder="Wheelchair accessible, ASL interpreter, etc."
+                  placeholder="E.g., Ramp at side entrance, accessible washrooms on main floor"
                 />
               </div>
 
