@@ -1,5 +1,5 @@
 // Path: components/EventFormModal.tsx
-// Version: 2.0.0 - Added accessibility checkboxes, image compression, demo message
+// Version: 2.0.1 - Fixed duplicate parking_info field
 // Date: 2024-12-24
 
 'use client';
@@ -58,7 +58,6 @@ export default function EventFormModal({
     venue_city: 'Gabriola Island',
     venue_postal_code: '',
     venue_map_url: '',
-    parking_info: '',
     
     // Contact & Organizer
     contact_email: '',
@@ -126,7 +125,6 @@ export default function EventFormModal({
         venue_city: event.venue_city || 'Gabriola Island',
         venue_postal_code: event.venue_postal_code || '',
         venue_map_url: event.venue_map_url || '',
-        parking_info: event.parking_info || '',
         
         // Contact & Organizer
         contact_email: event.contact_email || '',
