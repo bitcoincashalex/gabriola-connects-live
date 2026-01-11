@@ -1,7 +1,7 @@
 // lib/types/search.ts
 // Complete database schemas for all searchable tables
-// Version: 1.1.0 - Added missing FerrySchedule fields (day_of_week, route_name, from/to_location, notes, operating_days)
-// Date: 2025-12-20
+// Version: 2.0.0 - Added accessibility boolean fields to Event interface (wheelchair, parking, pet, family friendly)
+// Date: 2025-01-11
 // Used by: /app/search/page.tsx and /app/community/search/page.tsx
 
 // ============================================================================
@@ -143,7 +143,7 @@ export interface DirectoryBusiness {
 }
 
 // ============================================================================
-// EVENTS (62 fields)
+// EVENTS (66 fields) - Updated: Added 4 accessibility boolean fields
 // ============================================================================
 export interface Event {
   // Core fields (3)
@@ -204,6 +204,12 @@ export interface Event {
   accessibility_info: string | null;
   what_to_bring: string | null;
   dress_code: string | null;
+  
+  // Accessibility & Amenities (4) - NEW: Boolean filters for search
+  wheelchair_accessible: boolean | null;
+  parking_available: boolean | null;
+  pet_friendly: boolean | null;
+  family_friendly: boolean | null;
   
   // Cancellation/postponement (4)
   cancelled_at: string | null;
@@ -407,7 +413,7 @@ export interface BBSCategory {
 // ============================================================================
 // SUMMARY
 // ============================================================================
-// Total fields across all types: 15 + 74 + 62 + 28 + 25 + 18 + 24 = 246 fields
+// Total fields across all types: 15 + 74 + 66 + 28 + 25 + 18 + 24 = 250 fields
 //
 // Moderator/Admin-only fields (should be filtered from anonymous queries):
 // - Event: deleted_by, deleted_at

@@ -1,7 +1,7 @@
 // app/search/page.tsx
 // Complete schemas: Alert (15 fields), DirectoryBusiness (73 fields), Event (62 fields), FerrySchedule (12 fields)
-// Version: 4.0.1 - Fixed footer layout (full width at bottom)
-// Date: 2025-12-21
+// Version: 5.0.0 - Added accessibility filters for events and businesses (wheelchair, parking, pet, family friendly)
+// Date: 2025-01-11
 
 'use client';
 
@@ -214,6 +214,12 @@ interface Event {
   what_to_bring: string | null;
   dress_code: string | null;
   
+  // NEW - Accessibility & Amenities (boolean filters)
+  wheelchair_accessible: boolean | null;
+  parking_available: boolean | null;
+  pet_friendly: boolean | null;
+  family_friendly: boolean | null;
+  
   // Cancellation/postponement
   cancelled_at: string | null;
   cancellation_reason: string | null;
@@ -274,6 +280,10 @@ function SearchPageContent() {
   const [eventOrganization, setEventOrganization] = useState('all');
   const [registrationRequired, setRegistrationRequired] = useState('all');
   const [hasAccessibility, setHasAccessibility] = useState(false);
+  const [eventWheelchairAccessible, setEventWheelchairAccessible] = useState(false);
+  const [eventParkingAvailable, setEventParkingAvailable] = useState(false);
+  const [eventPetFriendly, setEventPetFriendly] = useState(false);
+  const [eventFamilyFriendly, setEventFamilyFriendly] = useState(false);
 
   // Alert-specific filters (organization is separate from severity/status already present)
   const [alertOrganization, setAlertOrganization] = useState('all');
@@ -285,6 +295,7 @@ function SearchPageContent() {
   const [petFriendly, setPetFriendly] = useState(false);
   const [hasWifi, setHasWifi] = useState(false);
   const [hasParking, setHasParking] = useState(false);
+  const [businessFamilyFriendly, setBusinessFamilyFriendly] = useState(false);
 
   // Categories for filtering
   const categories = {
@@ -497,6 +508,18 @@ function SearchPageContent() {
         event.accessibility_info && event.accessibility_info.length > 0
       );
     }
+    if (eventWheelchairAccessible) {
+      filtered.events = filtered.events.filter(event => event.wheelchair_accessible === true);
+    }
+    if (eventParkingAvailable) {
+      filtered.events = filtered.events.filter(event => event.parking_available === true);
+    }
+    if (eventPetFriendly) {
+      filtered.events = filtered.events.filter(event => event.pet_friendly === true);
+    }
+    if (eventFamilyFriendly) {
+      filtered.events = filtered.events.filter(event => event.family_friendly === true);
+    }
 
     // Directory amenity filtering
     if (wheelchairAccessible) {
@@ -517,6 +540,9 @@ function SearchPageContent() {
     if (hasParking) {
       filtered.directory = filtered.directory.filter(business => business.parking_available === true);
     }
+    if (businessFamilyFriendly) {
+      filtered.directory = filtered.directory.filter(business => business.family_friendly === true);
+    }
 
     // Update total count
     filtered.totalCount = 
@@ -533,7 +559,8 @@ function SearchPageContent() {
     alertSeverity !== 'all' || alertStatus !== 'all' || alertOrganization !== 'all' ||
     ferryDay !== 'all' || ferryRoute !== 'all' || ferryTimeOfDay !== 'all' ||
     eventOrganization !== 'all' || registrationRequired !== 'all' || hasAccessibility ||
-    wheelchairAccessible || acceptsCredit || offersDelivery || petFriendly || hasWifi || hasParking;
+    eventWheelchairAccessible || eventParkingAvailable || eventPetFriendly || eventFamilyFriendly ||
+    wheelchairAccessible || acceptsCredit || offersDelivery || petFriendly || hasWifi || hasParking || businessFamilyFriendly;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -680,7 +707,7 @@ function SearchPageContent() {
                     </select>
                   </div>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -690,6 +717,47 @@ function SearchPageContent() {
                     />
                     <span className="text-sm text-gray-700">Has Accessibility Info</span>
                   </label>
+                </div>
+                <div className="mt-3">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Event Accessibility & Amenities</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={eventWheelchairAccessible}
+                        onChange={(e) => setEventWheelchairAccessible(e.target.checked)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">♿ Wheelchair Accessible</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={eventParkingAvailable}
+                        onChange={(e) => setEventParkingAvailable(e.target.checked)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">🅿️ Parking Available</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={eventPetFriendly}
+                        onChange={(e) => setEventPetFriendly(e.target.checked)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">🐕 Pet Friendly</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={eventFamilyFriendly}
+                        onChange={(e) => setEventFamilyFriendly(e.target.checked)}
+                        className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                      />
+                      <span className="text-sm text-gray-700">👨‍👩‍👧‍👦 Family Friendly</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
@@ -772,6 +840,15 @@ function SearchPageContent() {
                       className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
                     />
                     <span className="text-sm text-gray-700">🅿️ Parking Available</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={businessFamilyFriendly}
+                      onChange={(e) => setBusinessFamilyFriendly(e.target.checked)}
+                      className="w-4 h-4 text-gabriola-green rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-sm text-gray-700">👨‍👩‍👧‍👦 Family Friendly</span>
                   </label>
                 </div>
               </div>

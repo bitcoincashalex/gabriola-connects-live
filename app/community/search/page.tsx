@@ -1,7 +1,7 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 4.0.1 - Fixed footer layout (full width at bottom)
-// Date: 2025-12-21
+// Version: 5.0.0 - Added accessibility filters for events and businesses (wheelchair, parking, pet, family friendly)
+// Date: 2025-01-11
 
 'use client';
 
@@ -175,6 +175,12 @@ export default function CommunitySearchPage() {
   const [eventOrganization, setEventOrganization] = useState('all');
   const [registrationRequiredFilter, setRegistrationRequiredFilter] = useState('all');
   const [hasAccessibility, setHasAccessibility] = useState(false);
+  const [eventWheelchairAccessible, setEventWheelchairAccessible] = useState(false);
+  const [eventParkingAvailable, setEventParkingAvailable] = useState(false);
+  const [eventPetFriendly, setEventPetFriendly] = useState(false);
+  const [eventFamilyFriendly, setEventFamilyFriendly] = useState(false);
+  
+  const [familyFriendly, setFamilyFriendly] = useState(false); // Business family friendly
   
   const [ferryActiveOnly, setFerryActiveOnly] = useState(false);
   
@@ -413,6 +419,10 @@ export default function CommunitySearchPage() {
         if (registrationRequiredFilter === 'yes' && !event.registration_required) return false;
         if (registrationRequiredFilter === 'no' && event.registration_required) return false;
         if (hasAccessibility && (!event.accessibility_info || event.accessibility_info.length === 0)) return false;
+        if (eventWheelchairAccessible && !event.wheelchair_accessible) return false;
+        if (eventParkingAvailable && !event.parking_available) return false;
+        if (eventPetFriendly && !event.pet_friendly) return false;
+        if (eventFamilyFriendly && !event.family_friendly) return false;
         return true;
       });
     }
@@ -443,6 +453,7 @@ export default function CommunitySearchPage() {
         if (offersDelivery && !business.offers_delivery) return false;
         if (petFriendly && !business.pet_friendly) return false;
         if (hasWifi && !business.wifi_available) return false;
+        if (familyFriendly && !business.family_friendly) return false;
         return true;
       });
     }
@@ -551,6 +562,11 @@ export default function CommunitySearchPage() {
     if (eventOrganization !== 'all') count++;
     if (registrationRequiredFilter !== 'all') count++;
     if (hasAccessibility) count++;
+    if (eventWheelchairAccessible) count++;
+    if (eventParkingAvailable) count++;
+    if (eventPetFriendly) count++;
+    if (eventFamilyFriendly) count++;
+    if (familyFriendly) count++;
     
     return count;
   };
@@ -783,6 +799,49 @@ export default function CommunitySearchPage() {
                 <span className="text-base font-medium">Has Accessibility Info</span>
               </label>
 
+              {/* Event Accessibility & Amenities */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Event Accessibility & Amenities</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={eventWheelchairAccessible}
+                      onChange={(e) => setEventWheelchairAccessible(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">♿ Wheelchair Accessible</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={eventParkingAvailable}
+                      onChange={(e) => setEventParkingAvailable(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">🅿️ Parking Available</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={eventPetFriendly}
+                      onChange={(e) => setEventPetFriendly(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">🐕 Pet Friendly</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={eventFamilyFriendly}
+                      onChange={(e) => setEventFamilyFriendly(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">👨‍👩‍👧‍👦 Family Friendly</span>
+                  </label>
+                </div>
+              </div>
+
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="flex items-center gap-2 text-gabriola-green font-medium"
@@ -956,6 +1015,15 @@ export default function CommunitySearchPage() {
                       className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
                     />
                     <span className="text-base">📶 WiFi Available</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={familyFriendly}
+                      onChange={(e) => setFamilyFriendly(e.target.checked)}
+                      className="w-5 h-5 text-gabriola-green border-gray-300 rounded focus:ring-gabriola-green"
+                    />
+                    <span className="text-base">👨‍👩‍👧‍👦 Family Friendly</span>
                   </label>
                 </div>
               )}
