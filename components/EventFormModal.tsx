@@ -1,6 +1,6 @@
 // Path: components/EventFormModal.tsx
-// Version: 2.0.1 - Fixed duplicate parking_info field
-// Date: 2024-12-24
+// Version: 3.0.0 - Added ImageUploadManager for galleries, FileUploader for documents
+// Date: 2025-01-11 (3 days before Jan 14 demo!)
 
 'use client';
 
@@ -10,6 +10,8 @@ import { useUser } from '@/components/AuthProvider';
 import { format } from 'date-fns';
 import { X, Upload, AlertCircle } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompression';
+import ImageUploadManager from './ImageUploadManager';
+import FileUploader from './FileUploader';
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -34,6 +36,10 @@ export default function EventFormModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
   const [customLocation, setCustomLocation] = useState('');
+  
+  // NEW - Multiple images and documents
+  const [eventImages, setEventImages] = useState<Array<{id: string; url: string; file?: File}>>([]);
+  const [eventFiles, setEventFiles] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     // Basic Info
@@ -175,6 +181,23 @@ export default function EventFormModal({
       }
       
       setImagePreview(event.image_url || null);
+      
+      // Load gallery images if editing existing event
+      if (event.gallery_images && Array.isArray(event.gallery_images)) {
+        setEventImages(event.gallery_images.map((url: string, idx: number) => ({
+          id: `existing-${idx}`,
+          url: url
+        })));
+      } else {
+        setEventImages([]);
+      }
+      
+      // Load attachments if editing existing event
+      if (event.attachments && Array.isArray(event.attachments)) {
+        setEventFiles(event.attachments);
+      } else {
+        setEventFiles([]);
+      }
     } else {
       // Creating mode - reset form
       resetForm();
@@ -232,6 +255,8 @@ export default function EventFormModal({
     setImagePreview(null);
     setSelectedVenueId('');
     setCustomLocation('');
+    setEventImages([]);
+    setEventFiles([]);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,6 +343,30 @@ export default function EventFormModal({
     e.preventDefault();
     if (!user) return;
 
+    // Upload event images to Supabase Storage
+    const uploadedImageUrls: string[] = [];
+    for (const imageData of eventImages) {
+      if (imageData.file) {
+        const fileExt = imageData.file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `event-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('events')
+          .upload(filePath, imageData.file);
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from('events')
+            .getPublicUrl(filePath);
+          uploadedImageUrls.push(data.publicUrl);
+        }
+      } else if (imageData.url) {
+        // Existing image from editing
+        uploadedImageUrls.push(imageData.url);
+      }
+    }
+
     // Build payload
     const payload: any = {
       ...form,
@@ -328,6 +377,8 @@ export default function EventFormModal({
       end_time: form.end_time || null,
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       is_approved: canPublishInstantly,
+      gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
+      attachments: eventFiles.length > 0 ? eventFiles : null,
     };
 
     // Convert number fields
@@ -433,20 +484,26 @@ export default function EventFormModal({
                 />
               </div>
 
-              {/* Event Image */}
+              {/* Event Photos (Multiple) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
-                {imagePreview && (
-                  <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg mb-2" />
-                )}
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="w-full p-3 border rounded-lg"
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Photos (Optional)</label>
+                <ImageUploadManager
+                  images={eventImages}
+                  onImagesChange={setEventImages}
+                  maxImages={10}
+                  showCaptions={false}
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum file size: 10 MB per image
+                  Add photos of the event, venue, activities, etc. Max 10 images, 10MB each.
+                </p>
+              </div>
+
+              {/* Event Documents (Schedules, Forms, etc.) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Documents (Optional)</label>
+                <FileUploader onUpload={setEventFiles} />
+                <p className="text-sm text-gray-500 mt-1">
+                  Upload schedules, registration forms, maps, brochures (PDF, DOCX). Max 10MB per file.
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 // components/Directory.tsx
-// Version: 3.0.0 - MASSIVELY ENHANCED: 60+ fields (hours, amenities, payment, credentials, social)
-// Date: 2025-12-20
+// Version: 4.5.1 - Fixed sorting (removed CATEGORY_ORDER reference)
+// Date: 2025-01-11 (3 days before Jan 14 demo!)
 
 'use client';
 
@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import FileUploader from './FileUploader';
+import ImageUploadManager from './ImageUploadManager';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
 import { MapPin, Phone, Mail, Globe, Plus, X, Search } from 'lucide-react';
 
@@ -23,21 +24,27 @@ interface DirectoryListing {
   image?: string;
 }
 
-const CATEGORY_ORDER = [
-  'Community','Arts','Restaurant','Accommodation','Recreation','Health',
-  'Pet Services','Shopping','Grocery','Agriculture','Marine','Construction',
-  'Home Services','Professional Services','Utilities','Services'
-];
+interface BusinessCategory {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  display_order: number;
+}
 
 export default function Directory() {
   const { user } = useUser();
   const [listings, setListings] = useState<DirectoryListing[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // NEW - Dynamic category loading from database
+  const [mainCategories, setMainCategories] = useState<BusinessCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<BusinessCategory[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [customCategory, setCustomCategory] = useState('');
   const [files, setFiles] = useState<string[]>([]);
+  const [businessImages, setBusinessImages] = useState<Array<{id: string; url: string; file?: File}>>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<DirectoryListing | null>(null);
 
   const [formData, setFormData] = useState({
@@ -126,10 +133,45 @@ export default function Directory() {
       setListings(data || []);
       setLoading(false);
     };
+    
+    const fetchCategories = async () => {
+      // Fetch main categories (parent_id IS NULL)
+      const { data: mains } = await supabase
+        .from('business_categories')
+        .select('*')
+        .is('parent_id', null)
+        .eq('is_active', true)
+        .order('display_order');
+      
+      // Fetch all subcategories
+      const { data: subs } = await supabase
+        .from('business_categories')
+        .select('*')
+        .not('parent_id', 'is', null)
+        .eq('is_active', true)
+        .order('display_order');
+      
+      setMainCategories(mains || []);
+      setSubcategories(subs || []);
+    };
+    
     fetchListings();
+    fetchCategories();
   }, []);
 
-  const categories = ['All', ...CATEGORY_ORDER, 'Other'];
+  // Build category list dynamically for display
+  const allCategoryNames = useMemo(() => {
+    const names = ['All'];
+    mainCategories.forEach(main => {
+      names.push(main.name);
+      // Add subcategories under this main category
+      subcategories
+        .filter(sub => sub.parent_id === main.id)
+        .forEach(sub => names.push(sub.name));
+    });
+    names.push('Other');
+    return names;
+  }, [mainCategories, subcategories]);
 
   const filteredListings = useMemo(() => {
     return listings
@@ -140,9 +182,10 @@ export default function Directory() {
       )
       .filter(l => selectedCategory === 'All' || l.category === selectedCategory)
       .sort((a, b) => {
-        const catA = CATEGORY_ORDER.indexOf(a.category);
-        const catB = CATEGORY_ORDER.indexOf(b.category);
-        if (catA !== catB) return (catA === -1 ? 999 : catA) - (catB === -1 ? 999 : catB);
+        // Sort by category alphabetically, then by name
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
         return a.name.localeCompare(b.name);
       });
   }, [listings, searchQuery, selectedCategory]);
@@ -153,6 +196,27 @@ export default function Directory() {
     if (!formData.name.trim() || !finalCategory || !formData.address.trim()) {
       alert('Please fill in Business Name, Category, and Address');
       return;
+    }
+
+    // Upload business images to Supabase Storage
+    const uploadedImageUrls: string[] = [];
+    for (const imageData of businessImages) {
+      if (imageData.file) {
+        const fileExt = imageData.file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `business-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('bbs-images')
+          .upload(filePath, imageData.file);
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from('bbs-images')
+            .getPublicUrl(filePath);
+          uploadedImageUrls.push(data.publicUrl);
+        }
+      }
     }
 
     const { error } = await supabase.from('directory_businesses').insert({
@@ -231,6 +295,7 @@ export default function Directory() {
       image: files[0] || null,
       logo_url: formData.logo_url || null,
       cover_image_url: formData.cover_image_url || null,
+      gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
     });
 
     if (!error) {
@@ -251,6 +316,7 @@ export default function Directory() {
         logo_url: '', cover_image_url: '',
       });
       setFiles([]);
+      setBusinessImages([]);
       setCustomCategory('');
       const { data } = await supabase.from('directory_businesses').select('*');
       if (data) setListings(data);
@@ -319,7 +385,7 @@ export default function Directory() {
               onChange={e => setSelectedCategory(e.target.value)}
               className="px-6 py-4 border rounded-xl focus:ring-2 focus:ring-gabriola-green outline-none text-lg"
             >
-              {categories.map(cat => (
+              {allCategoryNames.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -341,11 +407,35 @@ export default function Directory() {
                 <input type="text" placeholder="Tagline (e.g., 'Fresh local produce since 1985')" value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} className="w-full p-4 border rounded-lg" maxLength={100} />
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-4 border rounded-lg">
-                    {CATEGORY_ORDER.map(c => <option key={c}>{c}</option>)}
+                  <select 
+                    value={formData.category} 
+                    onChange={e => setFormData({...formData, category: e.target.value})} 
+                    className="w-full p-4 border rounded-lg"
+                    required
+                  >
+                    <option value="">Select Main Category *</option>
+                    {mainCategories.map(main => (
+                      <optgroup key={main.id} label={main.name}>
+                        <option value={main.name}>{main.name}</option>
+                        {subcategories
+                          .filter(sub => sub.parent_id === main.id)
+                          .map(sub => (
+                            <option key={sub.id} value={sub.name}>
+                              &nbsp;&nbsp;{sub.name}
+                            </option>
+                          ))
+                        }
+                      </optgroup>
+                    ))}
                     <option value="Other">Other</option>
                   </select>
-                  <input type="text" placeholder="Subcategory (optional)" value={formData.subcategory} onChange={e => setFormData({...formData, subcategory: e.target.value})} className="w-full p-4 border rounded-lg" />
+                  <input 
+                    type="text" 
+                    placeholder="Subcategory (optional)" 
+                    value={formData.subcategory} 
+                    onChange={e => setFormData({...formData, subcategory: e.target.value})} 
+                    className="w-full p-4 border rounded-lg" 
+                  />
                 </div>
                 
                 {formData.category === 'Other' && (
@@ -551,20 +641,69 @@ export default function Directory() {
               </div>
             </div>
 
-            {/* SECTION 7: Social Media & Photos */}
+            {/* SECTION 7: Photos & Documents */}
             <div className="bg-white border-2 border-pink-200 rounded-xl p-6">
-              <h4 className="text-xl font-bold text-gray-800 mb-4">🌐 Social Media & Photos</h4>
-              <div className="space-y-4">
-                <input type="url" placeholder="Facebook URL" value={formData.facebook_url} onChange={e => setFormData({...formData, facebook_url: e.target.value})} className="w-full p-4 border rounded-lg" />
-                <input type="url" placeholder="Instagram URL" value={formData.instagram_url} onChange={e => setFormData({...formData, instagram_url: e.target.value})} className="w-full p-4 border rounded-lg" />
-                <input type="url" placeholder="YouTube/Video URL" value={formData.video_url} onChange={e => setFormData({...formData, video_url: e.target.value})} className="w-full p-4 border rounded-lg" />
-                
-                <div className="pt-4">
-                  <label className="block font-medium text-gray-800 mb-2">Business Photo / Logo</label>
+              <h4 className="text-xl font-bold text-gray-800 mb-4">📸 Photos & Documents</h4>
+              <div className="space-y-6">
+                {/* Business Images (Multiple) */}
+                <div>
+                  <label className="block font-medium text-gray-800 mb-2">Business Photos (Optional)</label>
+                  <ImageUploadManager
+                    images={businessImages}
+                    onImagesChange={setBusinessImages}
+                    maxImages={10}
+                    showCaptions={false}
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Add photos of your business, products, interior, exterior, etc. Max 10 images, 10MB each.
+                  </p>
+                </div>
+
+                {/* Documents (PDFs, Menus, etc.) */}
+                <div>
+                  <label className="block font-medium text-gray-800 mb-2">Documents (Optional)</label>
                   <FileUploader onUpload={setFiles} />
-                  <p className="text-xs text-gray-500 mt-2">Upload your business logo or main photo</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Upload menus, brochures, price lists, certificates (PDF, DOCX, images). Max 10MB per file.
+                  </p>
+                </div>
+
+                {/* Social Media */}
+                <div className="pt-4 border-t">
+                  <label className="block font-medium text-gray-800 mb-4">Social Media Links (Optional)</label>
+                  <div className="space-y-3">
+                    <input 
+                      type="url" 
+                      placeholder="Facebook URL" 
+                      value={formData.facebook_url} 
+                      onChange={e => setFormData({...formData, facebook_url: e.target.value})} 
+                      className="w-full p-4 border rounded-lg" 
+                    />
+                    <input 
+                      type="url" 
+                      placeholder="Instagram URL" 
+                      value={formData.instagram_url} 
+                      onChange={e => setFormData({...formData, instagram_url: e.target.value})} 
+                      className="w-full p-4 border rounded-lg" 
+                    />
+                    <input 
+                      type="url" 
+                      placeholder="YouTube/Video URL" 
+                      value={formData.video_url} 
+                      onChange={e => setFormData({...formData, video_url: e.target.value})} 
+                      className="w-full p-4 border rounded-lg" 
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* Demo Message */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+              <span className="text-2xl">ℹ️</span>
+              <p className="text-sm text-yellow-800">
+                <strong>For demo purposes,</strong> your business will appear immediately in the directory!
+              </p>
             </div>
 
             {/* Submit Button */}
