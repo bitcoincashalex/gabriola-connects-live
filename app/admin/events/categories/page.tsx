@@ -1,6 +1,6 @@
 // Path: app/admin/events/categories/page.tsx
-// Version: 1.0.0 - Event Category Manager
-// Date: 2024-12-10
+// Version: 2.0.0 - Added category reordering with up/down arrows
+// Date: 2025-01-11
 
 'use client';
 
@@ -16,7 +16,9 @@ import {
   Trash2,
   Save,
   X,
-  FolderTree
+  FolderTree,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 interface Category {
@@ -25,6 +27,7 @@ interface Category {
   description: string;
   color: string;
   icon: string;
+  display_order: number;
   created_at: string;
 }
 
@@ -60,14 +63,16 @@ export default function EventCategoryManager() {
   }, [user, router]);
 
   const fetchCategories = async () => {
+    console.log('📡 Fetching event categories...');
     setLoading(true);
     const { data, error } = await supabase
       .from('event_categories')
       .select('*')
-      .order('name', { ascending: true });
+      .order('display_order', { ascending: true });
 
     if (!error && data) {
-      setCategories(data);
+      console.log('✅ Fetched', data.length, 'event categories');
+      setCategories([...data]);
     }
     setLoading(false);
   };
@@ -130,6 +135,90 @@ export default function EventCategoryManager() {
       alert('Failed to delete category. Make sure no events are using it.');
     } else {
       fetchCategories();
+    }
+  };
+
+  const moveCategory = async (id: string, direction: 'up' | 'down') => {
+    console.log('🔄 moveCategory called:', { id, direction });
+    
+    const category = categories.find(c => c.id === id);
+    if (!category) {
+      console.error('❌ Category not found:', id);
+      return;
+    }
+    console.log('✅ Found category:', category.name, 'display_order:', category.display_order);
+
+    // Get all categories sorted by display_order
+    const allCategories = [...categories].sort((a, b) => a.display_order - b.display_order);
+    console.log('👥 All categories:', allCategories.map(c => ({ name: c.name, order: c.display_order })));
+
+    const currentIndex = allCategories.findIndex(c => c.id === id);
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    console.log('📍 Current index:', currentIndex, 'Swap index:', swapIndex);
+
+    if (swapIndex < 0 || swapIndex >= allCategories.length) {
+      console.warn('⚠️ Cannot move - already at boundary');
+      return;
+    }
+
+    const swapCategory = allCategories[swapIndex];
+    console.log('🔀 Swapping with:', swapCategory.name, 'display_order:', swapCategory.display_order);
+
+    // Store display_order values BEFORE updating
+    const categoryOrder = category.display_order;
+    const swapCategoryOrder = swapCategory.display_order;
+    
+    console.log('📊 Values to swap:', { 
+      category: category.name, 
+      currentOrder: categoryOrder, 
+      willBecome: swapCategoryOrder,
+      swapWith: swapCategory.name,
+      swapCurrentOrder: swapCategoryOrder,
+      swapWillBecome: categoryOrder
+    });
+
+    try {
+      // Update first category
+      console.log('🔄 Updating', category.name, 'from', categoryOrder, 'to', swapCategoryOrder);
+      const { data: data1, error: error1 } = await supabase
+        .from('event_categories')
+        .update({ display_order: swapCategoryOrder })
+        .eq('id', category.id)
+        .select();
+
+      if (error1) {
+        console.error('❌ Error updating first category:', error1);
+        throw error1;
+      }
+      console.log('✅ First update successful:', data1);
+
+      // Update second category
+      console.log('🔄 Updating', swapCategory.name, 'from', swapCategoryOrder, 'to', categoryOrder);
+      const { data: data2, error: error2 } = await supabase
+        .from('event_categories')
+        .update({ display_order: categoryOrder })
+        .eq('id', swapCategory.id)
+        .select();
+
+      if (error2) {
+        console.error('❌ Error updating second category:', error2);
+        throw error2;
+      }
+      console.log('✅ Second update successful:', data2);
+
+      // Wait for database commit
+      console.log('⏳ Waiting for database commit...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Refresh categories to show new order
+      console.log('🔄 Refreshing categories...');
+      await fetchCategories();
+      console.log('✅ Categories refreshed');
+      
+    } catch (error) {
+      console.error('❌ MOVE CATEGORY FAILED:', error);
+      alert('Failed to move category. Check console for details.');
     }
   };
 
@@ -287,6 +376,20 @@ export default function EventCategoryManager() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => moveCategory(category.id, 'up')}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                          title="Move Up"
+                        >
+                          <ArrowUp className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => moveCategory(category.id, 'down')}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                          title="Move Down"
+                        >
+                          <ArrowDown className="w-5 h-5" />
+                        </button>
                         <button
                           onClick={() => startEdit(category)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
