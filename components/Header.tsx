@@ -138,8 +138,8 @@ export default function Header() {
   const navItems = [
     { label: 'Home', onClick: goHome },
     { label: 'Events', href: '/events' },
-    { label: 'Forum', href: '/community' },
     { label: 'Ferry', href: '/ferry' },
+    { label: 'Forum', href: '/community' },
     { label: 'Directory', href: '/directory/business' },
     { label: 'Alerts', href: '/alerts' },
   ];

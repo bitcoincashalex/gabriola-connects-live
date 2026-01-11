@@ -59,9 +59,9 @@ export default function Footer({ activeTab = '' }: FooterProps) {
   // Build tabs array - hide forum for banned users
   const tabs = [
     { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+    { id: 'ferry', label: 'Ferry', icon: Anchor },
     // Only show forum if user is not banned
     ...(user?.is_banned ? [] : [{ id: 'forum', label: 'Forum', icon: MessageSquare }]),
-    { id: 'ferry', label: 'Ferry', icon: Anchor },
     { id: 'directory', label: 'Directory', icon: BookOpen },
     { id: 'alerts', label: 'Alerts', icon: Bell, isSpecial: true }, // Navigate to /alerts page
     { id: 'search', label: 'Search', icon: Search, isSpecial: true }, // Special handling for search

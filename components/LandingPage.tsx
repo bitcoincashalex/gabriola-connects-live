@@ -264,19 +264,19 @@ export default function LandingPage() {
       textColor: 'text-white',
     },
     {
-      id: 'community',
-      title: 'Community',
-      description: 'Forum, contacts & resources',
-      icon: MessageSquare,
-      color: 'from-gabriola-ocean to-blue-700',
-      textColor: 'text-white',
-    },
-    {
       id: 'ferry',
       title: 'Ferry',
       description: 'Schedule & real-time status',
       icon: Anchor,
       color: 'from-teal-500 to-teal-700',
+      textColor: 'text-white',
+    },
+    {
+      id: 'community',
+      title: 'Community',
+      description: 'Forum, contacts & resources',
+      icon: MessageSquare,
+      color: 'from-gabriola-ocean to-blue-700',
       textColor: 'text-white',
     },
     {
@@ -329,16 +329,6 @@ export default function LandingPage() {
             </button>
 
             <button
-              onClick={() => window.location.href = '/community'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">💬</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Forum</span>
-            </button>
-
-            <button
               onClick={() => window.location.href = '/ferry'}
               className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
             >
@@ -346,6 +336,16 @@ export default function LandingPage() {
               <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
                 textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
               }}>Ferry</span>
+            </button>
+
+            <button
+              onClick={() => window.location.href = '/community'}
+              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
+            >
+              <span className="text-lg sm:text-xl">💬</span>
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
+                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
+              }}>Forum</span>
             </button>
 
             <button
