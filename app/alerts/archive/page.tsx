@@ -1,5 +1,5 @@
 // app/alerts/archive/page.tsx
-// Version: 2.0.0 - PUBLIC archive with Expired/Archived tabs, image/link support, click-to-expand lightbox
+// Version: 2.0.2 - FINAL: Fixed data source (queries alerts table) and loading state management
 // Date: 2025-01-11
 'use client';
 
@@ -36,8 +36,15 @@ export default function AlertsArchivePage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchExpiredAlerts();
-    fetchArchivedAlerts();
+    const fetchData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchExpiredAlerts(),
+        fetchArchivedAlerts()
+      ]);
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
   // ESC key to close lightbox
@@ -55,8 +62,6 @@ export default function AlertsArchivePage() {
   }, [lightboxImage]);
 
   const fetchExpiredAlerts = async () => {
-    setLoading(true);
-
     // Fetch EXPIRED alerts from alerts table (active but past expiration)
     const { data } = await supabase
       .from('alerts')
@@ -72,8 +77,6 @@ export default function AlertsArchivePage() {
     if (data) {
       setExpiredAlerts(data);
     }
-
-    setLoading(false);
   };
 
   const fetchArchivedAlerts = async () => {
