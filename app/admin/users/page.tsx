@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 6.3.1 - Added admin_alert_organizations badge display
+// Version: 6.3.2 - Fixed mobile scrolling (removed conflicting overflow, adjusted padding)
 // Date: 2025-01-11
 // Created: 2025-12-18
 // Updated: 2025-01-11
@@ -808,16 +808,16 @@ export default function AdminUsersPage() {
 
       {/* Full Edit Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Edit: {selectedUser.full_name}</h2>
-              <button onClick={() => setSelectedUserId(null)} className="p-2 hover:bg-gray-100 rounded-full">
-                <X className="w-6 h-6" />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-8">
+            <div className="sticky top-0 bg-white z-10 flex justify-between items-center mb-4 sm:mb-6 pb-4 border-b">
+              <h2 className="text-xl sm:text-2xl font-bold truncate mr-2">Edit: {selectedUser.full_name}</h2>
+              <button onClick={() => setSelectedUserId(null)} className="p-2 hover:bg-gray-100 rounded-full flex-shrink-0">
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* User Info Summary */}
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div><strong>Email:</strong> {selectedUser.email}</div>
