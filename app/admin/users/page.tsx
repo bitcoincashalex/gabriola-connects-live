@@ -2,7 +2,7 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 6.3.2 - Fixed mobile scrolling (removed conflicting overflow, adjusted padding)
+// Version: 6.3.3 - Fixed mobile user card layout (buttons now accessible, grid layout)
 // Date: 2025-01-11
 // Created: 2025-12-18
 // Updated: 2025-01-11
@@ -411,7 +411,7 @@ export default function AdminUsersPage() {
               fetchUsers();
             }}
             disabled={loading}
-            className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -420,7 +420,7 @@ export default function AdminUsersPage() {
               </>
             ) : (
               <>
-                <Activity className="w-4 h-4" />
+                <Activity className="w-4 h-4 flex-shrink-0" />
                 Refresh
               </>
             )}
@@ -519,7 +519,7 @@ export default function AdminUsersPage() {
           
           return (
             <div key={u.id} className={`bg-white rounded-lg shadow-md p-6 ${isLocked ? 'border-l-4 border-orange-500' : ''} ${isSuspended ? 'border-l-4 border-red-500' : ''}`}>
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                 <div className="flex-1">
                   {/* User Header Info */}
                   <div className="flex items-start gap-4 mb-4">
@@ -546,12 +546,12 @@ export default function AdminUsersPage() {
                       <p className="text-gray-600">@{u.username}</p>
                       <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
-                          <Mail className="w-4 h-4" />
+                          <Mail className="w-4 h-4 flex-shrink-0" />
                           {u.email}
                         </span>
                         {u.postal_code && (
                           <span className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
+                            <MapPin className="w-4 h-4 flex-shrink-0" />
                             {u.postal_code}
                           </span>
                         )}
@@ -562,14 +562,14 @@ export default function AdminUsersPage() {
                   {/* Activity & Stats */}
                   <div className="flex items-center gap-4 text-sm mb-3">
                     {u.last_activity ? (
-                      <div className="flex items-center gap-2 text-gray-700">
+                      <div className="flex items-center justify-center gap-2 text-gray-700">
                         <Activity className="w-4 h-4 text-blue-500" />
                         <span>{u.last_activity.formatted}</span>
                         <span className="text-gray-500">• {formatRelativeTime(u.last_activity.timestamp)}</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Clock className="w-4 h-4" />
+                      <div className="flex items-center justify-center gap-2 text-gray-500">
+                        <Clock className="w-4 h-4 flex-shrink-0" />
                         Last login: {formatRelativeTime(u.last_sign_in_at)}
                       </div>
                     )}
@@ -643,23 +643,23 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="ml-4 flex flex-col gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-2 lg:ml-4">
                   {/* Send Message */}
                   <button
                     onClick={() => router.push(`/messages/new?to=${u.id}`)}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm whitespace-nowrap"
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
                   >
-                    <MessageSquare className="w-4 h-4" />
-                    Message
+                    <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                    <span>Message</span>
                   </button>
 
                   {/* View Profile */}
                   <button
                     onClick={() => router.push(`/profile/${u.id}`)}
-                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm whitespace-nowrap"
+                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 text-sm"
                   >
-                    <Eye className="w-4 h-4" />
-                    Profile
+                    <Eye className="w-4 h-4 flex-shrink-0" />
+                    <span>Profile</span>
                   </button>
 
                   {/* Force Logout */}
@@ -667,12 +667,12 @@ export default function AdminUsersPage() {
                     <button
                       onClick={() => forceLogout(u.id, u.full_name || u.email || 'User')}
                       disabled={actionLoading === u.id}
-                      className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2 text-sm whitespace-nowrap disabled:opacity-50"
+                      className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center justify-center gap-2 text-sm  disabled:opacity-50"
                     >
                       {actionLoading === u.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <LogOut className="w-4 h-4" />
+                        <LogOut className="w-4 h-4 flex-shrink-0" />
                       )}
                       Logout
                     </button>
@@ -682,7 +682,7 @@ export default function AdminUsersPage() {
                   <button
                     onClick={() => toggleAccountLock(u.id, u.full_name || u.email || 'User', isLocked)}
                     disabled={actionLoading === u.id}
-                    className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm whitespace-nowrap disabled:opacity-50 ${
+                    className={`px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm  disabled:opacity-50 ${
                       isLocked 
                         ? 'bg-green-600 text-white hover:bg-green-700' 
                         : 'bg-orange-600 text-white hover:bg-orange-700'
@@ -691,9 +691,9 @@ export default function AdminUsersPage() {
                     {actionLoading === u.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : isLocked ? (
-                      <Unlock className="w-4 h-4" />
+                      <Unlock className="w-4 h-4 flex-shrink-0" />
                     ) : (
-                      <Lock className="w-4 h-4" />
+                      <Lock className="w-4 h-4 flex-shrink-0" />
                     )}
                     {isLocked ? 'Unlock' : 'Lock'}
                   </button>
@@ -702,7 +702,7 @@ export default function AdminUsersPage() {
                   <button
                     onClick={() => toggleSuspension(u.id, u.full_name || u.email || 'User', isSuspended || false)}
                     disabled={actionLoading === u.id}
-                    className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm whitespace-nowrap disabled:opacity-50 ${
+                    className={`px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-sm  disabled:opacity-50 ${
                       isSuspended 
                         ? 'bg-blue-600 text-white hover:bg-blue-700' 
                         : 'bg-red-600 text-white hover:bg-red-700'
@@ -711,9 +711,9 @@ export default function AdminUsersPage() {
                     {actionLoading === u.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : isSuspended ? (
-                      <UserCheck className="w-4 h-4" />
+                      <UserCheck className="w-4 h-4 flex-shrink-0" />
                     ) : (
-                      <UserX className="w-4 h-4" />
+                      <UserX className="w-4 h-4 flex-shrink-0" />
                     )}
                     {isSuspended ? 'Unsuspend' : 'Suspend'}
                   </button>
@@ -721,16 +721,16 @@ export default function AdminUsersPage() {
                   {/* Email User */}
                   <button
                     onClick={() => window.location.href = `mailto:${u.email}`}
-                    className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2 text-sm whitespace-nowrap"
+                    className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2 text-sm "
                   >
-                    <Mail className="w-4 h-4" />
+                    <Mail className="w-4 h-4 flex-shrink-0" />
                     Email
                   </button>
 
                   {/* Edit All */}
                   <button
                     onClick={() => setSelectedUserId(u.id)}
-                    className="px-3 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark text-sm whitespace-nowrap"
+                    className="px-3 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark text-sm "
                   >
                     Edit All
                   </button>
@@ -758,9 +758,9 @@ export default function AdminUsersPage() {
           <button
             onClick={prevPage}
             disabled={pagination.page === 1}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 flex-shrink-0" />
             Previous
           </button>
           
@@ -798,10 +798,10 @@ export default function AdminUsersPage() {
           <button
             onClick={nextPage}
             disabled={!pagination.hasMore}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             Next
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 flex-shrink-0" />
           </button>
         </div>
       )}
