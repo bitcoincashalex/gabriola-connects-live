@@ -2,10 +2,10 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 6.3.0 - Merged BBS into Forum Permissions (BBS = Forum)
+// Version: 6.3.1 - Added admin_alert_organizations badge display
 // Date: 2025-01-11
 // Created: 2025-12-18
-// Updated: 2025-12-20
+// Updated: 2025-01-11
 // ============================================================================
 
 'use client';
@@ -43,6 +43,7 @@ interface AdminUser {
   admin_forum?: boolean;
   admin_directory?: boolean;
   admin_alerts?: boolean;
+  admin_alert_organizations?: boolean;
   admin_ferry?: boolean;
   admin_users?: boolean;
   
@@ -449,7 +450,7 @@ export default function AdminUsersPage() {
           <div className="flex items-center justify-between">
             <Shield className="w-8 h-8 text-purple-600" />
             <span className="text-2xl font-bold">
-              {users.filter(u => u.is_super_admin || u.admin_events || u.admin_bbs || u.admin_forum).length}
+              {users.filter(u => u.is_super_admin || u.admin_events || u.admin_bbs || u.admin_forum || u.admin_directory || u.admin_alerts || (u as any).admin_alert_organizations || (u as any).admin_ferry || u.admin_users).length}
             </span>
           </div>
           <p className="text-sm text-gray-600 mt-2">Admins</p>
@@ -626,6 +627,11 @@ export default function AdminUsersPage() {
                     {u.admin_directory && (
                       <span className="px-3 py-1 bg-green-600 text-white rounded-full text-sm">
                         Directory Admin
+                      </span>
+                    )}
+                    {(u as any).admin_alert_organizations && (
+                      <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-sm">
+                        Alert Orgs Admin
                       </span>
                     )}
                     {(u as any).admin_ferry && (
