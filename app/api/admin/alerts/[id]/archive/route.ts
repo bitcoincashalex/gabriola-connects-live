@@ -1,5 +1,5 @@
 // app/api/admin/alerts/[id]/archive/route.ts
-// Version: 1.1.1 - Fixed auth (use header token), added admin_alerts check, and fixed field name to is_active
+// Version: 1.1.0 - Fixed auth (use header token) and added admin_alerts permission check
 // Date: 2025-01-11
 
 import { createClient } from '@supabase/supabase-js';
@@ -81,7 +81,7 @@ export async function POST(
     // Archive the alert using service role (bypasses RLS)
     const { error } = await supabaseAdmin
       .from('alerts')
-      .update({ is_active: false })
+      .update({ active: false })
       .eq('id', params.id);
 
     if (error) {
