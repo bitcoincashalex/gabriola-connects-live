@@ -1,6 +1,6 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.0.0 - Added ImageUploadManager for galleries, FileUploader for documents
-// Date: 2025-01-11 (3 days before Jan 14 demo!)
+// Version: 3.0.1 - Fixed integer fields (empty strings → null)
+// Date: 2025-01-11
 
 'use client';
 
@@ -381,9 +381,9 @@ export default function EventFormModal({
       attachments: eventFiles.length > 0 ? eventFiles : null,
     };
 
-    // Convert number fields
-    if (form.max_attendees) payload.max_attendees = parseInt(form.max_attendees);
-    if (form.min_attendees) payload.min_attendees = parseInt(form.min_attendees);
+    // Convert number fields - empty strings become null, valid numbers get parsed
+    payload.max_attendees = form.max_attendees ? parseInt(form.max_attendees) : null;
+    payload.min_attendees = form.min_attendees ? parseInt(form.min_attendees) : null;
 
     try {
       if (event) {
