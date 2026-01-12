@@ -1,7 +1,7 @@
 // app/admin/alert-organizations/page.tsx
-// Version: 2.0.0 - Fixed severity sort order (emergency→warning→advisory→info) and added edit functionality
+// Version: 2.1.0 - Added Create New Organization functionality
 // Date: 2025-01-11
-// Purpose: View and edit organizations, authorized users, and alert history
+// Purpose: View, edit, and create organizations, authorized users, and alert history
 
 'use client';
 
@@ -29,7 +29,8 @@ import {
   X,
   Eye,
   Calendar,
-  Edit2
+  Edit2,
+  Plus
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -205,20 +206,33 @@ export default function AlertOrganizationsAdminPage() {
     if (!editingOrg) return;
     
     try {
-      const { error } = await supabase
-        .from('alert_organizations')
-        .update(orgData)
-        .eq('id', editingOrg.id);
+      const isNewOrg = !editingOrg.id;
+      
+      if (isNewOrg) {
+        // Create new organization
+        const { error } = await supabase
+          .from('alert_organizations')
+          .insert([orgData]);
 
-      if (error) throw error;
+        if (error) throw error;
+        alert('Organization created successfully!');
+      } else {
+        // Update existing organization
+        const { error } = await supabase
+          .from('alert_organizations')
+          .update(orgData)
+          .eq('id', editingOrg.id);
 
-      alert('Organization updated successfully!');
+        if (error) throw error;
+        alert('Organization updated successfully!');
+      }
+
       setShowEditModal(false);
       setEditingOrg(null);
       fetchAllData();
     } catch (error: any) {
-      console.error('Error updating organization:', error);
-      alert(`Error updating organization: ${error.message}`);
+      console.error('Error saving organization:', error);
+      alert(`Error saving organization: ${error.message}`);
     }
   };
 
@@ -331,12 +345,33 @@ export default function AlertOrganizationsAdminPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={fetchAllData}
-              className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark transition-colors"
-            >
-              Refresh Data
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setEditingOrg({
+                    id: '',
+                    name: '',
+                    display_name: '',
+                    max_severity: 'info',
+                    description: '',
+                    contact_phone: '',
+                    contact_email: '',
+                    is_active: true
+                  } as AlertOrganization);
+                  setShowEditModal(true);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Create New Organization
+              </button>
+              <button
+                onClick={fetchAllData}
+                className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark transition-colors"
+              >
+                Refresh Data
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -744,7 +779,7 @@ function EditOrgModal({ org, onChange, onSave, onClose }: any) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Edit Organization</h2>
+          <h2 className="text-2xl font-bold">{org.id ? 'Edit' : 'Create New'} Organization</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded">
             <X className="w-6 h-6" />
           </button>
