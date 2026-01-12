@@ -2,7 +2,8 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 6.1.0 - PERFORMANCE FIX: Removed triple fetch bug (2min → 3sec)
+// Version: 6.3.0 - Merged BBS into Forum Permissions (BBS = Forum)
+// Date: 2025-01-11
 // Created: 2025-12-18
 // Updated: 2025-12-20
 // ============================================================================
@@ -847,6 +848,50 @@ export default function AdminUsersPage() {
                 <label htmlFor="super-admin" className="font-medium cursor-pointer">Super Admin (full system access)</label>
               </div>
 
+              {/* Event Permissions */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Event Permissions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-events"
+                      checked={selectedUser.admin_events || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_events', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-events" className="cursor-pointer">Event Admin</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="create-events"
+                      checked={selectedUser.can_create_events || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="create-events" className="cursor-pointer">Can create events</label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ferry Permissions */}
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Ferry Permissions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-ferry"
+                      checked={(selectedUser as any).admin_ferry || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_ferry', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-ferry" className="cursor-pointer">Ferry Admin</label>
+                  </div>
+                </div>
+              </div>
+
               {/* Forum Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Forum Permissions</h3>
@@ -860,6 +905,16 @@ export default function AdminUsersPage() {
                       className="w-5 h-5 cursor-pointer"
                     />
                     <label htmlFor="admin-forum" className="cursor-pointer">Forum Admin (full forum control)</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-bbs"
+                      checked={selectedUser.admin_bbs || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_bbs', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-bbs" className="cursor-pointer">BBS Admin</label>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
@@ -894,50 +949,6 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              {/* Event Permissions */}
-              <div className="border-t pt-4">
-                <h3 className="font-bold mb-3">Event Permissions</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="admin-events"
-                      checked={selectedUser.admin_events || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'admin_events', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="admin-events" className="cursor-pointer">Event Admin</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="create-events"
-                      checked={selectedUser.can_create_events || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'can_create_events', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="create-events" className="cursor-pointer">Can create events</label>
-                  </div>
-                </div>
-              </div>
-
-              {/* BBS Permissions */}
-              <div className="border-t pt-4">
-                <h3 className="font-bold mb-3">BBS Permissions</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="admin-bbs"
-                      checked={selectedUser.admin_bbs || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'admin_bbs', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="admin-bbs" className="cursor-pointer">BBS Admin</label>
-                  </div>
-                </div>
-              </div>
-
               {/* Directory Permissions */}
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Directory Permissions</h3>
@@ -952,16 +963,6 @@ export default function AdminUsersPage() {
                     />
                     <label htmlFor="admin-directory" className="cursor-pointer">Directory Admin</label>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="admin-ferry"
-                      checked={(selectedUser as any).admin_ferry || false}
-                      onChange={(e) => updatePermission(selectedUser.id, 'admin_ferry', e.target.checked)}
-                      className="w-5 h-5 cursor-pointer"
-                    />
-                    <label htmlFor="admin-ferry" className="cursor-pointer">Ferry Admin</label>
-                  </div>
                 </div>
               </div>
 
@@ -969,6 +970,16 @@ export default function AdminUsersPage() {
               <div className="border-t pt-4">
                 <h3 className="font-bold mb-3">Alert Permissions</h3>
                 <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="admin-alert-organizations"
+                      checked={(selectedUser as any).admin_alert_organizations || false}
+                      onChange={(e) => updatePermission(selectedUser.id, 'admin_alert_organizations', e.target.checked)}
+                      className="w-5 h-5 cursor-pointer"
+                    />
+                    <label htmlFor="admin-alert-organizations" className="cursor-pointer">Alert Organizations Admin</label>
+                  </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
