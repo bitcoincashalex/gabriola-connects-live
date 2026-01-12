@@ -1,5 +1,5 @@
 // app/admin/alert-organizations/page.tsx
-// Version: 2.1.0 - Added Create New Organization functionality
+// Version: 2.1.1 - Mobile responsive fixes (header, org cards stack properly)
 // Date: 2025-01-11
 // Purpose: View, edit, and create organizations, authorized users, and alert history
 
@@ -333,19 +333,19 @@ export default function AlertOrganizationsAdminPage() {
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Shield className="w-12 h-12 text-gabriola-green" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-gabriola-green flex-shrink-0" />
               <div>
-                <h1 className="text-4xl font-bold text-gray-800">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800">
                   Alert Organizations
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-sm sm:text-base text-gray-600 mt-1">
                   Manage organizations, authorized users, and alert history
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               <button
                 onClick={() => {
                   setEditingOrg({
@@ -360,16 +360,16 @@ export default function AlertOrganizationsAdminPage() {
                   } as AlertOrganization);
                   setShowEditModal(true);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 text-sm sm:text-base flex-1 sm:flex-initial"
               >
-                <Plus className="w-5 h-5" />
-                Create New Organization
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="whitespace-nowrap">Create New</span>
               </button>
               <button
                 onClick={fetchAllData}
-                className="px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark transition-colors"
+                className="px-3 sm:px-4 py-2 bg-gabriola-green text-white rounded-lg hover:bg-gabriola-green-dark transition-colors text-sm sm:text-base"
               >
-                Refresh Data
+                Refresh
               </button>
             </div>
           </div>
@@ -514,17 +514,17 @@ export default function AlertOrganizationsAdminPage() {
                     onClick={() => setExpandedOrg(isExpanded ? null : org.id)}
                     className="cursor-pointer p-6 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div className="flex items-start gap-4 flex-1">
                         {/* Icon */}
-                        <div className={`p-3 rounded-lg ${getSeverityColor(org.max_severity)}`}>
+                        <div className={`p-3 rounded-lg ${getSeverityColor(org.max_severity)} flex-shrink-0`}>
                           <SeverityIcon className="w-8 h-8" />
                         </div>
 
                         {/* Info */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-xl font-bold text-gray-800">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
+                            <h3 className="text-lg sm:text-xl font-bold text-gray-800">
                               {org.display_name}
                             </h3>
                             <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getSeverityBadge(org.max_severity)}`}>
@@ -537,61 +537,66 @@ export default function AlertOrganizationsAdminPage() {
                             )}
                           </div>
                           
-                          <p className="text-gray-600 mb-3">{org.description}</p>
+                          <p className="text-gray-600 mb-3 text-sm sm:text-base">{org.description}</p>
 
                           {/* Contact Info */}
                           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                             {org.contact_phone && (
                               <div className="flex items-center gap-1">
-                                <Phone className="w-4 h-4" />
-                                <span>{org.contact_phone}</span>
+                                <Phone className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{org.contact_phone}</span>
                               </div>
                             )}
                             {org.contact_email && (
                               <div className="flex items-center gap-1">
-                                <Mail className="w-4 h-4" />
-                                <span>{org.contact_email}</span>
+                                <Mail className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{org.contact_email}</span>
                               </div>
                             )}
                           </div>
                         </div>
+                      </div>
 
+                      {/* Stats, Edit Button, and Expand Icon - horizontal on mobile, vertical on desktop */}
+                      <div className="flex items-center justify-between lg:flex-col lg:items-end gap-4">
                         {/* Stats */}
-                        <div className="flex gap-6 text-center">
-                          <div>
-                            <p className="text-2xl font-bold text-gray-800">{org.user_count}</p>
-                            <p className="text-xs text-gray-600">Authorized</p>
+                        <div className="flex gap-4 sm:gap-6">
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-bold text-gray-800">{org.user_count}</p>
+                            <p className="text-xs text-gray-600">Auth</p>
                           </div>
-                          <div>
-                            <p className="text-2xl font-bold text-purple-600">{org.active_alerts}</p>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-bold text-purple-600">{org.active_alerts}</p>
                             <p className="text-xs text-gray-600">Active</p>
                           </div>
-                          <div>
-                            <p className="text-2xl font-bold text-gray-600">{org.alert_count}</p>
+                          <div className="text-center">
+                            <p className="text-xl sm:text-2xl font-bold text-gray-600">{org.alert_count}</p>
                             <p className="text-xs text-gray-600">Total</p>
                           </div>
                         </div>
 
-                        {/* Edit Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingOrg(org);
-                            setShowEditModal(true);
-                          }}
-                          className="p-2 hover:bg-gabriola-green hover:text-white rounded-lg transition-colors text-gray-600"
-                          title="Edit Organization"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
+                        {/* Edit Button and Expand Icon */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingOrg(org);
+                              setShowEditModal(true);
+                            }}
+                            className="p-2 hover:bg-gabriola-green hover:text-white rounded-lg transition-colors text-gray-600 flex-shrink-0"
+                            title="Edit Organization"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
 
-                        {/* Expand Icon */}
-                        <div>
-                          {isExpanded ? (
-                            <ChevronUp className="w-6 h-6 text-gray-400" />
-                          ) : (
-                            <ChevronDown className="w-6 h-6 text-gray-400" />
-                          )}
+                          {/* Expand Icon */}
+                          <div className="flex-shrink-0">
+                            {isExpanded ? (
+                              <ChevronUp className="w-6 h-6 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="w-6 h-6 text-gray-400" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
