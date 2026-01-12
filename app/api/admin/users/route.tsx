@@ -1,9 +1,9 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 3.0.0 - PERFORMANCE: Removed slow activity tracking RPC call (2.6s → <200ms)
+// Version: 3.0.1 - Added admin_alert_organizations to SELECT and filter queries
 // Created: 2025-12-18
-// Updated: 2025-12-20
+// Updated: 2025-01-11
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
 // ============================================================================
@@ -228,6 +228,7 @@ export async function GET(request: NextRequest) {
         admin_forum,
         admin_directory,
         admin_alerts,
+        admin_alert_organizations,
         admin_ferry,
         admin_users,	
         
@@ -269,7 +270,7 @@ export async function GET(request: NextRequest) {
     
     switch (filter) {
       case 'admins':
-        query = query.or('is_super_admin.eq.true,admin_events.eq.true,admin_bbs.eq.true,admin_users.eq.true,admin_forum.eq.true,admin_directory.eq.true,admin_alerts.eq.true,admin_ferry.eq.true');
+        query = query.or('is_super_admin.eq.true,admin_events.eq.true,admin_bbs.eq.true,admin_users.eq.true,admin_forum.eq.true,admin_directory.eq.true,admin_alerts.eq.true,admin_alert_organizations.eq.true,admin_ferry.eq.true');
         break;
       
       case 'banned':
