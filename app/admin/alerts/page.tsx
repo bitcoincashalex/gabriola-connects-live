@@ -1,6 +1,6 @@
 // app/admin/alerts/page.tsx
-// Version: 1.2.0 - Added timezone conversion (UTC to local) for all dates
-// Date: 2025-12-20
+// Version: 1.3.0 - Added image upload and external link fields to Edit Alert modal
+// Date: 2025-01-11
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +10,7 @@ import { useUser } from '@/components/AuthProvider';
 import { 
   AlertTriangle, Search, Filter, Edit2, Trash2, Archive, 
   RotateCcw, Plus, X, Save, Building2, FileText, Users,
-  AlertCircle, Info, Bell, Clock, MapPin
+  AlertCircle, Info, Bell, Clock, MapPin, Upload, Image, ExternalLink
 } from 'lucide-react';
 
 interface Alert {
@@ -25,6 +25,9 @@ interface Alert {
   active: boolean;
   category?: string;
   creator_name?: string;
+  image_url?: string | null;
+  link_url?: string | null;
+  link_text?: string | null;
 }
 
 interface Organization {
@@ -110,6 +113,9 @@ export default function AdminAlertsPage() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  
+  // Image upload state
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Auth check
   useEffect(() => {
@@ -834,8 +840,58 @@ function EditAlertModal({ alert, organizations, onSave, onClose }: any) {
     on_behalf_of_organization: alert.on_behalf_of_organization || '',
     category: alert.category || '',
     expires_at: alert.expires_at ? utcToLocal(alert.expires_at) : '',
-    active: alert.active
+    active: alert.active,
+    image_url: alert.image_url || null,
+    link_url: alert.link_url || '',
+    link_text: alert.link_text || 'More Information'
   });
+  
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `alert-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('public-assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('public-assets')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image_url: publicUrl });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    setFormData({ ...formData, image_url: null });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -944,6 +1000,82 @@ function EditAlertModal({ alert, organizations, onSave, onClose }: any) {
               className="w-5 h-5"
             />
             <label htmlFor="active" className="font-medium">Active</label>
+          </div>
+
+          {/* Image Upload */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Alert Image (optional)
+            </label>
+            {formData.image_url ? (
+              <div className="space-y-3">
+                <img 
+                  src={formData.image_url} 
+                  alt="Alert preview"
+                  className="w-full max-h-48 object-cover rounded-lg border-2 border-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Remove Image
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  {isUploadingImage ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gabriola-green mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-600">Uploading...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">Click to upload image</p>
+                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP (max 5MB)</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  id="image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUploadingImage}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* External Link */}
+          <div>
+            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+              <ExternalLink className="w-4 h-4" />
+              External Link (optional)
+            </label>
+            <input
+              type="url"
+              value={formData.link_url}
+              onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg mb-2"
+              placeholder="https://example.com"
+            />
+            {formData.link_url && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-600">Link Button Text</label>
+                <input
+                  type="text"
+                  value={formData.link_text}
+                  onChange={(e) => setFormData({ ...formData, link_text: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="More Information"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
