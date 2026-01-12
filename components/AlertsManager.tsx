@@ -1,12 +1,12 @@
 // components/AlertsManager.tsx
-// v4.0.0 - ENHANCED: Organization locking, templates, categories, expired alerts tab
-// Date: 2025-12-20
+// v5.0.0 - ENHANCED: Added image upload, external links, and URL support for alerts
+// Date: 2025-01-11
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { AlertTriangle, Plus, X, Bell, AlertCircle, Info, Edit2, Archive, Clock, Building2, FileText } from 'lucide-react';
+import { AlertTriangle, Plus, X, Bell, AlertCircle, Info, Edit2, Archive, Clock, Building2, FileText, ExternalLink, Image, Upload } from 'lucide-react';
 import { AlertSeverity } from '@/lib/types';
 
 interface Alert {
@@ -26,6 +26,9 @@ interface Alert {
   action_required?: string | null;
   creator_name?: string;
   creator_email?: string;
+  image_url?: string | null;
+  link_url?: string | null;
+  link_text?: string | null;
 }
 
 interface Organization {
@@ -78,7 +81,13 @@ export default function AlertsManager() {
     contact_info: '',
     action_required: '',
     expiresInHours: 24,
+    image_url: null as string | null,
+    link_url: '',
+    link_text: 'More Information',
   });
+
+  // Image upload state
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchOrganizationsAndTemplates();
@@ -295,6 +304,9 @@ export default function AlertsManager() {
       contact_info: alert.contact_info || '',
       action_required: alert.action_required || '',
       expiresInHours: 24,
+      image_url: alert.image_url || null,
+      link_url: alert.link_url || '',
+      link_text: alert.link_text || 'More Information',
     });
     setShowForm(true);
   };
@@ -315,6 +327,9 @@ export default function AlertsManager() {
         contact_info: '',
         action_required: '',
         expiresInHours: 24,
+        image_url: null,
+        link_url: '',
+        link_text: 'More Information',
       });
     } else {
       setForm({
@@ -328,12 +343,58 @@ export default function AlertsManager() {
         contact_info: '',
         action_required: '',
         expiresInHours: 24,
+        image_url: null,
+        link_url: '',
+        link_text: 'More Information',
       });
       setSelectedOrgId('');
     }
     
     setSelectedTemplateId('');
     setShowForm(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `alert-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('public-assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('public-assets')
+        .getPublicUrl(filePath);
+
+      setForm({ ...form, image_url: publicUrl });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Make sure the public-assets bucket exists.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    setForm({ ...form, image_url: null });
   };
 
   const createOrUpdate = async (e: React.FormEvent) => {
@@ -360,6 +421,9 @@ export default function AlertsManager() {
       action_required: form.action_required.trim() || null,
       expires_at: new Date(Date.now() + form.expiresInHours * 60 * 60 * 1000).toISOString(),
       active: true,
+      image_url: form.image_url || null,
+      link_url: form.link_url.trim() || null,
+      link_text: form.link_text.trim() || 'More Information',
     };
 
     if (editingAlert) {
@@ -452,6 +516,32 @@ export default function AlertsManager() {
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-lg mb-1">{alert.title}</h3>
               <p className="text-gray-700 whitespace-pre-wrap mb-3">{alert.message}</p>
+              
+              {/* Alert Image */}
+              {alert.image_url && (
+                <div className="mb-3">
+                  <img 
+                    src={alert.image_url} 
+                    alt={alert.title}
+                    className="w-full max-h-96 object-cover rounded-lg border-2 border-gray-300"
+                  />
+                </div>
+              )}
+
+              {/* External Link */}
+              {alert.link_url && (
+                <div className="mb-3">
+                  <a
+                    href={alert.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold text-sm transition-colors"
+                  >
+                    {alert.link_text || 'More Information'}
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
               
               <div className="text-sm text-gray-600 space-y-1">
                 {alert.on_behalf_of_name || alert.on_behalf_of_organization ? (
@@ -806,6 +896,87 @@ export default function AlertsManager() {
                   placeholder="Phone number or email for inquiries"
                 />
               </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Image className="w-4 h-4" />
+                  Alert Image (optional)
+                </label>
+                {form.image_url ? (
+                  <div className="relative">
+                    <img 
+                      src={form.image_url} 
+                      alt="Alert" 
+                      className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
+                      title="Remove image"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gabriola-green hover:bg-gray-50 transition-colors">
+                      <Upload className="w-5 h-5 mr-2 text-gray-500" />
+                      <span className="text-gray-600">
+                        {isUploadingImage ? 'Uploading...' : 'Click to upload image'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={isUploadingImage}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Max 5MB • JPEG, PNG, GIF, WebP
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* External Link URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  External Link (optional)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/more-info"
+                  value={form.link_url}
+                  onChange={(e) => setForm({ ...form, link_url: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Link to external page with more details
+                </p>
+              </div>
+
+              {/* Link Button Text */}
+              {form.link_url && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Link Button Text
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="More Information"
+                    value={form.link_text}
+                    onChange={(e) => setForm({ ...form, link_text: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Text displayed on the link button
+                  </p>
+                </div>
+              )}
 
               {/* Expires In */}
               <div>
