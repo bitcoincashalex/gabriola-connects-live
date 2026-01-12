@@ -228,8 +228,9 @@ export async function GET(request: NextRequest) {
         admin_forum,
         admin_directory,
         admin_alerts,
+		admin_alerts_organizations,
         admin_ferry,
-        admin_users,
+        admin_users,	
         
         is_banned,
         is_suspended,
