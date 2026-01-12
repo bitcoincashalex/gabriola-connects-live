@@ -1,5 +1,5 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.0.1 - Fixed integer fields (empty strings → null)
+// Version: 3.0.2 - Fixed timestamp fields (registration_deadline empty string → null)
 // Date: 2025-01-11
 
 'use client';
@@ -375,6 +375,7 @@ export default function EventFormModal({
       end_date: form.end_date || null,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
+      registration_deadline: form.registration_deadline || null,  // Fix: empty string → null
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
       is_approved: canPublishInstantly,
       gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
