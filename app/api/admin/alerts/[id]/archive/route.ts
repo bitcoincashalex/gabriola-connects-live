@@ -1,10 +1,9 @@
 // app/api/admin/alerts/[id]/archive/route.ts
-// Version: 1.0.0 - Archive alert using service role to bypass RLS
-// Date: 2025-12-20
+// Version: 1.1.1 - Fixed auth (use header token), added admin_alerts check, and fixed field name to is_active
+// Date: 2025-01-11
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 // Service role client - bypasses RLS
 const supabaseAdmin = createClient(
@@ -18,42 +17,37 @@ const supabaseAdmin = createClient(
   }
 );
 
-// Regular client to verify user
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user from session
-    const cookieStore = cookies();
-    const authCookie = cookieStore.get('sb-access-token');
+    // Get auth token from Authorization header
+    const authHeader = request.headers.get('authorization');
     
-    if (!authCookie) {
+    if (!authHeader) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Verify user owns the alert or is super admin
-    const { data: { user } } = await supabase.auth.getUser(authCookie.value);
+    const token = authHeader.replace('Bearer ', '');
+
+    // Verify user with token
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
-    if (!user) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Get user's permissions
+    // Get user's permissions - CHECK BOTH is_super_admin AND admin_alerts
     const { data: userData } = await supabaseAdmin
       .from('users')
-      .select('is_super_admin')
+      .select('is_super_admin, admin_alerts')
       .eq('id', user.id)
       .single();
 
@@ -71,8 +65,11 @@ export async function POST(
       );
     }
 
-    // Check permission: must be owner or super admin
-    const canArchive = alert.issued_by === user.id || userData?.is_super_admin;
+    // Check permission: must be owner, super admin, OR alerts admin
+    const canArchive = 
+      alert.issued_by === user.id || 
+      userData?.is_super_admin || 
+      userData?.admin_alerts;
 
     if (!canArchive) {
       return NextResponse.json(
@@ -84,7 +81,7 @@ export async function POST(
     // Archive the alert using service role (bypasses RLS)
     const { error } = await supabaseAdmin
       .from('alerts')
-      .update({ active: false })
+      .update({ is_active: false })
       .eq('id', params.id);
 
     if (error) {
