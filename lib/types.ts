@@ -1,6 +1,6 @@
 // Path: lib/types.ts
-// Version: 2.0.0 - Updated BBSPost and BBSReply types for voting system
-// Date: 2025-12-11
+// Version: 2.1.0 - Added gallery_images, attachments, and amenity fields to Event
+// Date: 2025-01-11
 
 export interface Event {
   // Core identification
@@ -58,6 +58,14 @@ export interface Event {
   
   // Media
   image_url?: string;
+  gallery_images?: string[];
+  attachments?: any[];
+  
+  // Amenities
+  wheelchair_accessible?: boolean;
+  parking_available?: boolean;
+  pet_friendly?: boolean;
+  family_friendly?: boolean;
   
   // Status & Lifecycle
   status?: 'scheduled' | 'cancelled' | 'postponed' | 'completed' | 'in_progress';

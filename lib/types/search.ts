@@ -1,6 +1,6 @@
 // lib/types/search.ts
 // Complete database schemas for all searchable tables
-// Version: 2.0.0 - Added accessibility boolean fields to Event interface (wheelchair, parking, pet, family friendly)
+// Version: 1.2.1 - Added gallery_images, attachments, and amenity boolean fields to Event
 // Date: 2025-01-11
 // Used by: /app/search/page.tsx and /app/community/search/page.tsx
 
@@ -143,7 +143,7 @@ export interface DirectoryBusiness {
 }
 
 // ============================================================================
-// EVENTS (66 fields) - Updated: Added 4 accessibility boolean fields
+// EVENTS (62 fields)
 // ============================================================================
 export interface Event {
   // Core fields (3)
@@ -197,25 +197,27 @@ export interface Event {
   contact_email: string | null;
   contact_phone: string | null;
   
-  // Additional details (6)
+  // Additional details (8)
   image_url: string | null;
+  gallery_images: string[] | null;
+  attachments: any[] | null;
   additional_info: string | null;
   age_restrictions: string | null;
   accessibility_info: string | null;
   what_to_bring: string | null;
   dress_code: string | null;
   
-  // Accessibility & Amenities (4) - NEW: Boolean filters for search
+  // Amenities & features (5)
   wheelchair_accessible: boolean | null;
   parking_available: boolean | null;
   pet_friendly: boolean | null;
   family_friendly: boolean | null;
+  weather_dependent: boolean | null;
   
-  // Cancellation/postponement (4)
+  // Cancellation/postponement (3)
   cancelled_at: string | null;
   cancellation_reason: string | null;
   postponed_from_date: string | null;
-  weather_dependent: boolean | null;
   
   // Source & sync (6)
   source_name: string | null;
@@ -413,7 +415,7 @@ export interface BBSCategory {
 // ============================================================================
 // SUMMARY
 // ============================================================================
-// Total fields across all types: 15 + 74 + 66 + 28 + 25 + 18 + 24 = 250 fields
+// Total fields across all types: 15 + 74 + 62 + 28 + 25 + 18 + 24 = 246 fields
 //
 // Moderator/Admin-only fields (should be filtered from anonymous queries):
 // - Event: deleted_by, deleted_at
