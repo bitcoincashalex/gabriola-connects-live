@@ -1,7 +1,7 @@
 // app/admin/alert-organizations/page.tsx
-// Version: 1.0.1 - Alert Organizations Admin Panel - Fixed TypeScript error
-// Date: 2025-12-20
-// Purpose: View organizations, authorized users, and alert history for Board demo
+// Version: 2.0.0 - Fixed severity sort order (emergency→warning→advisory→info) and added edit functionality
+// Date: 2025-01-11
+// Purpose: View and edit organizations, authorized users, and alert history
 
 'use client';
 
@@ -28,7 +28,8 @@ import {
   Filter,
   X,
   Eye,
-  Calendar
+  Calendar,
+  Edit2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -90,6 +91,8 @@ export default function AlertOrganizationsAdminPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'users' | 'alerts'>('users');
   const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<AlertOrganization | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -183,7 +186,7 @@ export default function AlertOrganizationsAdminPage() {
 
       // Sort by severity and name
       const sorted = orgsWithData.sort((a, b) => {
-        const severityOrder = { critical: 0, important: 1, advisory: 2, info: 3 };
+        const severityOrder = { emergency: 0, warning: 1, advisory: 2, info: 3 };
         const aVal = severityOrder[a.max_severity as keyof typeof severityOrder] ?? 4;
         const bVal = severityOrder[b.max_severity as keyof typeof severityOrder] ?? 4;
         if (aVal !== bVal) return aVal - bVal;
@@ -195,6 +198,27 @@ export default function AlertOrganizationsAdminPage() {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveOrganization = async (orgData: Partial<AlertOrganization>) => {
+    if (!editingOrg) return;
+    
+    try {
+      const { error } = await supabase
+        .from('alert_organizations')
+        .update(orgData)
+        .eq('id', editingOrg.id);
+
+      if (error) throw error;
+
+      alert('Organization updated successfully!');
+      setShowEditModal(false);
+      setEditingOrg(null);
+      fetchAllData();
+    } catch (error: any) {
+      console.error('Error updating organization:', error);
+      alert(`Error updating organization: ${error.message}`);
     }
   };
 
@@ -513,6 +537,19 @@ export default function AlertOrganizationsAdminPage() {
                           </div>
                         </div>
 
+                        {/* Edit Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingOrg(org);
+                            setShowEditModal(true);
+                          }}
+                          className="p-2 hover:bg-gabriola-green hover:text-white rounded-lg transition-colors text-gray-600"
+                          title="Edit Organization"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+
                         {/* Expand Icon */}
                         <div>
                           {isExpanded ? (
@@ -678,6 +715,137 @@ export default function AlertOrganizationsAdminPage() {
             })
           )}
         </div>
+      </div>
+      
+      {/* Edit Organization Modal */}
+      {showEditModal && editingOrg && (
+        <EditOrgModal
+          org={editingOrg}
+          onChange={setEditingOrg}
+          onSave={() => saveOrganization(editingOrg)}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingOrg(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Edit Organization Modal Component
+function EditOrgModal({ org, onChange, onSave, onClose }: any) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Edit Organization</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Name (ID)</label>
+              <input
+                type="text"
+                value={org.name}
+                onChange={(e) => onChange({ ...org, name: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Display Name</label>
+              <input
+                type="text"
+                value={org.display_name}
+                onChange={(e) => onChange({ ...org, display_name: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Max Severity</label>
+            <select
+              value={org.max_severity}
+              onChange={(e) => onChange({ ...org, max_severity: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg"
+            >
+              <option value="info">Info</option>
+              <option value="advisory">Advisory</option>
+              <option value="warning">Warning</option>
+              <option value="emergency">Emergency</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              value={org.description || ''}
+              onChange={(e) => onChange({ ...org, description: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg"
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Contact Phone</label>
+              <input
+                type="tel"
+                value={org.contact_phone || ''}
+                onChange={(e) => onChange({ ...org, contact_phone: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={org.contact_email || ''}
+                onChange={(e) => onChange({ ...org, contact_email: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="is_active"
+              checked={org.is_active}
+              onChange={(e) => onChange({ ...org, is_active: e.target.checked })}
+              className="w-5 h-5"
+            />
+            <label htmlFor="is_active" className="font-medium">Active</label>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-gabriola-green text-white py-3 rounded-lg hover:bg-gabriola-green-dark font-medium"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
