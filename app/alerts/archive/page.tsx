@@ -77,20 +77,21 @@ export default function AlertsArchivePage() {
   };
 
   const fetchArchivedAlerts = async () => {
-    setLoading(true);
-
-    // Fetch from alerts_archive table - PUBLIC access
+    // Fetch ARCHIVED alerts from alerts table (active = false)
+    // This matches what /alerts/manage shows in the Archived tab
     const { data } = await supabase
-      .from('alerts_archive')
-      .select('*')
+      .from('alerts')
+      .select(`
+        *,
+        creator:users!issued_by(full_name, email)
+      `)
+      .eq('active', false)
       .order('created_at', { ascending: false })
       .limit(100);
 
     if (data) {
       setArchivedAlerts(data);
     }
-
-    setLoading(false);
   };
 
   const renderAlert = (alert: Alert, isArchived: boolean) => {
