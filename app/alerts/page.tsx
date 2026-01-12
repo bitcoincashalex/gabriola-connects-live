@@ -1,12 +1,12 @@
 // app/alerts/page.tsx
-// Version: 1.0.0 - PUBLIC alerts view, anyone can see active alerts
-// Date: 2025-12-20
+// Version: 2.0.0 - PUBLIC alerts view with image/link support and click-to-expand lightbox
+// Date: 2025-01-11
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { AlertTriangle, Bell, AlertCircle, Info, Clock, Building2, MapPin, Phone } from 'lucide-react';
+import { AlertTriangle, Bell, AlertCircle, Info, Clock, Building2, MapPin, Phone, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -27,16 +27,34 @@ interface Alert {
   action_required?: string | null;
   creator_name?: string;
   creator_email?: string;
+  image_url?: string | null;
+  link_url?: string | null;
+  link_text?: string | null;
 }
 
 export default function AlertsPage() {
   const { user } = useUser();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActiveAlerts();
   }, []);
+
+  // ESC key to close lightbox
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxImage(null);
+      }
+    };
+    
+    if (lightboxImage) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [lightboxImage]);
 
   const fetchActiveAlerts = async () => {
     setLoading(true);
@@ -126,6 +144,34 @@ export default function AlertsPage() {
             <p className="text-gray-800 whitespace-pre-wrap mb-4 text-lg leading-relaxed">
               {alert.message}
             </p>
+            
+            {/* Alert Image */}
+            {alert.image_url && (
+              <div className="mb-4">
+                <img 
+                  src={alert.image_url} 
+                  alt={alert.title}
+                  onClick={() => setLightboxImage(alert.image_url || null)}
+                  className="w-full max-h-96 object-cover rounded-lg border-2 border-gray-300 cursor-pointer hover:border-gabriola-green transition-colors"
+                  title="Click to view full size"
+                />
+              </div>
+            )}
+
+            {/* External Link */}
+            {alert.link_url && (
+              <div className="mb-4">
+                <a
+                  href={alert.link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold transition-colors"
+                >
+                  {alert.link_text || 'More Information'}
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+              </div>
+            )}
             
             {alert.action_required && (
               <div className="bg-white/50 border border-gray-300 rounded-lg p-3 mb-4">
@@ -238,6 +284,31 @@ export default function AlertsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-screen">
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2 transition-colors"
+              title="Close (ESC)"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <img 
+              src={lightboxImage} 
+              alt="Full size"
+              className="max-w-full max-h-screen object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

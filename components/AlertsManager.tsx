@@ -1,5 +1,5 @@
 // components/AlertsManager.tsx
-// v5.0.0 - ENHANCED: Added image upload, external links, and URL support for alerts
+// v5.1.0 - ENHANCED: Added click-to-expand lightbox for alert images
 // Date: 2025-01-11
 'use client';
 
@@ -88,11 +88,28 @@ export default function AlertsManager() {
 
   // Image upload state
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  
+  // Image lightbox state
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrganizationsAndTemplates();
     fetchAlerts();
   }, []);
+
+  // ESC key to close lightbox
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLightboxImage(null);
+      }
+    };
+    
+    if (lightboxImage) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [lightboxImage]);
 
   // Fetch organizations and templates
   const fetchOrganizationsAndTemplates = async () => {
@@ -523,7 +540,9 @@ export default function AlertsManager() {
                   <img 
                     src={alert.image_url} 
                     alt={alert.title}
-                    className="w-full max-h-96 object-cover rounded-lg border-2 border-gray-300"
+                    onClick={() => setLightboxImage(alert.image_url || null)}
+                    className="w-full max-h-96 object-cover rounded-lg border-2 border-gray-300 cursor-pointer hover:border-gabriola-green transition-colors"
+                    title="Click to view full size"
                   />
                 </div>
               )}
@@ -1009,6 +1028,30 @@ export default function AlertsManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Lightbox Modal */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-screen">
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2 transition-colors"
+              title="Close (ESC)"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <img 
+              src={lightboxImage} 
+              alt="Full size"
+              className="max-w-full max-h-screen object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}
