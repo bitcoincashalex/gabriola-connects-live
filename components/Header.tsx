@@ -1,13 +1,13 @@
 // components/Header.tsx
-// Version: 2.7.0 - Added My Posts and My Events navigation links
-// Date: 2025-12-22
+// Version: 2.7.1 - Added Volunteer Admin access and mobile search
+// Date: 2025-01-13
 'use client';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship, AlertTriangle, Search, MessageSquare, Calendar } from 'lucide-react';
+import { Menu, X, User, Mail, Settings, Shield, LogOut, ChevronDown, Ship, AlertTriangle, Search, MessageSquare, Calendar, Heart } from 'lucide-react';
 import HeaderSearch from './HeaderSearch';
 import EventDetailModal from '@/components/EventDetailModal';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
@@ -28,7 +28,8 @@ export default function Header() {
   const isDirectoryAdmin = (user as any)?.admin_directory;
   const isFerryAdmin = (user as any)?.admin_ferry;
   const isAlertAdmin = (user as any)?.admin_alerts;
-  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin || isFerryAdmin || isAlertAdmin;
+  const isVolunteerAdmin = (user as any)?.admin_volunteer;
+  const hasAnyAdminAccess = isSuperAdmin || isForumAdmin || isEventAdmin || isDirectoryAdmin || isFerryAdmin || isAlertAdmin || isVolunteerAdmin;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -389,6 +390,18 @@ export default function Header() {
                             <span>Alert Organizations</span>
                           </Link>
                         )}
+                        
+                        {/* Volunteer Admin - Volunteer Admin or Super Admin */}
+                        {(isVolunteerAdmin || isSuperAdmin) && (
+                          <Link
+                            href="/admin/volunteer"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition text-green-700"
+                          >
+                            <Heart className="w-5 h-5" />
+                            <span>Volunteer Admin</span>
+                          </Link>
+                        )}
                       </>
                     )}
 
@@ -431,6 +444,14 @@ export default function Header() {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/20">
             <nav className="py-4 space-y-3 text-center text-lg">
+              {/* Mobile Search */}
+              <div className="px-4 pb-3">
+                <HeaderSearch 
+                  onSelectEvent={setSelectedEvent}
+                  onSelectBusiness={setSelectedBusiness}
+                />
+              </div>
+              
               {navItems.map((item) =>
                 item.onClick ? (
                   <button
