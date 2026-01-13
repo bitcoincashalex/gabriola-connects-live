@@ -1,6 +1,6 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.0.0 - Community Hub landing page with 5 options
-// Date: 2024-12-13
+// Version: 1.1.0 - Activated Volunteer Opportunities module
+// Date: 2025-01-13
 
 import { MessageSquare, AlertCircle, Map, Newspaper, Heart } from 'lucide-react';
 import Link from 'next/link';
@@ -63,6 +63,31 @@ export default function CommunityHubPage() {
               </div>
             </Link>
 
+            {/* Volunteer Opportunities - NOW ACTIVE! */}
+            <Link
+              href="/volunteer"
+              className="block bg-white border-2 border-green-500 rounded-2xl p-8 hover:shadow-xl transition-all hover:scale-105 group md:col-span-2"
+            >
+              <div className="flex items-start gap-4 max-w-2xl">
+                <div className="p-4 bg-green-50 rounded-xl group-hover:bg-green-100 transition">
+                  <Heart className="w-10 h-10 text-green-500" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Volunteer Opportunities
+                    </h3>
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                      NEW!
+                    </span>
+                  </div>
+                  <p className="text-gray-600">
+                    Help out in your community and make a difference
+                  </p>
+                </div>
+              </div>
+            </Link>
+
             {/* Island Map - Coming Soon */}
             <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed">
               <div className="flex items-start gap-4">
@@ -102,28 +127,6 @@ export default function CommunityHubPage() {
                   </div>
                   <p className="text-gray-500">
                     Stay updated with community announcements and local news
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Volunteer Opportunities - Coming Soon */}
-            <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed md:col-span-2">
-              <div className="flex items-start gap-4 max-w-2xl">
-                <div className="p-4 bg-gray-200 rounded-xl">
-                  <Heart className="w-10 h-10 text-gray-500" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-2xl font-bold text-gray-700">
-                      Volunteer Opportunities
-                    </h3>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
-                      Coming Soon
-                    </span>
-                  </div>
-                  <p className="text-gray-500">
-                    Help out in your community and make a difference
                   </p>
                 </div>
               </div>
