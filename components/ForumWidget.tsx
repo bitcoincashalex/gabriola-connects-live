@@ -1,7 +1,7 @@
 // components/ForumWidget.tsx
-// Shows active discussion count and latest topics - REDESIGNED
-// Version: 6.0.1 - Fixed Firefox z-index bug (background covering text)
-// Date: 2025-12-22
+// Shows latest discussion topics and volunteer opportunities
+// Version: 6.2.0 - Added "Latest discussions" header and volunteer opportunity count
+// Date: 2025-01-13
 
 'use client';
 
@@ -11,8 +11,8 @@ import { MessageSquare, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function ForumWidget() {
-  const [activeCount, setActiveCount] = useState(0);
   const [latestTopics, setLatestTopics] = useState<string[]>([]);
+  const [volunteerCount, setVolunteerCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -40,18 +40,7 @@ export function ForumWidget() {
     try {
       setHasError(false);
       
-      // Get active discussion count (with timeout)
-      const { count } = await queryWithTimeout(async () =>
-        supabase
-          .from('bbs_posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true)
-          .is('deleted_at', null)
-      );
-
-      setActiveCount(count || 0);
-
-      // Get latest 3 topics (with timeout)
+      // Get latest 5 topics (with timeout)
       const { data: latest } = await queryWithTimeout(async () =>
         supabase
           .from('bbs_posts')
@@ -59,7 +48,7 @@ export function ForumWidget() {
           .eq('is_active', true)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
-          .limit(3)
+          .limit(5)
       );
 
       if (latest && latest.length > 0) {
@@ -67,11 +56,23 @@ export function ForumWidget() {
       } else {
         setLatestTopics([]);
       }
+
+      // Get volunteer opportunities count (with timeout)
+      const { count } = await queryWithTimeout(async () =>
+        supabase
+          .from('volunteer_opportunities')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'active')
+          .eq('is_approved', true)
+      );
+
+      setVolunteerCount(count || 0);
+
     } catch (error) {
       console.error('Error fetching forum stats:', error);
       setHasError(true);
-      setActiveCount(0);
       setLatestTopics([]);
+      setVolunteerCount(0);
     } finally {
       setLoading(false);
     }
@@ -127,24 +128,30 @@ export function ForumWidget() {
           </div>
         ) : (
           <>
-            {/* Active Discussions - Smaller text */}
+            {/* Latest Discussions Header */}
             <div className="mb-2">
-              <p className="text-xl font-semibold">{activeCount} active discussions</p>
+              <p className="text-xs text-blue-100 font-semibold uppercase tracking-wide">Latest discussions:</p>
             </div>
 
-            {/* Latest 3 Topics */}
-            {latestTopics.length > 0 && (
-              <div className="pt-2 border-t border-white/20">
-                <p className="text-xs text-blue-100 mb-1">Latest:</p>
-                <div className="space-y-1">
-                  {latestTopics.map((topic, idx) => (
-                    <p key={idx} className="text-xs font-medium truncate leading-tight">
-                      • {topic}
-                    </p>
-                  ))}
-                </div>
+            {/* Latest 5 Topics */}
+            {latestTopics.length > 0 ? (
+              <div className="space-y-1.5 mb-3">
+                {latestTopics.map((topic, idx) => (
+                  <p key={idx} className="text-sm font-medium truncate leading-tight">
+                    • {topic}
+                  </p>
+                ))}
               </div>
+            ) : (
+              <p className="text-sm text-blue-100 mb-3">No active discussions yet</p>
             )}
+
+            {/* Volunteer Opportunities Count */}
+            <div className="pt-2 border-t border-white/20">
+              <p className="text-sm font-medium">
+                {volunteerCount} Volunteer {volunteerCount === 1 ? 'opportunity' : 'opportunities'} available
+              </p>
+            </div>
           </>
         )}
 
