@@ -1,6 +1,6 @@
 // components/ForumSearchBar.tsx
-// Version: 1.0.0 - Simple real-time forum search
-// Date: 2025-12-11
+// Version: 1.1.0 - Mobile shows "Advanced" text label
+// Date: 2025-01-14
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -78,7 +78,7 @@ export default function ForumSearchBar({
           title="Advanced Search"
         >
           <SlidersHorizontal className="w-5 h-5" />
-          <span className="hidden sm:inline">Advanced</span>
+          <span>Advanced</span>
         </Link>
       </div>
 
