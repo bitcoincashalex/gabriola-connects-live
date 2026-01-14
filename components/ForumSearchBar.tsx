@@ -1,5 +1,5 @@
 // components/ForumSearchBar.tsx
-// Version: 1.3.0 - Block ALL forum searching for anonymous users
+// Version: 1.4.0 - Block forum search for anon, NO duplicate CTA message
 // Date: 2025-01-14
 'use client';
 
@@ -21,7 +21,7 @@ export default function ForumSearchBar({
   resultCount,
   isSearching 
 }: ForumSearchBarProps) {
-  const { user } = useUser(); // Get current user
+  const { user } = useUser();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
@@ -37,8 +37,7 @@ export default function ForumSearchBar({
   // Trigger search ONLY if user is logged in
   useEffect(() => {
     if (!user) {
-      // Don't search if not logged in
-      return;
+      return; // Don't search if not logged in
     }
 
     if (debouncedQuery.length >= 2) {
@@ -56,14 +55,15 @@ export default function ForumSearchBar({
 
   const handleInputFocus = () => {
     if (!user) {
-      alert('Please sign in to search the forum. Forum search is available to registered members only.');
+      // Just show a brief tooltip-style message
+      alert('Please sign in to search the forum.');
     }
   };
 
   const handleAdvancedClick = (e: React.MouseEvent) => {
     if (!user) {
       e.preventDefault();
-      alert('Please sign in to use advanced search. Forum search is available to registered members only.');
+      alert('Please sign in to use advanced search.');
     }
   };
 
@@ -122,32 +122,6 @@ export default function ForumSearchBar({
           </button>
         )}
       </div>
-
-      {/* Anonymous User Notice */}
-      {!user && (
-        <div className="bg-gabriola-green/10 border-2 border-gabriola-green rounded-lg p-4">
-          <p className="text-gabriola-green font-medium mb-2">
-            🔒 Forum search is for members only
-          </p>
-          <p className="text-gray-700 text-sm mb-3">
-            Sign in to search threads, replies, and find exactly what you're looking for!
-          </p>
-          <div className="flex gap-2">
-            <Link
-              href="/signin"
-              className="bg-gabriola-green text-white px-4 py-2 rounded-lg font-medium hover:bg-gabriola-green-dark transition text-sm"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-white text-gabriola-green border-2 border-gabriola-green px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-            >
-              Sign Up Free
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Search Status - Only for logged-in users */}
       {user && isSearching && (
