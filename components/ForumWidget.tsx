@@ -1,6 +1,6 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities
-// Version: 6.3.0 - Removed background bubbles that were overlapping volunteer count
+// Version: 6.3.0 - Removed background bubbles that were overlapping volunteer count on iOS
 // Date: 2025-01-14
 
 'use client';
