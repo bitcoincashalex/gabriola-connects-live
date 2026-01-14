@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 3.0.0-DEMO - Complete edit modal with IMAGE URLS + all key fields
+// Version: 4.0.0-UPLOAD - IMAGE UPLOAD from computer with Supabase Storage
 // Date: 2025-01-13
 
 'use client';
@@ -84,6 +84,11 @@ export default function DirectoryAdminPage() {
   // Edit Modal State
   const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  
+  // Image Upload State
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   
   // Category Management State
   const [categories, setCategories] = useState<BusinessCategory[]>([]);
@@ -200,6 +205,59 @@ export default function DirectoryAdminPage() {
       await fetchBusinesses();
     } else {
       alert('Error updating business: ' + error.message);
+    }
+  };
+
+  const uploadImage = async (file: File, type: 'image' | 'logo' | 'cover') => {
+    if (!editingBusiness) return;
+
+    // Set loading state
+    if (type === 'image') setUploadingImage(true);
+    if (type === 'logo') setUploadingLogo(true);
+    if (type === 'cover') setUploadingCover(true);
+
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${editingBusiness.id}-${type}-${Date.now()}.${fileExt}`;
+      const filePath = `business-images/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('directory')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        alert('Error uploading image: ' + uploadError.message);
+        return;
+      }
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('directory')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      // Update business with new image URL
+      const fieldName = type === 'image' ? 'image' : type === 'logo' ? 'logo_url' : 'cover_image_url';
+      
+      setEditingBusiness({
+        ...editingBusiness,
+        [fieldName]: publicUrl
+      });
+
+      alert('Image uploaded successfully!');
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Error uploading image');
+    } finally {
+      setUploadingImage(false);
+      setUploadingLogo(false);
+      setUploadingCover(false);
     }
   };
 
@@ -911,55 +969,106 @@ export default function DirectoryAdminPage() {
                 </div>
               </div>
 
-              {/* SECTION 2: IMAGES - CRITICAL FOR DEMO! */}
+              {/* SECTION 2: IMAGES - FILE UPLOAD! */}
               <div className="bg-green-50 p-4 rounded-lg border-2 border-green-300">
-                <h3 className="font-bold text-lg text-green-900 mb-4">🖼️ Images (Demo Critical!)</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Main Image URL
+                <h3 className="font-bold text-lg text-green-900 mb-4">📸 Upload Images</h3>
+                <div className="space-y-6">
+                  
+                  {/* Main Image Upload */}
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Main Business Image
                     </label>
-                    <input
-                      type="url"
-                      value={editingBusiness.image || ''}
-                      onChange={(e) => setEditingBusiness({...editingBusiness, image: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                    {editingBusiness.image && (
-                      <img src={editingBusiness.image} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded" />
-                    )}
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadImage(file, 'image');
+                          }}
+                          className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 file:cursor-pointer"
+                          disabled={uploadingImage}
+                        />
+                        {uploadingImage && (
+                          <p className="text-sm text-green-600 mt-2">⏳ Uploading...</p>
+                        )}
+                      </div>
+                      {editingBusiness.image && (
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={editingBusiness.image} 
+                            alt="Main" 
+                            className="w-32 h-32 object-cover rounded-lg shadow-md" 
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Logo URL
+
+                  {/* Logo Upload */}
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Logo
                     </label>
-                    <input
-                      type="url"
-                      value={editingBusiness.logo_url || ''}
-                      onChange={(e) => setEditingBusiness({...editingBusiness, logo_url: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      placeholder="https://example.com/logo.png"
-                    />
-                    {editingBusiness.logo_url && (
-                      <img src={editingBusiness.logo_url} alt="Logo" className="mt-2 w-24 h-24 object-contain rounded bg-white p-2" />
-                    )}
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadImage(file, 'logo');
+                          }}
+                          className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 file:cursor-pointer"
+                          disabled={uploadingLogo}
+                        />
+                        {uploadingLogo && (
+                          <p className="text-sm text-green-600 mt-2">⏳ Uploading...</p>
+                        )}
+                      </div>
+                      {editingBusiness.logo_url && (
+                        <div className="flex-shrink-0 bg-white p-2">
+                          <img 
+                            src={editingBusiness.logo_url} 
+                            alt="Logo" 
+                            className="w-24 h-24 object-contain rounded shadow-md" 
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Cover Image URL
+
+                  {/* Cover Image Upload */}
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cover/Banner Image
                     </label>
-                    <input
-                      type="url"
-                      value={editingBusiness.cover_image_url || ''}
-                      onChange={(e) => setEditingBusiness({...editingBusiness, cover_image_url: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      placeholder="https://example.com/cover.jpg"
-                    />
-                    {editingBusiness.cover_image_url && (
-                      <img src={editingBusiness.cover_image_url} alt="Cover" className="mt-2 w-full h-32 object-cover rounded" />
-                    )}
+                    <div className="space-y-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadImage(file, 'cover');
+                        }}
+                        className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700 file:cursor-pointer"
+                        disabled={uploadingCover}
+                      />
+                      {uploadingCover && (
+                        <p className="text-sm text-green-600">⏳ Uploading...</p>
+                      )}
+                      {editingBusiness.cover_image_url && (
+                        <img 
+                          src={editingBusiness.cover_image_url} 
+                          alt="Cover" 
+                          className="w-full h-48 object-cover rounded-lg shadow-md" 
+                        />
+                      )}
+                    </div>
                   </div>
+
                 </div>
               </div>
 
