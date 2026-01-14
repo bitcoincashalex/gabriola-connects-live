@@ -1,7 +1,7 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities
-// Version: 6.2.0 - Added "Latest discussions" header and volunteer opportunity count
-// Date: 2025-01-13
+// Version: 6.3.0 - Removed background bubbles that were overlapping volunteer count
+// Date: 2025-01-14
 
 'use client';
 
@@ -83,12 +83,6 @@ export function ForumWidget() {
       href="/community-hub"
       className="group bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 p-6 text-white overflow-hidden relative"
     >
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10 -z-10">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-16 translate-x-16"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-12 -translate-x-12"></div>
-      </div>
-
       {/* Content */}
       <div className="relative">
         {/* Header - Updated text sizing */}
