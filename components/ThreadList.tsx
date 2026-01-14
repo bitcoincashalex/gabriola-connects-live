@@ -1,6 +1,6 @@
 // Path: components/ThreadList.tsx
-// Version: 4.2.0 - Added view_count to query for thread summary display
-// Date: 2025-12-18
+// Version: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
+// Date: 2025-01-14
 
 'use client';
 
@@ -62,12 +62,11 @@ export default function ThreadList({
       query = query.or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`);
     }
 
-    // Ordering
+    // Ordering: Pinned posts first, then by latest activity
     query = query
       .order('global_pinned', { ascending: false })
       .order('pin_order', { ascending: false })
-      .order('vote_score', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     const { data, error } = await query;
 
@@ -124,10 +123,8 @@ export default function ThreadList({
               if (a.global_pinned !== b.global_pinned) return b.global_pinned ? 1 : -1;
               // Then pin_order
               if (a.pin_order !== b.pin_order) return (b.pin_order || 0) - (a.pin_order || 0);
-              // Then vote_score
-              if (a.vote_score !== b.vote_score) return (b.vote_score || 0) - (a.vote_score || 0);
-              // Then created_at
-              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+              // Then updated_at (latest activity)
+              return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
             });
           }
         }
