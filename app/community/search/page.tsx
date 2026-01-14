@@ -1,7 +1,7 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 5.0.0 - Added accessibility filters for events and businesses (wheelchair, parking, pet, family friendly)
-// Date: 2025-01-11
+// Version: 5.1.0 - Fixed ferry search to use correct schema (boolean day fields, correct terminals)
+// Date: 2025-01-13
 
 'use client';
 
@@ -29,8 +29,9 @@ const isAlertActive = (alert: any): boolean => {
 };
 
 const operatesOnDay = (schedule: any, day: string): boolean => {
-  if (!schedule.operating_days) return false;
-  return schedule.operating_days.toLowerCase().includes(day.toLowerCase());
+  // Check boolean field for the specified day (e.g., operates_monday)
+  const dayField = `operates_${day.toLowerCase()}`;
+  return schedule[dayField] === true;
 };
 
 // Category and filter constants
@@ -71,7 +72,8 @@ const locations = [
 
 const ferryRoutes = [
   { value: 'all', label: 'All Routes' },
-  { value: 'gabriola-nanaimo', label: 'Gabriola ↔ Nanaimo' },
+  { value: 'Gabriola', label: 'From Gabriola' },
+  { value: 'Nanaimo', label: 'From Nanaimo' },
 ];
 
 const daysOfWeek = [
@@ -341,8 +343,9 @@ export default function CommunitySearchPage() {
           .eq('is_active', true);
         
         // Only apply search filter if there's a search query
+        // Search in: schedule_name, terminals, time displays
         if (query.trim()) {
-          ferryQuery = ferryQuery.or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},notes.ilike.${searchTerm},day_of_week.ilike.${searchTerm},operating_days.ilike.${searchTerm},route_name.ilike.${searchTerm}`);
+          ferryQuery = ferryQuery.or(`schedule_name.ilike.${searchTerm},departure_terminal.ilike.${searchTerm},arrival_terminal.ilike.${searchTerm},time_display.ilike.${searchTerm},departure_display.ilike.${searchTerm},arrival_display.ilike.${searchTerm}`);
         }
         
         ferryQuery = ferryQuery

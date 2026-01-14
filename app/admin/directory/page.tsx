@@ -1,6 +1,6 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.0.3-fixed - Added cache-busting and state refresh fix for arrow buttons
-// Date: 2025-01-11
+// Version: 2.1.0 - Mobile-responsive business cards with side-by-side buttons
+// Date: 2025-01-13
 
 'use client';
 
@@ -639,20 +639,20 @@ export default function DirectoryAdminPage() {
           </div>
         ) : (
           filteredBusinesses.map(business => (
-            <div key={business.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start">
+            <div key={business.id} className="bg-white rounded-lg shadow-md p-4 md:p-6">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                 <div className="flex-1">
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
                     {business.image && (
                       <img 
                         src={business.image} 
                         alt={business.name}
-                        className="w-24 h-24 object-cover rounded-lg"
+                        className="w-full sm:w-24 h-48 sm:h-24 object-cover rounded-lg"
                       />
                     )}
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{business.name}</h3>
-                      <div className="space-y-1 text-gray-700">
+                    <div className="flex-1 w-full">
+                      <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{business.name}</h3>
+                      <div className="space-y-1 text-sm md:text-base text-gray-700">
                         <p><strong>Category:</strong> {business.category}</p>
                         <p><strong>Address:</strong> {business.address}</p>
                         {business.phone && <p><strong>Phone:</strong> {business.phone}</p>}
@@ -664,7 +664,7 @@ export default function DirectoryAdminPage() {
                               href={business.website} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-600 hover:underline break-all"
                             >
                               {business.website}
                             </a>
@@ -678,21 +678,21 @@ export default function DirectoryAdminPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="ml-4 flex flex-col gap-2">
+                {/* Actions - Side-by-side on mobile, stacked on desktop */}
+                <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
                   <button
                     onClick={() => alert('Edit feature coming soon!')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 whitespace-nowrap"
+                    className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base font-medium"
                   >
-                    <Edit className="w-4 h-4" />
-                    Edit
+                    <Edit className="w-5 h-5" />
+                    <span className="hidden sm:inline">Edit</span>
                   </button>
                   <button
                     onClick={() => deleteBusiness(business.id, business.name)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 whitespace-nowrap"
+                    className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base font-medium"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
+                    <Trash2 className="w-5 h-5" />
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
