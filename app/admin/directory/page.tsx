@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.2.0 - Mobile-responsive with WORKING edit modal
+// Version: 3.0.0-DEMO - Complete edit modal with IMAGE URLS + all key fields
 // Date: 2025-01-13
 
 'use client';
@@ -15,13 +15,54 @@ interface Business {
   id: string;
   name: string;
   category: string;
+  subcategory?: string;
+  tagline?: string;
   address: string;
   phone?: string;
   email?: string;
   website?: string;
   description?: string;
+  
+  // IMAGES - Critical for demo!
   image?: string;
+  logo_url?: string;
+  cover_image_url?: string;
+  
+  // Contact
+  facebook_url?: string;
+  instagram_url?: string;
+  
+  // Hours
+  hours_monday?: string;
+  hours_tuesday?: string;
+  hours_wednesday?: string;
+  hours_thursday?: string;
+  hours_friday?: string;
+  hours_saturday?: string;
+  hours_sunday?: string;
+  
+  // Key Amenities
+  wheelchair_accessible?: boolean;
+  parking_available?: boolean;
+  wifi_available?: boolean;
+  pet_friendly?: boolean;
+  family_friendly?: boolean;
+  
+  // Services
+  offers_delivery?: boolean;
+  offers_pickup?: boolean;
+  
+  // Payment
+  accepts_cash?: boolean;
+  accepts_credit?: boolean;
+  accepts_debit?: boolean;
+  
+  // Community
+  islander_owned?: boolean;
+  chamber_member?: boolean;
+  
   created_at: string;
+  [key: string]: any;
 }
 
 interface BusinessCategory {
@@ -101,13 +142,54 @@ export default function DirectoryAdminPage() {
     const { error } = await supabase
       .from('directory_businesses')
       .update({
+        // Basic Info
         name: editingBusiness.name,
         category: editingBusiness.category,
+        subcategory: editingBusiness.subcategory,
+        tagline: editingBusiness.tagline,
         address: editingBusiness.address,
         phone: editingBusiness.phone,
         email: editingBusiness.email,
         website: editingBusiness.website,
         description: editingBusiness.description,
+        
+        // IMAGES - Critical!
+        image: editingBusiness.image,
+        logo_url: editingBusiness.logo_url,
+        cover_image_url: editingBusiness.cover_image_url,
+        
+        // Social
+        facebook_url: editingBusiness.facebook_url,
+        instagram_url: editingBusiness.instagram_url,
+        
+        // Hours
+        hours_monday: editingBusiness.hours_monday,
+        hours_tuesday: editingBusiness.hours_tuesday,
+        hours_wednesday: editingBusiness.hours_wednesday,
+        hours_thursday: editingBusiness.hours_thursday,
+        hours_friday: editingBusiness.hours_friday,
+        hours_saturday: editingBusiness.hours_saturday,
+        hours_sunday: editingBusiness.hours_sunday,
+        
+        // Amenities
+        wheelchair_accessible: editingBusiness.wheelchair_accessible,
+        parking_available: editingBusiness.parking_available,
+        wifi_available: editingBusiness.wifi_available,
+        pet_friendly: editingBusiness.pet_friendly,
+        family_friendly: editingBusiness.family_friendly,
+        
+        // Services
+        offers_delivery: editingBusiness.offers_delivery,
+        offers_pickup: editingBusiness.offers_pickup,
+        
+        // Payment
+        accepts_cash: editingBusiness.accepts_cash,
+        accepts_credit: editingBusiness.accepts_credit,
+        accepts_debit: editingBusiness.accepts_debit,
+        
+        // Community
+        islander_owned: editingBusiness.islander_owned,
+        chamber_member: editingBusiness.chamber_member,
       })
       .eq('id', editingBusiness.id);
 
@@ -122,7 +204,7 @@ export default function DirectoryAdminPage() {
   };
 
   const openEditModal = (business: Business) => {
-    setEditingBusiness({...business}); // Clone the business object
+    setEditingBusiness({...business});
     setShowEditModal(true);
   };
 
@@ -674,20 +756,20 @@ export default function DirectoryAdminPage() {
           </div>
         ) : (
           filteredBusinesses.map(business => (
-            <div key={business.id} className="bg-white rounded-lg shadow-md p-4 md:p-6">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+            <div key={business.id} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="flex items-start gap-4">
                     {business.image && (
                       <img 
                         src={business.image} 
                         alt={business.name}
-                        className="w-full sm:w-24 h-48 sm:h-24 object-cover rounded-lg"
+                        className="w-24 h-24 object-cover rounded-lg"
                       />
                     )}
-                    <div className="flex-1 w-full">
-                      <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{business.name}</h3>
-                      <div className="space-y-1 text-sm md:text-base text-gray-700">
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{business.name}</h3>
+                      <div className="space-y-1 text-gray-700">
                         <p><strong>Category:</strong> {business.category}</p>
                         <p><strong>Address:</strong> {business.address}</p>
                         {business.phone && <p><strong>Phone:</strong> {business.phone}</p>}
@@ -699,7 +781,7 @@ export default function DirectoryAdminPage() {
                               href={business.website} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline break-all"
+                              className="text-blue-600 hover:underline"
                             >
                               {business.website}
                             </a>
@@ -713,21 +795,21 @@ export default function DirectoryAdminPage() {
                   </div>
                 </div>
 
-                {/* Actions - Side-by-side on mobile, stacked on desktop */}
-                <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
+                {/* Actions */}
+                <div className="ml-4 flex flex-col gap-2">
                   <button
                     onClick={() => openEditModal(business)}
-                    className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base font-medium"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 whitespace-nowrap"
                   >
-                    <Edit className="w-5 h-5" />
-                    <span className="hidden sm:inline">Edit</span>
+                    <Edit className="w-4 h-4" />
+                    Edit
                   </button>
                   <button
                     onClick={() => deleteBusiness(business.id, business.name)}
-                    className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base font-medium"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 whitespace-nowrap"
                   >
-                    <Trash2 className="w-5 h-5" />
-                    <span className="hidden sm:inline">Delete</span>
+                    <Trash2 className="w-4 h-4" />
+                    Delete
                   </button>
                 </div>
               </div>
@@ -748,88 +830,75 @@ export default function DirectoryAdminPage() {
         </ul>
       </div>
 
-      {/* Edit Business Modal */}
+      {/* EDIT MODAL - Demo Optimized */}
       {showEditModal && editingBusiness && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Business</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBusiness.name}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Edit Business</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingBusiness(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBusiness.category}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
+            <div className="p-6 space-y-6">
+              {/* SECTION 1: BASIC INFO */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-bold text-lg text-blue-900 mb-4">📋 Basic Information</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Business Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBusiness.name}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBusiness.category}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, category: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Subcategory
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBusiness.subcategory || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, subcategory: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tagline
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBusiness.tagline || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, tagline: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Short catchy phrase"
+                    />
+                  </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Address *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBusiness.address}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, address: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBusiness.phone || ''}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={editingBusiness.email || ''}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Website
-                  </label>
-                  <input
-                    type="url"
-                    value={editingBusiness.website || ''}
-                    onChange={(e) => setEditingBusiness({...editingBusiness, website: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://"
-                  />
-                </div>
-
-                <div>
+                <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description
                   </label>
@@ -842,19 +911,282 @@ export default function DirectoryAdminPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              {/* SECTION 2: IMAGES - CRITICAL FOR DEMO! */}
+              <div className="bg-green-50 p-4 rounded-lg border-2 border-green-300">
+                <h3 className="font-bold text-lg text-green-900 mb-4">🖼️ Images (Demo Critical!)</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Main Image URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.image || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, image: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    {editingBusiness.image && (
+                      <img src={editingBusiness.image} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded" />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Logo URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.logo_url || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, logo_url: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      placeholder="https://example.com/logo.png"
+                    />
+                    {editingBusiness.logo_url && (
+                      <img src={editingBusiness.logo_url} alt="Logo" className="mt-2 w-24 h-24 object-contain rounded bg-white p-2" />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cover Image URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.cover_image_url || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, cover_image_url: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      placeholder="https://example.com/cover.jpg"
+                    />
+                    {editingBusiness.cover_image_url && (
+                      <img src={editingBusiness.cover_image_url} alt="Cover" className="mt-2 w-full h-32 object-cover rounded" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: CONTACT */}
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-bold text-lg text-purple-900 mb-4">📞 Contact Information</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Address *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBusiness.address}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, address: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editingBusiness.phone || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, phone: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={editingBusiness.email || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Website
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.website || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, website: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="https://"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Facebook URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.facebook_url || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, facebook_url: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Instagram URL
+                    </label>
+                    <input
+                      type="url"
+                      value={editingBusiness.instagram_url || ''}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, instagram_url: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: HOURS */}
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <h3 className="font-bold text-lg text-amber-900 mb-4">🕐 Business Hours</h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                    <div key={day}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {day}
+                      </label>
+                      <input
+                        type="text"
+                        value={editingBusiness[`hours_${day.toLowerCase()}` as keyof Business] as string || ''}
+                        onChange={(e) => setEditingBusiness({...editingBusiness, [`hours_${day.toLowerCase()}`]: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm"
+                        placeholder="9:00 AM - 5:00 PM or Closed"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 5: AMENITIES & FEATURES */}
+              <div className="bg-indigo-50 p-4 rounded-lg">
+                <h3 className="font-bold text-lg text-indigo-900 mb-4">✨ Amenities & Features</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.wheelchair_accessible || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, wheelchair_accessible: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">♿ Wheelchair Accessible</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.parking_available || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, parking_available: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🅿️ Parking Available</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.wifi_available || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, wifi_available: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">📶 WiFi Available</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.pet_friendly || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, pet_friendly: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🐕 Pet Friendly</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.family_friendly || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, family_friendly: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">👨‍👩‍👧 Family Friendly</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.offers_delivery || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, offers_delivery: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🚚 Offers Delivery</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.offers_pickup || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, offers_pickup: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🏪 Offers Pickup</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.accepts_cash || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, accepts_cash: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">💵 Accepts Cash</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.accepts_credit || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, accepts_credit: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">💳 Accepts Credit</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.accepts_debit || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, accepts_debit: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">💳 Accepts Debit</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.islander_owned || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, islander_owned: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🏝️ Islander Owned</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editingBusiness.chamber_member || false}
+                      onChange={(e) => setEditingBusiness({...editingBusiness, chamber_member: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">🏢 Chamber Member</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
                   onClick={updateBusiness}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-lg"
                 >
-                  Save Changes
+                  💾 Save Changes
                 </button>
                 <button
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingBusiness(null);
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-lg"
                 >
                   Cancel
                 </button>
