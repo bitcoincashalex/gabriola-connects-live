@@ -1,5 +1,5 @@
 // Path: app/admin/directory/page.tsx
-// Version: 2.1.0 - Mobile-responsive business cards with side-by-side buttons
+// Version: 2.2.0 - Mobile-responsive with WORKING edit modal
 // Date: 2025-01-13
 
 'use client';
@@ -39,6 +39,10 @@ export default function DirectoryAdminPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  
+  // Edit Modal State
+  const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   
   // Category Management State
   const [categories, setCategories] = useState<BusinessCategory[]>([]);
@@ -89,6 +93,37 @@ export default function DirectoryAdminPage() {
     } else {
       alert('Error deleting business: ' + error.message);
     }
+  };
+
+  const updateBusiness = async () => {
+    if (!editingBusiness) return;
+
+    const { error } = await supabase
+      .from('directory_businesses')
+      .update({
+        name: editingBusiness.name,
+        category: editingBusiness.category,
+        address: editingBusiness.address,
+        phone: editingBusiness.phone,
+        email: editingBusiness.email,
+        website: editingBusiness.website,
+        description: editingBusiness.description,
+      })
+      .eq('id', editingBusiness.id);
+
+    if (!error) {
+      alert('Business updated successfully!');
+      setShowEditModal(false);
+      setEditingBusiness(null);
+      await fetchBusinesses();
+    } else {
+      alert('Error updating business: ' + error.message);
+    }
+  };
+
+  const openEditModal = (business: Business) => {
+    setEditingBusiness({...business}); // Clone the business object
+    setShowEditModal(true);
   };
 
   const fetchCategories = async () => {
@@ -681,7 +716,7 @@ export default function DirectoryAdminPage() {
                 {/* Actions - Side-by-side on mobile, stacked on desktop */}
                 <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto">
                   <button
-                    onClick={() => alert('Edit feature coming soon!')}
+                    onClick={() => openEditModal(business)}
                     className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base font-medium"
                   >
                     <Edit className="w-5 h-5" />
@@ -712,6 +747,122 @@ export default function DirectoryAdminPage() {
           <li>• <strong>Coming Soon:</strong> API import from Chamber directory</li>
         </ul>
       </div>
+
+      {/* Edit Business Modal */}
+      {showEditModal && editingBusiness && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Business</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBusiness.name}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBusiness.category}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, category: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBusiness.address}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, address: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBusiness.phone || ''}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editingBusiness.email || ''}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Website
+                  </label>
+                  <input
+                    type="url"
+                    value={editingBusiness.website || ''}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, website: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingBusiness.description || ''}
+                    onChange={(e) => setEditingBusiness({...editingBusiness, description: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={updateBusiness}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingBusiness(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
