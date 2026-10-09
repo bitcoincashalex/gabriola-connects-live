@@ -1,4 +1,6 @@
 // app/privacy/messaging/page.tsx
+// Version: 1.1.0 - Corrected admin access claims to match /privacy policy
+// Date: 2026-10-09
 import Link from 'next/link';
 import { ArrowLeft, Shield, Lock, Eye, UserCheck } from 'lucide-react';
 
@@ -37,7 +39,7 @@ export default function MessagingPrivacyPage() {
                   <ul className="mt-3 text-gray-700">
                     <li>Each message has a lock on it</li>
                     <li>Only the sender and receiver have the key</li>
-                    <li>Even our administrators can't read your messages without your key</li>
+                    <li>Other members, moderators and admins can't open your messages on the website</li>
                     <li>The database automatically checks permissions before showing any data</li>
                   </ul>
                 </div>
@@ -53,7 +55,7 @@ export default function MessagingPrivacyPage() {
                   <ul className="text-gray-700 mb-0">
                     <li><strong>In transit:</strong> Your messages are encrypted (HTTPS/TLS) as they travel across the internet — the same security your bank uses</li>
                     <li><strong>At rest:</strong> All data is encrypted in our database — even if someone physically stole the server, they couldn't read the data</li>
-                    <li><strong>No backdoors:</strong> We don't have a master key to read your messages</li>
+                    <li><strong>Database access:</strong> The site owner can see the database directly through Supabase, the service that stores it. Alex doesn't read private messages, and would only look at one if it was reported for abuse</li>
                   </ul>
                 </div>
               </div>
@@ -89,7 +91,7 @@ export default function MessagingPrivacyPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900 mt-0 mb-3">What About Admins?</h2>
                   <p className="text-gray-700 mb-3">
-                    Administrators <strong>cannot read your private messages.</strong> They can only see:
+                    Admins and moderators <strong>cannot read your private messages on the website.</strong> On the site they can only see:
                   </p>
                   <ul className="text-gray-700 mb-0">
                     <li>Public forum posts (that's what "public" means!)</li>
@@ -128,7 +130,7 @@ export default function MessagingPrivacyPage() {
               <p className="text-gray-600 mb-4">
                 <strong>Questions?</strong> Contact an administrator or post in the Community Discussion forum.
               </p>
-              <p className="text-sm text-gray-500">Last updated: December 2025</p>
+              <p className="text-sm text-gray-500">Last updated: October 2026</p>
             </div>
           </div>
         </div>
