@@ -1,15 +1,18 @@
 // ============================================================================
 // ADMIN USERS API ROUTE - Paginated User List with Activity
 // ============================================================================
-// Version: 3.0.1 - Added admin_alert_organizations to SELECT and filter queries
+// Version: 3.0.2 - Force dynamic rendering (silences build-time static render warning)
+// Previous: 3.0.1 - Added admin_alert_organizations to SELECT and filter queries
 // Created: 2025-12-18
-// Updated: 2025-01-11
+// Updated: 2026-10-09
 // Purpose: Fast admin panel data fetching (bypasses RLS, server-side auth)
 // Endpoint: GET /api/admin/users?page=1&limit=50&search=...&filter=...
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 
 // ============================================================================
 // TYPES
