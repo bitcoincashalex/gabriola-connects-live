@@ -1,7 +1,10 @@
 // components/Footer.tsx
-// v4.0.0 - Bottom menu stays fixed to the bottom of the screen on every page (like a phone app),
+// v4.0.1 - "Privacy" is now a link to the privacy policy. Its pop-up said "No personal
+//          information is collected", which isn't true since sign-in (including Google) stores
+//          names and emails.
+// Previous: v4.0.0 - Bottom menu stays fixed to the bottom of the screen on every page (like a phone app),
 //          with room left under the footer so nothing is hidden behind it
-// Previous: v3.9.0 - Site version (package.json) + deploy commit shown bottom right on the front page
+// Earlier: v3.9.0 - Site version (package.json) + deploy commit shown bottom right on the front page
 // Previous: v3.8.0 - Fixed Forum to go to /community (not /community-hub)
 // Date: 2026-10-10
 
@@ -149,15 +152,9 @@ export default function Footer({ activeTab = '' }: FooterProps) {
               Roadmap
             </Link>{' '}
             •{' '}
-            <span className="relative inline-block group">
-              <button className="hover:underline cursor-help">
-                Privacy
-              </button>
-              <span className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 shadow-lg">
-                This site uses analytics to help improve our community platform. No personal information is collected.
-                <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
-              </span>
-            </span>{' '}
+            <Link href="/privacy" className="hover:underline">
+              Privacy
+            </Link>{' '}
             •{' '}
             <Link href="/strachan" className="hover:underline">
               About

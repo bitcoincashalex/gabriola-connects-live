@@ -1,7 +1,9 @@
 // app/community/search/page.tsx
 // Mobile-first advanced search with simple progressive filters (matches /search)
-// Version: 5.1.0 - Fixed ferry search to use correct schema (boolean day fields, correct terminals)
-// Date: 2025-01-13
+// Version: 5.1.1 - Event search only shows approved events that haven't been deleted
+//                  (it was also showing events waiting for approval and deleted ones)
+// Previous: 5.1.0 - Fixed ferry search to use correct schema (boolean day fields, correct terminals)
+// Date: 2026-10-10
 
 'use client';
 
@@ -279,6 +281,8 @@ export default function CommunitySearchPage() {
         let eventsQuery = supabase
           .from('events')
           .select('*')
+          .eq('is_approved', true)
+          .is('deleted_at', null)
           .gte('start_date', today); // Only future events
         
         // Only apply search filter if there's a search query
