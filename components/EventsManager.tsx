@@ -1,11 +1,13 @@
 // Path: components/EventsManager.tsx
-// Version: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
-// Date: 2025-12-22
+// Version: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
+// Previous: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
+// Date: 2026-10-10
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchApprovedEvents } from '@/lib/fetchEvents';
 import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
@@ -143,13 +145,13 @@ export default function EventsManager() {
   };
 
   const fetchEvents = async () => {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('is_approved', true)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true })
-      .order('start_time', { ascending: true });  // FIX: Added time sorting
+    let data: any[] | null = null;
+    let error: any = null;
+    try {
+      data = await fetchApprovedEvents();
+    } catch (e) {
+      error = e;
+    }
     
     if (error) {
       console.error('Error fetching events:', error);

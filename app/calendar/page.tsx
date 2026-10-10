@@ -1,13 +1,15 @@
 // app/calendar/page.tsx
-// Version: 1.0.0 - Dedicated Calendar page (eliminates flash navigation)
-// Date: 2025-12-20
+// Version: 1.1.0 - Loads all events (was cut off at Supabase's 1,000-row limit, hiding
+//                  everything after early June 2026) and no longer shows deleted events
+// Previous: 1.0.0 - Dedicated Calendar page (eliminates flash navigation) (2025-12-20)
+// Date: 2026-10-10
 // Loads Calendar component directly - no redirect through home page
 'use client';
 
 import { useState, useEffect } from 'react';
 import Calendar from '@/components/Calendar';
 import Footer from '@/components/Footer';
-import { supabase } from '@/lib/supabase';
+import { fetchApprovedEvents } from '@/lib/fetchEvents';
 import { Event } from '@/lib/types';
 
 export default function CalendarPage() {
@@ -21,14 +23,7 @@ export default function CalendarPage() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('is_approved', true)
-        .order('start_date', { ascending: true })
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
+      const data = await fetchApprovedEvents();
 
       // Convert database rows to Event objects
       // Same logic as app/page.tsx - parse dates in local timezone
