@@ -1,10 +1,12 @@
 // components/Directory.tsx
-// Version: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
+// Version: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
+//                  (dropped "For demo purposes")
+// Previous: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
 //                  screen); categories as a sideways row of main groups with sub-categories opening
 //                  underneath (choosing a main group also shows its sub-categories' businesses);
 //                  compact rows grouped by category with name, category, address and a call button
 //                  (the empty grey picture boxes are gone; a photo shows only if there is one).
-// Previous: 4.6.0 - Categories now sorted alphabetically in dropdown (overrides display_order)
+// Earlier: 4.6.0 - Categories now sorted alphabetically in dropdown (overrides display_order)
 // Date: 2026-10-10
 
 'use client';
@@ -775,11 +777,10 @@ export default function Directory() {
               </div>
             </div>
 
-            {/* Demo Message */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-              <span className="text-2xl">ℹ️</span>
-              <p className="text-sm text-yellow-800">
-                <strong>For demo purposes,</strong> your business will appear immediately in the directory!
+            {/* Note */}
+            <div className="bg-[#E6EFE8] rounded-lg p-4">
+              <p className="text-sm text-gabriola-green-dark">
+                Your business will appear in the directory right away.
               </p>
             </div>
 
