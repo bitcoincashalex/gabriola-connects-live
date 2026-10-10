@@ -1,5 +1,6 @@
 // components/LandingPage.tsx
-// v6.0.0 - Front page redesign: full Gabriola flag on a navy band (no grey wash, no crop) in place
+// v6.0.1 - Welcome heading: "Welcome to Your Island Community Information Hub"
+// Previous: v6.0.0 - Front page redesign: full Gabriola flag on a navy band (no grey wash, no crop) in place
 //          of the emoji links; white cards with small icons in place of the five gradients; alert
 //          card only turns colour when an alert is active; stats relabelled "Registered residents"
 //          and "Total registrations"; solid green share button.
@@ -296,7 +297,7 @@ export default function LandingPage() {
         {/* About Section */}
         <div className="mt-6 md:mt-10 bg-white rounded-2xl p-6 md:p-10 border border-[#E3DCCF] text-center">
           <h2 className="font-display text-2xl md:text-3xl font-bold text-gabriola-green-dark mb-3">
-            Welcome to Your Island Community
+            Welcome to Your Island Community Information Hub
           </h2>
           <p className="text-base md:text-lg text-[#3A4640] mb-4 leading-relaxed max-w-3xl mx-auto">
             Gabriola Connects is built by islanders, for islanders. Discover events, ferry times, join discussions, 
