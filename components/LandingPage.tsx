@@ -1,5 +1,11 @@
 // components/LandingPage.tsx
-// v6.0.1 - Welcome heading: "Welcome to Your Island Community Information Hub"
+// v6.1.1 - Flag now uses the sharp vector version (gabriola-flag.svg, traced from the original
+//          gabriola-flag.gif) so it stays crisp on computers and high-resolution phones
+// Previous: v6.1.0 - Flag is the header background again, with "Gabriola Connects / Your Island Community
+//          Hub" written over it on a navy panel so the words read clearly over the white of the flag.
+//          Phones: flag fills the width at its own shape. Computers: whole flag shown, sides
+//          filled navy (left) and white (right) to carry the flag's edges out.
+// Previous: v6.0.1 - Welcome heading: "Welcome to Your Island Community Information Hub"
 // Previous: v6.0.0 - Front page redesign: full Gabriola flag on a navy band (no grey wash, no crop) in place
 //          of the emoji links; white cards with small icons in place of the five gradients; alert
 //          card only turns colour when an alert is active; stats relabelled "Registered residents"
@@ -251,29 +257,25 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
-      {/* Flag band: the Gabriola Island flag in full, on the flag's own navy */}
-      <section className="bg-[#002774] text-white text-center pt-7 md:pt-10">
-        <div className="max-w-4xl mx-auto px-6 flex flex-col items-center gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/gabriola-flag.gif"
-            alt="Gabriola Island flag"
-            width={380}
-            height={216}
-            className="w-[228px] md:w-[300px] h-auto rounded-md border-[3px] border-white shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
-          />
-          <div>
-            <h1 className="font-display font-bold text-[34px] md:text-5xl leading-tight">Gabriola Connects</h1>
-            <p className="text-[17px] md:text-xl text-[#D6DEF0] mt-1">Your Island Community Hub</p>
-          </div>
+      {/* Header: the Gabriola Island flag as the background, site name over it */}
+      <section
+        className="relative bg-[#002774] bg-center bg-no-repeat bg-cover md:bg-contain text-white text-center aspect-[380/216] md:aspect-auto md:h-[420px] flex items-center justify-center overflow-hidden"
+        style={{ backgroundImage: 'url(/gabriola-flag.svg), linear-gradient(to right, #002774 50%, #FFFFFF 50%)' }}
+        role="img"
+        aria-label="Gabriola Island flag"
+      >
+        {/* Navy panel behind the words so they read clearly over the white of the flag */}
+        <div className="relative z-10 mx-6 px-6 py-3 md:px-10 md:py-5 rounded-2xl bg-[#002774]/80 shadow-lg">
+          <h1 className="font-display font-bold text-[32px] md:text-6xl leading-tight">
+            Gabriola Connects
+          </h1>
+          <p className="text-[16px] md:text-2xl mt-0.5 text-[#E3E9F7]">
+            Your Island Community Hub
+          </p>
         </div>
-        {/* White curve, echoing the island on the flag */}
-        <svg viewBox="0 0 390 44" preserveAspectRatio="none" aria-hidden="true" className="block w-full h-8 md:h-14 mt-2">
-          <path d="M0 44 L0 30 C 90 4, 210 -6, 390 22 L390 44 Z" fill="#F6F2EA" />
-        </svg>
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-2 pb-10">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-5 md:pt-8 pb-10">
         {/* Main cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-5 items-start">
           <HomeCard href="/calendar" icon={Calendar} title="Calendar" subtitle="Upcoming events">
