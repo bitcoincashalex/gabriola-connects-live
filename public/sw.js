@@ -1,100 +1,117 @@
 // public/sw.js
-// v1.2.0 - BULLETPROOF FIX: Never cache auth/Supabase to prevent stale tokens
-// Date: 2025-12-22
+// v2.0.0 - Fix black screen when opening from the home screen icon
+// Date: 2026-10-09
+//   - Page loads now give up on the network after 4 seconds and show the last
+//     saved copy (or the offline page). Before, a slow or half-dead phone
+//     connection left the app waiting forever on a black screen.
+//   - New versions activate right away (skipWaiting). Before, an updated sw.js
+//     waited until every copy of the app was fully closed, which on a phone can
+//     be never, so fixes did not reach home screen users.
+//   - Requests to other sites (Supabase, Google, analytics, ferry data) are no
+//     longer routed through the service worker at all.
+//   - /_next/static files are cached once (their names change every deploy).
+//   - /offline.html is now actually pre-cached so the offline page can show.
+// Previous: v1.2.0 - Never cache auth/Supabase to prevent stale tokens (2025-12-22)
 
-const CACHE_NAME = 'gabriola-connects-v1.2.0';
-const PRECACHE_ASSETS = [
-  '/',
-  '/manifest.json'
-];
+const CACHE_NAME = 'gabriola-connects-v2.0.0';
+const PRECACHE_ASSETS = ['/', '/offline.html', '/manifest.json'];
+const NAV_TIMEOUT_MS = 4000;
 
-// Install event - cache essential assets
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[ServiceWorker] Pre-caching offline page');
-        return cache.addAll(PRECACHE_ASSETS);
-      })
-      .catch((error) => {
-        console.error('[ServiceWorker] Pre-cache failed:', error);
-      })
+      .then((cache) => cache.addAll(PRECACHE_ASSETS))
+      .catch((error) => console.error('[ServiceWorker] Pre-cache failed:', error))
   );
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[ServiceWorker] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
   );
-  // Take control of all pages immediately
-  return self.clients.claim();
 });
 
-// Fetch event - network first, then cache fallback
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
+function offlineFallback() {
+  return caches.match('/offline.html').then((page) => page || new Response(
+    INLINE_OFFLINE_HTML,
+    { status: 503, statusText: 'Service Unavailable', headers: new Headers({ 'Content-Type': 'text/html' }) }
+  ));
+}
 
-  // BULLETPROOF FIX PART 3: NEVER cache auth or Supabase requests
-  // This prevents stale token issues
+function saveToCache(request, response) {
+  if (response && response.status === 200 && response.type === 'basic') {
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+  }
+  return response;
+}
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // Other sites: let the browser handle them directly
+  if (url.origin !== self.location.origin) return;
+
+  // Never touch API routes or sign in pages
   if (
-    event.request.url.includes('/api/') ||
-    event.request.url.includes('supabase.co') ||
-    event.request.url.includes('/auth/') ||
-    event.request.url.includes('token') ||
-    event.request.url.includes('session') ||
-    event.request.url.includes('signin') ||
-    event.request.url.includes('signout') ||
-    event.request.url.includes('callback')
-  ) {
-    // Always fetch fresh - never use cache for auth
-    event.respondWith(fetch(event.request));
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/signin') ||
+    url.pathname.startsWith('/signup')
+  ) return;
+
+  // Build files: names are unique per deploy, so cache first is safe and fast
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((res) => saveToCache(request, res)))
+    );
     return;
   }
 
+  // Page loads: network first, but give up after 4 seconds
+  if (request.mode === 'navigate') {
+    event.respondWith(new Promise((resolve) => {
+      let settled = false;
+      const useCache = () => {
+        if (settled) return;
+        settled = true;
+        // ignoreSearch so the home screen start URL (/?source=pwa) matches the saved home page
+        caches.match(request, { ignoreSearch: true })
+          .then((cached) => resolve(cached || offlineFallback()));
+      };
+      const timer = setTimeout(useCache, NAV_TIMEOUT_MS);
+      fetch(request)
+        .then((res) => {
+          saveToCache(request, res);
+          if (!settled) { settled = true; clearTimeout(timer); resolve(res); }
+        })
+        .catch(() => { clearTimeout(timer); useCache(); });
+    }));
+    return;
+  }
+
+  // Everything else on this site: network first, saved copy if offline
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Clone the response
-        const responseToCache = response.clone();
+    fetch(request)
+      .then((res) => saveToCache(request, res))
+      .catch(() => caches.match(request).then((cached) => cached || new Response('Network error', {
+        status: 408, headers: { 'Content-Type': 'text/plain' },
+      })))
+  );
+});
 
-        // Cache successful responses
-        if (response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
+// Kept for compatibility with the update prompt component
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
-        return response;
-      })
-      .catch(() => {
-        // Network failed, try cache
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
-          // Return offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html').then((offlinePage) => {
-              if (offlinePage) {
-                return offlinePage;
-              }
-              // Fallback HTML if offline.html not cached
-              return new Response(
-                `<!DOCTYPE html>
+const INLINE_OFFLINE_HTML = `<!DOCTYPE html>
                 <html lang="en">
                 <head>
                   <meta charset="UTF-8">
@@ -144,43 +161,4 @@ self.addEventListener('fetch', (event) => {
                     <button onclick="window.location.reload()">Try Again</button>
                   </div>
                 </body>
-                </html>`,
-                {
-                  status: 503,
-                  statusText: 'Service Unavailable',
-                  headers: new Headers({
-                    'Content-Type': 'text/html',
-                  }),
-                }
-              );
-            });
-          }
-
-          // For non-navigation requests, return a basic error
-          return new Response('Network error', {
-            status: 408,
-            headers: { 'Content-Type': 'text/plain' },
-          });
-        });
-      })
-  );
-});
-
-// Listen for skip waiting message
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[ServiceWorker] Skip waiting and activate new version');
-    self.skipWaiting();
-  }
-});
-
-// Notify clients when a new service worker is waiting
-self.addEventListener('waiting', () => {
-  console.log('[ServiceWorker] New version waiting');
-  // Notify all clients that an update is available
-  self.clients.matchAll().then((clients) => {
-    clients.forEach((client) => {
-      client.postMessage({ type: 'UPDATE_AVAILABLE' });
-    });
-  });
-});
+                </html>`;
