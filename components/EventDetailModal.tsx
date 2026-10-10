@@ -1,7 +1,8 @@
 // components/EventDetailModal.tsx
 // Reusable event detail modal - extracted from Calendar.tsx
-// Version: 1.2.1 - Times shown as 10:00 AM (was 10:00:00)
-// Previous: 1.2.0 - Added gallery_images support with lightbox
+// Version: 1.2.2 - Stand-in descriptions ("See the original listing for details.") are hidden
+// Previous: 1.2.1 - Times shown as 10:00 AM (was 10:00:00)
+// Earlier: 1.2.0 - Added gallery_images support with lightbox
 // Date: 2026-10-10
 
 'use client';
@@ -10,7 +11,7 @@ import { useState } from 'react';
 import { Event } from '@/lib/types';
 import { X, Clock, MapPin, Mail, Phone, ZoomIn } from 'lucide-react';
 import { format } from 'date-fns';
-import { formatEventTime } from '@/components/CalendarList';
+import { formatEventTime, realDescription } from '@/components/CalendarList';
 
 interface EventDetailModalProps {
   event: Event | null;
@@ -236,7 +237,9 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
           </div>
 
           <div className="prose prose-sm max-w-none mb-6">
-            <p className="text-gray-700 leading-relaxed">{event.description}</p>
+            {realDescription(event.description) && (
+              <p className="text-gray-700 leading-relaxed">{realDescription(event.description)}</p>
+            )}
           </div>
 
           {/* Gallery Images */}

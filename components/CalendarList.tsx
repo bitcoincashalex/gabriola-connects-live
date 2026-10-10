@@ -1,6 +1,8 @@
 // components/CalendarList.tsx
 // Day-by-day list of events for the Calendar page (the default view on phones)
-// Version: 1.0.0
+// Version: 1.1.0 - Adds realDescription(): hides stand-in descriptions such as
+//                  "See the original listing for details." (shared with the Events page and pop-up)
+// Previous: 1.0.0 - Day-by-day list
 // Date: 2026-10-10
 
 'use client';
@@ -24,6 +26,17 @@ export function formatEventTime(time?: string | null, allDay?: boolean): string 
   if (isNaN(hour)) return time;
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${hour12}:${m} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
+// Stand-in text saved when an event had no description; shown as no description
+const PLACEHOLDER_DESCRIPTIONS = new Set([
+  'see the original listing for details.',
+  'no description provided.',
+]);
+
+export function realDescription(d?: string | null): string {
+  const t = (d || '').trim();
+  return PLACEHOLDER_DESCRIPTIONS.has(t.toLowerCase()) ? '' : t;
 }
 
 export function eventPlace(e: Event): string {

@@ -1,7 +1,13 @@
 // Path: components/EventsManager.tsx
-// Version: 5.0.3 - Attribution now lists all event sources (was "Sample events data")
-// Previous: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
-// Earlier: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
+// Version: 6.0.0 - Events page redesign: compact day-by-day list (time, name, venue) two weeks at a
+//                  time with "Show more" (it drew all 720 events as big cards, making the page about
+//                  435,000 pixels tall on a phone); tap an event to open it in place with its
+//                  description and the RSVP, Add to Calendar, Details, Edit and Delete buttons;
+//                  venue filter; past events behind a button; times shown as 10:00 AM; placeholder
+//                  descriptions hidden; white cards to match the rest of the site.
+// Previous: 5.0.3 - Attribution now lists all event sources (was "Sample events data")
+// Earlier: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
+// Before: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
 // Date: 2026-10-10
 
 'use client';
@@ -12,11 +18,12 @@ import { fetchApprovedEvents } from '@/lib/fetchEvents';
 import { useUser } from '@/components/AuthProvider';
 import { canCreateEvents } from '@/lib/auth-utils';
 import { Event } from '@/lib/types';
-import { format, isAfter, isBefore, isSameDay } from 'date-fns';
+import { format, isAfter, isBefore, isSameDay, isToday, isTomorrow, addDays, startOfDay } from 'date-fns';
 import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Trash2, X, Upload, AlertCircle, Download, ChevronDown } from 'lucide-react';
 import { exportEventToCalendar, generateGoogleCalendarURL } from '@/lib/calendar';
 import EventDetailModal from '@/components/EventDetailModal';
 import EventFormModal from '@/components/EventFormModal';
+import { formatEventTime, eventPlace, realDescription } from '@/components/CalendarList';
 
 interface Venue {
   id: string;
@@ -115,6 +122,12 @@ export default function EventsManager() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'date-asc' | 'date-desc' | 'title' | 'category' | 'venue' | 'organization'>('date-asc');
+  const [venueFilter, setVenueFilter] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);   // event opened in place
+  const [days, setDays] = useState(14);                        // days shown (date order)
+  const [listLimit, setListLimit] = useState(50);              // rows shown (other orders)
+  const [showPast, setShowPast] = useState(false);
+  const [pastLimit, setPastLimit] = useState(30);
 
   useEffect(() => {
     fetchEvents();
@@ -410,319 +423,393 @@ export default function EventsManager() {
     }
   };
 
-  if (loading) return <div className="text-center py-20 text-2xl">Loading events...</div>;
+  // Edit an event: fills the form and opens the shared event form
+  const startEdit = (event: Event) => {
 
-  const today = new Date();
-  
-  // Filter events by search query
+    setSelectedEvent(event); 
+    
+    // Find venue by venue_name and set dropdown
+    const eventVenueName = event.venue_name || '';
+    const matchingVenue = venues.find(v => v.name === eventVenueName);
+    
+    setForm({
+      // Basic Info
+      title: event.title,
+      description: event.description,
+      category: event.category || '',
+      image_url: event.image_url || '',
+      
+      // Date & Time
+      start_date: format(event.start_date, 'yyyy-MM-dd'),
+      end_date: event.end_date ? format(event.end_date, 'yyyy-MM-dd') : '',
+      start_time: event.start_time || '',
+      end_time: event.end_time || '',
+      is_all_day: event.is_all_day || false,
+      is_recurring: event.is_recurring || false,
+      recurrence_pattern: event.recurrence_pattern || '',
+      
+      // Location
+      location: event.location || '',
+      venue_name: event.venue_name || '',
+      venue_address: event.venue_address || '',
+      venue_city: (event as any).venue_city || 'Gabriola Island',
+      venue_postal_code: (event as any).venue_postal_code || '',
+      venue_map_url: (event as any).venue_map_url || '',
+      parking_info: (event as any).parking_info || '',
+      
+      // Contact & Organizer
+      contact_email: event.contact_email || '',
+      contact_phone: event.contact_phone || '',
+      organizer_name: event.organizer_name || '',
+      organizer_organization: (event as any).organizer_organization || '',
+      organizer_website: (event as any).organizer_website || '',
+      
+      // Registration & Fees
+      fees: event.fees || '',
+      registration_required: (event as any).registration_required || false,
+      registration_url: event.registration_url || '',
+      registration_deadline: (event as any).registration_deadline || '',
+      max_attendees: (event as any).max_attendees ? String((event as any).max_attendees) : '',
+      min_attendees: (event as any).min_attendees ? String((event as any).min_attendees) : '',
+      waitlist_enabled: (event as any).waitlist_enabled || false,
+      
+      // Event Details
+      age_restrictions: event.age_restrictions || '',
+      accessibility_info: event.accessibility_info || '',
+      what_to_bring: (event as any).what_to_bring || '',
+      dress_code: (event as any).dress_code || '',
+      additional_info: event.additional_info || '',
+      weather_dependent: (event as any).weather_dependent || false,
+      
+      // Tags & Keywords
+      tags: (event as any).tags ? (event as any).tags.join(', ') : '',
+      keywords: (event as any).keywords || '',
+    });
+    
+    // Set venue dropdown state
+    if (matchingVenue) {
+      setSelectedVenueId(matchingVenue.id);
+      setCustomLocation('');
+    } else if (event.location) {
+      setSelectedVenueId('other');
+      setCustomLocation(event.location);
+    } else {
+      setSelectedVenueId('');
+      setCustomLocation('');
+    }
+    
+    setImagePreview(event.image_url || null);
+    setShowForm(true);
+  };
+
+  // Google Calendar link and .ics download for one event
+  const buildExport = (event: Event) => {
+    const start = () => {
+      const d = new Date(event.start_date);
+      if (event.start_time) {
+        const [hours, minutes] = event.start_time.split(':');
+        d.setHours(parseInt(hours), parseInt(minutes));
+      }
+      return d;
+    };
+    const end = () => {
+      const d = event.end_date ? new Date(event.end_date) : undefined;
+      if (d && event.end_time) {
+        const [hours, minutes] = event.end_time.split(':');
+        d.setHours(parseInt(hours), parseInt(minutes));
+      }
+      return d;
+    };
+    const details = {
+      title: event.title,
+      description: event.description,
+      location: event.venue_name || event.location,
+      url: `https://gabriolaconnects.ca/events#${event.id}`,
+      organizer: event.contact_email ? {
+        name: event.organizer_name || 'Event Organizer',
+        email: event.contact_email
+      } : undefined
+    };
+    return {
+      googleUrl: generateGoogleCalendarURL({ ...details, startDate: start(), endDate: end() }),
+      downloadICS: () => exportEventToCalendar({ ...details, startDate: start(), endDate: end() }),
+    };
+  };
+
+  const today = startOfDay(new Date());
+
+  // Venues to filter by: busiest first
+  const venueCounts = new Map<string, number>();
+  events.forEach(e => { const v = eventPlace(e); if (v) venueCounts.set(v, (venueCounts.get(v) || 0) + 1); });
+  const venueOptions = Array.from(venueCounts.entries())
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 40)
+    .map(([name]) => name);
+
+  // Search and venue filter
   const filteredEvents = events.filter(event => {
+    if (venueFilter && eventPlace(event) !== venueFilter) return false;
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       event.title.toLowerCase().includes(query) ||
-      event.description.toLowerCase().includes(query) ||
+      (event.description || '').toLowerCase().includes(query) ||
       event.location?.toLowerCase().includes(query) ||
+      event.venue_name?.toLowerCase().includes(query) ||
       event.category?.toLowerCase().includes(query)
     );
   });
-  
+
+  const timeKey = (e: Event) => (e.is_all_day || !e.start_time ? '00:00' : e.start_time);
+
   // Sort filtered events
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     if (sortBy === 'date-asc') {
-      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime() || timeKey(a).localeCompare(timeKey(b));
     } else if (sortBy === 'date-desc') {
-      return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+      return new Date(b.start_date).getTime() - new Date(a.start_date).getTime() || timeKey(b).localeCompare(timeKey(a));
     } else if (sortBy === 'title') {
       return a.title.localeCompare(b.title);
     } else if (sortBy === 'category') {
-      const catA = a.category || '';
-      const catB = b.category || '';
-      return catA.localeCompare(catB);
+      return (a.category || '').localeCompare(b.category || '');
     } else if (sortBy === 'venue') {
-      const venueA = a.location || '';
-      const venueB = b.location || '';
-      return venueA.localeCompare(venueB);
+      return eventPlace(a).localeCompare(eventPlace(b));
     } else if (sortBy === 'organization') {
-      const orgA = a.organizer_organization || '';
-      const orgB = b.organizer_organization || '';
-      return orgA.localeCompare(orgB);
+      return (a.organizer_organization || '').localeCompare(b.organizer_organization || '');
     }
     return 0;
   });
-  
+
   // Split into upcoming and past
-  const upcoming = sortedEvents.filter(e => 
-    isAfter(e.start_date, today) || isSameDay(e.start_date, today)
-  );
-  // Past events always show most recently expired first (descending order)
+  const upcoming = sortedEvents.filter(e => isAfter(e.start_date, today) || isSameDay(e.start_date, today));
+  // Past events always show most recently finished first
   const past = sortedEvents
     .filter(e => isBefore(e.start_date, today))
     .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
 
+  // Date order: group by day, two weeks at a time. Other orders: one list, 50 at a time.
+  const byDate = sortBy === 'date-asc' || sortBy === 'date-desc';
+  const lastDay = addDays(today, days);
+  const shownUpcoming = byDate
+    ? (sortBy === 'date-asc' ? upcoming.filter(e => isBefore(e.start_date, lastDay)) : upcoming.slice(0, listLimit))
+    : upcoming.slice(0, listLimit);
+  const moreUpcoming = upcoming.length - shownUpcoming.length;
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="flex justify-between items-center mb-12">
-        <h1 className="text-5xl font-bold text-gabriola-green">Gabriola Events</h1>
-        {user && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-gabriola-green text-white px-6 py-3 rounded-full font-bold hover:bg-gabriola-green-dark flex items-center gap-3 shadow-lg"
-          >
-            <Plus className="w-6 h-6" />
-            {canPublishInstantly ? 'Add Event' : 'Submit Event'}
-          </button>
+  const groups: { key: string; date: Date; items: Event[] }[] = [];
+  if (byDate) {
+    for (const e of shownUpcoming) {
+      const key = format(e.start_date, 'yyyy-MM-dd');
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) last.items.push(e);
+      else groups.push({ key, date: startOfDay(e.start_date), items: [e] });
+    }
+  }
+
+  const dayHeading = (d: Date) => {
+    if (isToday(d)) return `Today · ${format(d, 'EEE MMM d')}`;
+    if (isTomorrow(d)) return `Tomorrow · ${format(d, 'EEE MMM d')}`;
+    return format(d, 'EEEE, MMMM d');
+  };
+
+  const canEditEvent = (event: Event) =>
+    !!(user && (user.id === event.created_by || user.is_super_admin || (user as any)?.admin_events));
+
+  const Row = ({ event, showDate }: { event: Event; showDate?: boolean }) => {
+    const open = openId === event.id;
+    return (
+      <div id={event.id} className={open ? 'bg-[#FBF9F4]' : ''}>
+        <button
+          onClick={() => setOpenId(open ? null : event.id)}
+          aria-expanded={open}
+          className="w-full text-left flex gap-3 px-4 py-3 min-h-[56px] hover:bg-[#F6F2EA] transition-colors"
+        >
+          <span className="w-[72px] flex-shrink-0 text-sm font-semibold text-gabriola-green pt-0.5">
+            {showDate && <span className="block text-[#1F2A24]">{format(event.start_date, 'MMM d')}</span>}
+            {formatEventTime(event.start_time, event.is_all_day)}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[15px] font-semibold text-[#1F2A24] leading-snug">{event.title}</span>
+            {eventPlace(event) && <span className="block text-[13px] text-[#5B6660] truncate">{eventPlace(event)}</span>}
+          </span>
+          <ChevronDown className={`w-5 h-5 text-[#5B6660] flex-shrink-0 mt-0.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+        {open && (
+          <EventCard
+            event={event}
+            rsvpCount={rsvpCount[event.id] || 0}
+            onRsvp={() => setRsvpEvent(event)}
+            onExport={buildExport(event)}
+            onEdit={() => startEdit(event)}
+            onViewDetails={() => setViewEvent(event)}
+            onDelete={() => handleDelete(event.id)}
+            canEdit={canEditEvent(event)}
+          />
         )}
       </div>
+    );
+  };
 
-      {/* Info banner for regular users */}
-      {user && !canPublishInstantly && (
-        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <strong>Note:</strong> Events you submit will be reviewed by an admin before appearing on the calendar.
+  const listBox = 'bg-white border border-[#E3DCCF] rounded-2xl divide-y divide-[#EEE8DD] overflow-hidden';
+
+  return (
+    <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
+      <div className="bg-white border-b border-[#E3DCCF]">
+        <div className="max-w-5xl mx-auto px-4 pt-4 pb-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Gabriola Events</h1>
+            {user && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex-shrink-0 bg-gabriola-green text-white px-4 min-h-[44px] rounded-lg font-semibold hover:bg-gabriola-green-dark flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" aria-hidden="true" />
+                {canPublishInstantly ? 'Add Event' : 'Submit Event'}
+              </button>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Search and Sort Controls */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
-        {/* Search */}
-        <div className="flex-1">
-          <div className="relative">
+          <p className="text-[13px] text-[#5B6660]">
+            Events from the{' '}
+            <a
+              href="https://directory.gabriolaevents.ca/gabriola-events/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline text-gabriola-green hover:text-gabriola-green-dark"
+            >
+              Gabriola Chamber of Commerce events directory
+            </a>
+            , Rollo Centre, Community Hall, Recreation Society and islanders
+          </p>
+
+          {/* Info for people whose events need approval */}
+          {user && !canPublishInstantly && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" aria-hidden="true" />
+              <div className="text-sm text-blue-800">
+                <strong>Note:</strong> Events you submit will be reviewed by an admin before appearing on the calendar.
+              </div>
+            </div>
+          )}
+
+          {/* Search, venue, sort */}
+          <label className="relative block">
+            <span className="sr-only">Search events</span>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#5B6660]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search events by title, description, location, or category..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
+              placeholder="Search events"
+              className="w-full min-h-[44px] pl-10 pr-4 text-[15px] border border-[#CFC6B4] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gabriola-green/30 focus:border-gabriola-green"
             />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label>
+              <span className="sr-only">Filter by venue</span>
+              <select
+                value={venueFilter}
+                onChange={(e) => setVenueFilter(e.target.value)}
+                className="w-full min-h-[44px] px-3 rounded-xl border border-[#CFC6B4] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gabriola-green"
+              >
+                <option value="">All venues</option>
+                {venueOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">Sort events</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full min-h-[44px] px-3 rounded-xl border border-[#CFC6B4] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gabriola-green"
+              >
+                <option value="date-asc">Date (Soonest First)</option>
+                <option value="date-desc">Date (Latest First)</option>
+                <option value="title">Title (A-Z)</option>
+                <option value="category">Category (A-Z)</option>
+                <option value="venue">Venue (A-Z)</option>
+                <option value="organization">Organization (A-Z)</option>
+              </select>
+            </label>
           </div>
-        </div>
-
-        {/* Sort */}
-        <div className="md:w-64">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gabriola-green focus:border-transparent"
-          >
-            <option value="date-asc">Date (Soonest First)</option>
-            <option value="date-desc">Date (Latest First)</option>
-            <option value="title">Title (A-Z)</option>
-            <option value="category">Category (A-Z)</option>
-            <option value="venue">Venue (A-Z)</option>
-            <option value="organization">Organization (A-Z)</option>
-          </select>
         </div>
       </div>
 
-      {/* Upcoming Events */}
-      <section className="mb-16">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-3">Upcoming Events</h2>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
-            <p className="text-sm text-blue-800">
-              Events from the{' '}
-              <a 
-                href="https://directory.gabriolaevents.ca/gabriola-events/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="font-semibold text-gabriola-green hover:text-gabriola-green-dark underline"
-              >
-                Gabriola Chamber of Commerce events directory
-              </a>
-              , Rollo Centre, Community Hall, Recreation Society and islanders
-            </p>
-          </div>
-        </div>
-        {upcoming.length === 0 ? (
-          <p className="text-center text-gray-600 py-20 text-xl">No upcoming events — be the first to add one!</p>
+      <div className="max-w-5xl mx-auto px-4 pb-8">
+        {loading ? (
+          <div className="py-20 text-center text-[#5B6660]" role="status">Loading events...</div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-8">
-            {upcoming.map(event => (
-              <EventCard
-                key={event.id}
-                event={event}
-                rsvpCount={rsvpCount[event.id] || 0}
-                onRsvp={() => setRsvpEvent(event)}
-                onExport={{
-                  googleUrl: (() => {
-                    const eventStartDate = new Date(event.start_date);
-                    if (event.start_time) {
-                      const [hours, minutes] = event.start_time.split(':');
-                      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
-                    }
+          <>
+            {/* Upcoming */}
+            {upcoming.length === 0 ? (
+              <p className="text-center text-[#5B6660] py-16">
+                {searchQuery || venueFilter ? 'No upcoming events match.' : 'No upcoming events — be the first to add one!'}
+              </p>
+            ) : byDate && sortBy === 'date-asc' ? (
+              <>
+                {groups.length === 0 && (
+                  <p className="text-center text-[#5B6660] py-8">No events in the next {days} days.</p>
+                )}
+                {groups.map(g => (
+                  <section key={g.key} className="mt-5">
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-gabriola-green-dark mb-2">{dayHeading(g.date)}</h2>
+                    <div className={listBox}>
+                      {g.items.map(e => <Row key={e.id} event={e} />)}
+                    </div>
+                  </section>
+                ))}
+              </>
+            ) : (
+              <div className={`${listBox} mt-5`}>
+                {shownUpcoming.map(e => <Row key={e.id} event={e} showDate />)}
+              </div>
+            )}
 
-                    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
-                    if (eventEndDate && event.end_time) {
-                      const [hours, minutes] = event.end_time.split(':');
-                      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
-                    }
-
-                    return generateGoogleCalendarURL({
-                      title: event.title,
-                      description: event.description,
-                      location: event.venue_name || event.location,
-                      startDate: eventStartDate,
-                      endDate: eventEndDate,
-                      url: `https://gabriolaconnects.ca/events#${event.id}`,
-                      organizer: event.contact_email ? {
-                        name: event.organizer_name || 'Event Organizer',
-                        email: event.contact_email
-                      } : undefined
-                    });
-                  })(),
-                  downloadICS: () => {
-                    const eventStartDate = new Date(event.start_date);
-                    if (event.start_time) {
-                      const [hours, minutes] = event.start_time.split(':');
-                      eventStartDate.setHours(parseInt(hours), parseInt(minutes));
-                    }
-
-                    const eventEndDate = event.end_date ? new Date(event.end_date) : undefined;
-                    if (eventEndDate && event.end_time) {
-                      const [hours, minutes] = event.end_time.split(':');
-                      eventEndDate.setHours(parseInt(hours), parseInt(minutes));
-                    }
-
-                    exportEventToCalendar({
-                      title: event.title,
-                      description: event.description,
-                      location: event.venue_name || event.location,
-                      startDate: eventStartDate,
-                      endDate: eventEndDate,
-                      url: `https://gabriolaconnects.ca/events#${event.id}`,
-                      organizer: event.contact_email ? {
-                        name: event.organizer_name || 'Event Organizer',
-                        email: event.contact_email
-                      } : undefined
-                    });
-                  }
-                }}
-                onEdit={() => { 
-                  setSelectedEvent(event); 
-                  
-                  // Find venue by venue_name and set dropdown
-                  const eventVenueName = event.venue_name || '';
-                  const matchingVenue = venues.find(v => v.name === eventVenueName);
-                  
-                  setForm({
-                    // Basic Info
-                    title: event.title,
-                    description: event.description,
-                    category: event.category || '',
-                    image_url: event.image_url || '',
-                    
-                    // Date & Time
-                    start_date: format(event.start_date, 'yyyy-MM-dd'),
-                    end_date: event.end_date ? format(event.end_date, 'yyyy-MM-dd') : '',
-                    start_time: event.start_time || '',
-                    end_time: event.end_time || '',
-                    is_all_day: event.is_all_day || false,
-                    is_recurring: event.is_recurring || false,
-                    recurrence_pattern: event.recurrence_pattern || '',
-                    
-                    // Location
-                    location: event.location || '',
-                    venue_name: event.venue_name || '',
-                    venue_address: event.venue_address || '',
-                    venue_city: (event as any).venue_city || 'Gabriola Island',
-                    venue_postal_code: (event as any).venue_postal_code || '',
-                    venue_map_url: (event as any).venue_map_url || '',
-                    parking_info: (event as any).parking_info || '',
-                    
-                    // Contact & Organizer
-                    contact_email: event.contact_email || '',
-                    contact_phone: event.contact_phone || '',
-                    organizer_name: event.organizer_name || '',
-                    organizer_organization: (event as any).organizer_organization || '',
-                    organizer_website: (event as any).organizer_website || '',
-                    
-                    // Registration & Fees
-                    fees: event.fees || '',
-                    registration_required: (event as any).registration_required || false,
-                    registration_url: event.registration_url || '',
-                    registration_deadline: (event as any).registration_deadline || '',
-                    max_attendees: (event as any).max_attendees ? String((event as any).max_attendees) : '',
-                    min_attendees: (event as any).min_attendees ? String((event as any).min_attendees) : '',
-                    waitlist_enabled: (event as any).waitlist_enabled || false,
-                    
-                    // Event Details
-                    age_restrictions: event.age_restrictions || '',
-                    accessibility_info: event.accessibility_info || '',
-                    what_to_bring: (event as any).what_to_bring || '',
-                    dress_code: (event as any).dress_code || '',
-                    additional_info: event.additional_info || '',
-                    weather_dependent: (event as any).weather_dependent || false,
-                    
-                    // Tags & Keywords
-                    tags: (event as any).tags ? (event as any).tags.join(', ') : '',
-                    keywords: (event as any).keywords || '',
-                  });
-                  
-                  // Set venue dropdown state
-                  if (matchingVenue) {
-                    setSelectedVenueId(matchingVenue.id);
-                    setCustomLocation('');
-                  } else if (event.location) {
-                    setSelectedVenueId('other');
-                    setCustomLocation(event.location);
-                  } else {
-                    setSelectedVenueId('');
-                    setCustomLocation('');
-                  }
-                  
-                  setImagePreview(event.image_url || null);
-                  setShowForm(true); 
-                }}
-                onViewDetails={() => setViewEvent(event)}
-                onDelete={() => handleDelete(event.id)}
-                canEdit={user?.id === event.created_by || user?.is_super_admin || (user as any)?.admin_events}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Past Events */}
-      {past.length > 0 && (
-        <section>
-          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-8">Past Events</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {past.map(event => (
-              <div 
-                key={event.id} 
-                className="bg-gray-50 rounded-xl p-6 opacity-75 hover:opacity-100 cursor-pointer transition-opacity"
-                onClick={() => setViewEvent(event)}
-              >
-                <h3 className="text-xl font-bold">{event.title}</h3>
-                <p className="text-sm text-gray-600 mt-2">{format(event.start_date, 'PPP')}</p>
-                <button className="text-sm text-blue-600 hover:underline mt-2">
-                  View Details
+            {moreUpcoming > 0 && (
+              <div className="text-center mt-5">
+                <button
+                  onClick={() => (byDate && sortBy === 'date-asc' ? setDays(d => d + 14) : setListLimit(n => n + 50))}
+                  className="px-6 min-h-[48px] rounded-full border-2 border-gabriola-green text-gabriola-green font-semibold hover:bg-gabriola-green hover:text-white transition-colors"
+                >
+                  {byDate && sortBy === 'date-asc' ? 'Show the next 14 days' : 'Show more events'}
                 </button>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            )}
 
-      {/* Add/Edit Form */}
+            {/* Past */}
+            {past.length > 0 && (
+              <section className="mt-8">
+                <button
+                  onClick={() => setShowPast(v => !v)}
+                  aria-expanded={showPast}
+                  className="w-full flex items-center justify-center gap-1.5 min-h-[44px] text-sm font-semibold text-[#5B6660] hover:text-[#1F2A24]"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showPast ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  {showPast ? 'Hide past events' : `Show past events (${past.length})`}
+                </button>
+                {showPast && (
+                  <>
+                    <div className={`${listBox} mt-2 opacity-90`}>
+                      {past.slice(0, pastLimit).map(e => <Row key={e.id} event={e} showDate />)}
+                    </div>
+                    {past.length > pastLimit && (
+                      <div className="text-center mt-4">
+                        <button onClick={() => setPastLimit(n => n + 30)} className="px-5 min-h-[44px] text-sm font-semibold text-gabriola-green hover:underline">
+                          Show more past events
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </div>
 
-      {/* Shared Event Form Modal - REPLACED 550 LINES OF DUPLICATE CODE */}
+      {/* Shared Event Form Modal */}
       <EventFormModal
         isOpen={showForm}
         onClose={() => {
@@ -742,23 +829,23 @@ export default function EventsManager() {
         canPublishInstantly={canPublishInstantly || false}
       />
 
-      {/* RSVP Modal - keeping your existing one */}
+      {/* RSVP Modal */}
       {rsvpEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold">RSVP to {rsvpEvent.title}</h3>
-              <button onClick={() => setRsvpEvent(null)} className="p-2 hover:bg-gray-100 rounded-full">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start gap-3 mb-5">
+              <h3 className="text-xl font-bold">RSVP to {rsvpEvent.title}</h3>
+              <button onClick={() => setRsvpEvent(null)} className="p-2 hover:bg-gray-100 rounded-full" aria-label="Close">
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <form onSubmit={handleRsvp} className="space-y-4">
-              <input name="name" placeholder="Your Name *" required className="w-full p-4 border rounded-lg" />
-              <input name="email" type="email" placeholder="Email *" required className="w-full p-4 border rounded-lg" />
-              <input name="phone" type="tel" placeholder="Phone" className="w-full p-4 border rounded-lg" />
-              <input name="guests" type="number" min="0" placeholder="Additional Guests" className="w-full p-4 border rounded-lg" />
-              <textarea name="message" placeholder="Message (optional)" rows={3} className="w-full p-4 border rounded-lg"></textarea>
-              <button type="submit" className="w-full bg-gabriola-green text-white py-4 rounded-lg font-bold hover:bg-gabriola-green-dark">
+            <form onSubmit={handleRsvp} className="space-y-3">
+              <input name="name" placeholder="Your Name *" required className="w-full p-3 border border-[#CFC6B4] rounded-lg" />
+              <input name="email" type="email" placeholder="Email *" required className="w-full p-3 border border-[#CFC6B4] rounded-lg" />
+              <input name="phone" type="tel" placeholder="Phone" className="w-full p-3 border border-[#CFC6B4] rounded-lg" />
+              <input name="guests" type="number" min="0" placeholder="Additional Guests" className="w-full p-3 border border-[#CFC6B4] rounded-lg" />
+              <textarea name="message" placeholder="Message (optional)" rows={3} className="w-full p-3 border border-[#CFC6B4] rounded-lg"></textarea>
+              <button type="submit" className="w-full bg-gabriola-green text-white min-h-[48px] rounded-lg font-bold hover:bg-gabriola-green-dark">
                 Confirm RSVP
               </button>
             </form>
@@ -768,7 +855,7 @@ export default function EventsManager() {
 
       {/* Event Detail Modal */}
       {viewEvent && (
-        <EventDetailModal 
+        <EventDetailModal
           event={viewEvent}
           onClose={() => setViewEvent(null)}
         />
@@ -811,21 +898,12 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
     
     const result = isMobileUA || (isMobileScreen && isTouchDevice);
     
-    // Debug logging
-    console.log('🔍 Mobile detection:', {
-      userAgent,
-      isMobileUA,
-      isMobileScreen,
-      isTouchDevice,
-      result
-    });
     
     return result;
   };
   
   // Handle Google Calendar - use Google Calendar URL on ALL platforms
   const handleGoogleCalendar = () => {
-    console.log('📅 Opening Google Calendar');
     // Google Calendar URL works great on both desktop AND mobile!
     // On mobile with Google Calendar app installed: Prompts to open in app ✅
     // On mobile without app: Opens in mobile web ✅
@@ -836,78 +914,63 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
   
   // Handle all other calendar options - just download .ics file
   const handleOtherCalendar = () => {
-    console.log('📥 Downloading .ics file');
     // On both mobile and desktop: Download .ics file
     // Mobile users can then tap the file to open in their calendar app
     onExport.downloadICS();
     setShowCalendarMenu(false);
   };
   
+  const desc = realDescription(event.description);
   return (
-    <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition">
+    <div className="px-4 pb-4 -mt-1">
       {event.image_url && (
-        <img src={event.image_url} alt={event.title} className="w-full h-48 object-cover" />
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={event.image_url} alt={event.title} className="w-full max-h-56 object-cover rounded-xl mb-3" />
       )}
-      <div className="p-6">
-        <h3 className="text-2xl font-bold text-gabriola-green-dark mb-3">{event.title}</h3>
-        
-        {event.category && (
-          <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-3">
-            {event.category}
-          </span>
-        )}
 
-        <div className="space-y-2 mb-4 text-gray-700">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            {format(event.start_date, 'PPP')} {event.start_time && `at ${event.start_time}`}
-          </div>
-          {event.location && (
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              {event.location}
-            </div>
-          )}
-          {event.fees && (
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              {event.fees}
-            </div>
-          )}
+      <div className="text-sm text-[#3A4640] space-y-1 mb-2">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 flex-shrink-0 text-[#5B6660]" aria-hidden="true" />
+          {format(event.start_date, 'EEEE, MMMM d')} · {formatEventTime(event.start_time, event.is_all_day)}
+          {event.end_time && !event.is_all_day && ` – ${formatEventTime(event.end_time)}`}
         </div>
-
-        <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>
-
-        <div className="flex flex-col gap-2">
-          {/* View Details Button */}
-          <button 
-            onClick={onViewDetails}
-            className="w-full bg-gray-100 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-          >
-            View Full Details
-          </button>
-          
-          {/* Primary action buttons */}
+        {event.fees && (
           <div className="flex items-center gap-2">
-            <button 
-              onClick={onRsvp}
-              className="flex-1 bg-gabriola-green text-white px-4 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark flex items-center justify-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              RSVP {rsvpCount > 0 && `(${rsvpCount})`}
-            </button>
-            
+            <DollarSign className="w-4 h-4 flex-shrink-0 text-[#5B6660]" aria-hidden="true" />
+            {event.fees}
+          </div>
+        )}
+      </div>
+
+      {desc && <p className="text-sm text-[#1F2A24] leading-relaxed mb-3 line-clamp-4">{desc}</p>}
+
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={onViewDetails}
+            className="min-h-[44px] bg-white border border-[#CFC6B4] text-[#1F2A24] px-2 rounded-lg text-sm font-semibold hover:border-gabriola-green transition-colors"
+          >
+            Details
+          </button>
+          <button
+            onClick={onRsvp}
+            className="min-h-[44px] bg-gabriola-green text-white px-2 rounded-lg text-sm font-semibold hover:bg-gabriola-green-dark flex items-center justify-center gap-1.5"
+          >
+            <Users className="w-4 h-4" aria-hidden="true" />
+            RSVP {rsvpCount > 0 && `(${rsvpCount})`}
+          </button>
             {/* Calendar dropdown */}
-            <div className="flex-1">
+            <div>
               <button 
                 ref={buttonRef}
                 onClick={handleOpenMenu}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
+                className="w-full min-h-[44px] bg-[#002774] text-white px-2 rounded-lg text-sm font-semibold hover:bg-[#001d57] flex items-center justify-center gap-1"
                 title="Add to your calendar"
+                aria-label="Add to your calendar"
               >
-                <Calendar className="w-4 h-4" />
-                Add to Calendar
-                <ChevronDown className="w-4 h-4" />
+                <Calendar className="w-4 h-4" aria-hidden="true" />
+                Add
+                <ChevronDown className="w-4 h-4" aria-hidden="true" />
               </button>
               
               {showCalendarMenu && (
@@ -993,18 +1056,17 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
           {/* Admin action buttons */}
           {canEdit && (
             <div className="flex items-center gap-2">
-              <button onClick={onEdit} className="flex-1 p-2 text-blue-600 hover:bg-blue-50 rounded-lg flex items-center justify-center gap-2">
+              <button onClick={onEdit} className="flex-1 min-h-[44px] text-blue-700 hover:bg-blue-50 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold">
                 <Edit className="w-5 h-5" />
                 Edit
               </button>
-              <button onClick={onDelete} className="flex-1 p-2 text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2">
+              <button onClick={onDelete} className="flex-1 min-h-[44px] text-red-700 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold">
                 <Trash2 className="w-5 h-5" />
                 Delete
               </button>
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }

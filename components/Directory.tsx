@@ -1,6 +1,11 @@
 // components/Directory.tsx
-// Version: 4.6.0 - Categories now sorted alphabetically in dropdown (overrides display_order)
-// Date: 2025-01-11
+// Version: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
+//                  screen); categories as a sideways row of main groups with sub-categories opening
+//                  underneath (choosing a main group also shows its sub-categories' businesses);
+//                  compact rows grouped by category with name, category, address and a call button
+//                  (the empty grey picture boxes are gone; a photo shows only if there is one).
+// Previous: 4.6.0 - Categories now sorted alphabetically in dropdown (overrides display_order)
+// Date: 2026-10-10
 
 'use client';
 
@@ -10,7 +15,7 @@ import { useUser } from '@/components/AuthProvider';
 import FileUploader from './FileUploader';
 import ImageUploadManager from './ImageUploadManager';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
-import { MapPin, Phone, Mail, Globe, Plus, X, Search } from 'lucide-react';
+import { MapPin, Phone, Mail, Globe, Plus, X, Search, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface DirectoryListing {
   id: string;
@@ -42,6 +47,7 @@ export default function Directory() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [openMain, setOpenMain] = useState<string | null>(null); // main group whose sub-categories show
   const [customCategory, setCustomCategory] = useState('');
   const [files, setFiles] = useState<string[]>([]);
   const [businessImages, setBusinessImages] = useState<Array<{id: string; url: string; file?: File}>>([]);
@@ -184,7 +190,13 @@ export default function Directory() {
         l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         l.category.toLowerCase().includes(searchQuery.toLowerCase())
       )
-      .filter(l => selectedCategory === 'All' || l.category === selectedCategory)
+      .filter(l => {
+        if (selectedCategory === 'All') return true;
+        if (l.category === selectedCategory) return true;
+        // A main group also includes its sub-categories
+        const main = mainCategories.find(m => m.name === selectedCategory);
+        return !!main && subcategories.some(sub => sub.parent_id === main.id && sub.name === l.category);
+      })
       .sort((a, b) => {
         // Sort by category alphabetically, then by name
         if (a.category !== b.category) {
@@ -192,7 +204,43 @@ export default function Directory() {
         }
         return a.name.localeCompare(b.name);
       });
-  }, [listings, searchQuery, selectedCategory]);
+  }, [listings, searchQuery, selectedCategory, mainCategories, subcategories]);
+
+  // Only offer categories that have businesses (a main group counts its sub-categories)
+  const usedCategories = useMemo(() => new Set(listings.map(l => l.category)), [listings]);
+  const mainsWithBusinesses = useMemo(() => {
+    return [...mainCategories]
+      .filter(m => usedCategories.has(m.name) || subcategories.some(sub => sub.parent_id === m.id && usedCategories.has(sub.name)))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [mainCategories, subcategories, usedCategories]);
+  const subsOf = (mainId: string) =>
+    subcategories.filter(sub => sub.parent_id === mainId && usedCategories.has(sub.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const openMainCat = mainCategories.find(m => m.name === openMain);
+  const openSubs = openMainCat ? subsOf(openMainCat.id) : [];
+  const knownNames = useMemo(() => new Set([...mainCategories, ...subcategories].map(c => c.name)), [mainCategories, subcategories]);
+  const hasOther = listings.some(l => l.category === 'Other' || (knownNames.size > 0 && !knownNames.has(l.category)));
+
+  const chooseMain = (name: string) => {
+    setSelectedCategory(name);
+    const main = mainCategories.find(m => m.name === name);
+    setOpenMain(main && subsOf(main.id).length > 0 ? name : null);
+  };
+
+  // Group the shown businesses under category headings
+  const groupedListings = useMemo(() => {
+    const groups: { category: string; items: DirectoryListing[] }[] = [];
+    for (const l of filteredListings) {
+      const last = groups[groups.length - 1];
+      if (last && last.category === l.category) last.items.push(l);
+      else groups.push({ category: l.category, items: [l] });
+    }
+    return groups;
+  }, [filteredListings]);
+
+  const chip = (selected: boolean) =>
+    `flex-shrink-0 flex items-center gap-1 px-4 min-h-[40px] rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+      selected ? 'bg-gabriola-green text-white' : 'bg-white border border-[#CFC6B4] text-[#1F2A24] hover:border-gabriola-green'
+    }`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,68 +380,93 @@ export default function Directory() {
   if (loading) return <div className="text-center py-32 text-2xl">Loading 53+ businesses...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gabriola-sand/20 via-white to-gabriola-sand/10">
-      {/* ===== CHAMBER OF COMMERCE THANK YOU BANNER ===== */}
-      <div className="bg-gradient-to-r from-gabriola-green to-green-700 text-white py-6 border-b-4 border-gabriola-green-dark shadow-lg">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <p className="text-2xl md:text-3xl font-bold mb-2">
-                🙏 Thank You Gabriola Chamber of Commerce!
-              </p>
-              <p className="text-lg text-green-50">
-                Supporting local businesses and our island community
-              </p>
-            </div>
-            <a
-              href="https://business.gabriolachamber.ca/directory"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white text-gabriola-green px-8 py-4 rounded-full font-bold hover:bg-green-50 shadow-lg transition flex items-center gap-2 whitespace-nowrap"
-            >
-              Visit Chamber Directory →
-            </a>
-          </div>
+    <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
+      {/* Chamber of Commerce thank-you strip */}
+      <div className="bg-[#E6EFE8] border-b border-[#D3E2D7]">
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <p className="text-sm text-gabriola-green-dark">
+            <strong>Thank You Gabriola Chamber of Commerce!</strong>{' '}
+            <span className="text-[#3A4640]">Supporting local businesses and our island community</span>
+          </p>
+          <a
+            href="https://business.gabriolachamber.ca/directory"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold text-gabriola-green underline hover:text-gabriola-green-dark whitespace-nowrap min-h-[32px] flex items-center"
+          >
+            Visit Chamber Directory →
+          </a>
         </div>
       </div>
 
-      {/* ===== SEARCH & HEADER SECTION ===== */}
-      <div className="bg-white border-b border-gabriola-green/20 py-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-gabriola-green">Island Directory</h1>
+      {/* Title, search, categories */}
+      <div className="bg-white border-b border-[#E3DCCF]">
+        <div className="max-w-5xl mx-auto px-4 pt-4 pb-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Island Directory</h1>
             {user && (
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="bg-gabriola-green text-white px-8 py-4 rounded-full font-bold hover:bg-gabriola-green-dark flex items-center gap-3 shadow-lg"
+                className="flex-shrink-0 bg-gabriola-green text-white px-4 min-h-[44px] rounded-lg font-semibold hover:bg-gabriola-green-dark flex items-center gap-2"
               >
-                <Plus className="w-6 h-6" />
+                {showAddForm ? <X className="w-5 h-5" aria-hidden="true" /> : <Plus className="w-5 h-5" aria-hidden="true" />}
                 {showAddForm ? 'Cancel' : 'Add Your Business'}
               </button>
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search businesses..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border rounded-xl focus:ring-2 focus:ring-gabriola-green outline-none text-lg"
-              />
-            </div>
-            <select
-              value={selectedCategory}
-              onChange={e => setSelectedCategory(e.target.value)}
-              className="px-6 py-4 border rounded-xl focus:ring-2 focus:ring-gabriola-green outline-none text-lg"
-            >
-              {allCategoryNames.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+          <label className="relative block">
+            <span className="sr-only">Search businesses</span>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#5B6660]" aria-hidden="true" />
+            <input
+              type="text"
+              placeholder="Search businesses..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full min-h-[44px] pl-10 pr-4 text-[15px] border border-[#CFC6B4] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gabriola-green/30 focus:border-gabriola-green"
+            />
+          </label>
+
+          {/* Main groups: one row that scrolls sideways */}
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Categories">
+            <button onClick={() => { setSelectedCategory('All'); setOpenMain(null); }} className={chip(selectedCategory === 'All')}>
+              All
+            </button>
+            {mainsWithBusinesses.map(main => {
+              const subs = subsOf(main.id);
+              const selected = selectedCategory === main.name || subs.some(sub => sub.name === selectedCategory);
+              return (
+                <button
+                  key={main.id}
+                  onClick={() => chooseMain(main.name)}
+                  aria-expanded={subs.length > 0 ? openMain === main.name : undefined}
+                  className={chip(selected)}
+                >
+                  {main.name}
+                  {subs.length > 0 && (openMain === main.name ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />)}
+                </button>
+              );
+            })}
+            {hasOther && (
+              <button onClick={() => { setSelectedCategory('Other'); setOpenMain(null); }} className={chip(selectedCategory === 'Other')}>
+                Other
+              </button>
+            )}
           </div>
+
+          {/* Sub-categories of the open group */}
+          {openSubs.length > 0 && (
+            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button onClick={() => setSelectedCategory(openMain!)} className={chip(selectedCategory === openMain)}>
+                All {openMain}
+              </button>
+              {openSubs.map(sub => (
+                <button key={sub.id} onClick={() => setSelectedCategory(sub.name)} className={chip(selectedCategory === sub.name)}>
+                  {sub.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -718,39 +791,58 @@ export default function Directory() {
         </div>
       )}
 
-      {/* Listings — TIGHT & CLEAN */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredListings.map(listing => (
-            <div
-              key={listing.id}
-              className="bg-white rounded-2xl shadow hover:shadow-xl transition-all p-6 border border-gray-100 hover:border-gabriola-green/30 cursor-pointer"
-              onClick={() => setSelectedBusiness(listing)}
-            >
-              {listing.image ? (
-                <img src={listing.image} alt={listing.name} className="w-full h-40 object-cover rounded-xl mb-4" />
-              ) : (
-                <div className="bg-gray-100 border-2 border-dashed rounded-xl w-full h-40 mb-4 flex items-center justify-center">
-                  <Globe className="w-12 h-12 text-gray-300" />
+      {/* Listings: compact rows under category headings */}
+      <div className="max-w-5xl mx-auto px-4 pb-8">
+        {loading ? (
+          <div className="py-16 text-center text-[#5B6660]" role="status">Loading businesses...</div>
+        ) : filteredListings.length === 0 ? (
+          <p className="py-16 text-center text-[#5B6660]">No businesses match.</p>
+        ) : (
+          <>
+            <p className="text-[13px] text-[#5B6660] mt-4">
+              {filteredListings.length} {filteredListings.length === 1 ? 'business' : 'businesses'}
+            </p>
+            {groupedListings.map(group => (
+              <section key={group.category} className="mt-4">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-gabriola-green-dark mb-2">{group.category}</h2>
+                <div className="bg-white border border-[#E3DCCF] rounded-2xl divide-y divide-[#EEE8DD] overflow-hidden">
+                  {group.items.map(listing => (
+                    <div key={listing.id} className="flex items-stretch">
+                      <button
+                        onClick={() => setSelectedBusiness(listing)}
+                        className="flex-1 min-w-0 text-left flex items-center gap-3 px-4 py-3 min-h-[60px] hover:bg-[#F6F2EA] transition-colors"
+                      >
+                        {listing.image && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={listing.image} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                        )}
+                        <span className="min-w-0">
+                          <span className="block text-[15px] font-semibold text-[#1F2A24] leading-snug">{listing.name}</span>
+                          {listing.address && (
+                            <span className="flex items-center gap-1 text-[13px] text-[#5B6660]">
+                              <MapPin className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                              <span className="truncate">{listing.address}</span>
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                      {listing.phone && (
+                        <a
+                          href={`tel:${listing.phone}`}
+                          aria-label={`Call ${listing.name} at ${listing.phone}`}
+                          title={listing.phone}
+                          className="flex-shrink-0 w-14 flex items-center justify-center text-gabriola-green hover:bg-[#E6EFE8] border-l border-[#EEE8DD]"
+                        >
+                          <Phone className="w-5 h-5" aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
-              <h3 className="font-bold text-lg text-gabriola-green-dark mb-1">{listing.name}</h3>
-              <p className="text-sm text-gray-600 mb-3">{listing.category}</p>
-              <div className="text-sm text-gray-700 space-y-1">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gabriola-green" />
-                  <span className="truncate">{listing.address}</span>
-                </div>
-                {listing.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gabriola-green" />
-                    <a href={`tel:${listing.phone}`} className="hover:underline">{listing.phone}</a>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+              </section>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Business Detail Modal */}

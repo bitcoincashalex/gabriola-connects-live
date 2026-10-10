@@ -1,5 +1,6 @@
 // app/directory/page.tsx
-// Added Footer component
+// Version: 1.1.0 - Directory is highlighted in the bottom menu on this page (2026-10-10)
+// Previous: Added Footer component
 import Directory from '@/components/Directory';
 import Footer from '@/components/Footer';
 
@@ -9,7 +10,7 @@ export default function DirectoryPage() {
       <main className="flex-1">
         <Directory />
       </main>
-      <Footer />
+      <Footer activeTab="directory" />
     </div>
   );
 }
