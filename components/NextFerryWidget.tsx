@@ -1,13 +1,16 @@
 // components/NextFerryWidget.tsx
 // Ferry display for landing page - REDESIGNED
 // Shows next ferry from both terminals - NO TIMEOUT (BC Ferries API can be slow)
-// Version: 5.1.0 - Removed timeout (BC Ferries needs time) + removed sailing count (not useful)
-// Date: 2025-12-22
+// Version: 5.2.0 - Uses the public widget connection (no login wait), lets the database use
+//                  Gabriola time instead of the visitor's clock, and shows a live delay or
+//                  cancellation line from BC Ferries when Nanaimo sailings are running late
+// Previous: 5.1.0 - Removed timeout (BC Ferries needs time) + removed sailing count (not useful)
+// Date: 2026-10-10
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseWithTimeout';
 import { Anchor, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,33 +26,47 @@ export function NextFerryWidget() {
   const [fromGabriola, setFromGabriola] = useState<FerryInfo | null>(null);
   const [fromNanaimo, setFromNanaimo] = useState<FerryInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [liveNote, setLiveNote] = useState<string | null>(null);
 
   useEffect(() => {
     const loadNextFerries = async () => {
       try {
-        // Get current time in client's timezone
-        const now = new Date();
-        const currentTime = now.toLocaleTimeString('en-US', { 
-          hour12: false, 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          second: '2-digit' 
-        }); // Returns "07:08:00" in local time
-
-        // Fetch both in parallel - NO TIMEOUT (BC Ferries API can be slow)
-        const [gabriolaResult, nanaimoResult] = await Promise.all([
-          supabase.rpc('get_next_ferry', { 
-            from_location: 'Gabriola',
-            search_time: currentTime 
-          }),
-          supabase.rpc('get_next_ferry', { 
-            from_location: 'Nanaimo',
-            search_time: currentTime 
-          })
+        // No time passed: the database uses the current Gabriola time
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const [gabriolaResult, nanaimoResult, liveResult, metaResult] = await Promise.all([
+          supabase.rpc('get_next_ferry', { from_location: 'Gabriola' }),
+          supabase.rpc('get_next_ferry', { from_location: 'Nanaimo' }),
+          supabase
+            .from('ferry_live_sailings')
+            .select('scheduled_time, actual_departure, delay_minutes, status, updated_at')
+            .eq('route', 'NAH-GAB')
+            .eq('sailing_date', today)
+            .order('scheduled_time'),
+          supabase.from('ferry_live_meta').select('last_success_at').eq('route', 'NAH-GAB').maybeSingle(),
         ]);
 
         setFromGabriola(gabriolaResult.data);
         setFromNanaimo(nanaimoResult.data);
+
+        // Live note from BC Ferries (only if checked in the last 20 minutes)
+        const fresh = metaResult.data?.last_success_at &&
+          Date.now() - new Date(metaResult.data.last_success_at).getTime() < 20 * 60 * 1000;
+        const live = (liveResult.data || []) as { scheduled_time: string; actual_departure: string | null; delay_minutes: number | null; status: string }[];
+        const toDisplay = (t: string) => {
+          const [h, m] = t.split(':').map(Number);
+          return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+        };
+        let note: string | null = null;
+        if (fresh) {
+          const cancelled = live.filter(l => l.status === 'cancelled');
+          const lastDeparted = [...live].reverse().find(l => l.status === 'departed');
+          if (cancelled.length > 0) {
+            note = `Cancelled today from Nanaimo: ${cancelled.map(c => toDisplay(c.scheduled_time)).join(', ')}`;
+          } else if (lastDeparted && (lastDeparted.delay_minutes || 0) >= 15) {
+            note = `Running about ${lastDeparted.delay_minutes} min late from Nanaimo`;
+          }
+        }
+        setLiveNote(note);
       } catch (error) {
         console.error('Error loading ferry times:', error);
       } finally {
@@ -121,6 +138,14 @@ export function NextFerryWidget() {
         Schedule & real-time status
       </div>
       
+      {/* Live delay / cancellation from BC Ferries */}
+      {liveNote && (
+        <div className="flex items-center gap-2 bg-white/25 rounded-lg px-3 py-2 text-sm font-semibold text-white">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {liveNote}
+        </div>
+      )}
+
       {/* From Gabriola */}
       {fromGabriola ? (
         <div>

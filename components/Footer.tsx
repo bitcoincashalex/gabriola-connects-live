@@ -1,5 +1,5 @@
 // components/Footer.tsx
-// v3.9.0 - Site version number shown bottom right on the front page (from package.json)
+// v3.9.0 - Site version (package.json) + deploy commit shown bottom right on the front page
 // Previous: v3.8.0 - Fixed Forum to go to /community (not /community-hub)
 // Date: 2026-10-10
 
@@ -169,6 +169,7 @@ export default function Footer({ activeTab = '' }: FooterProps) {
           {activeTab === 'landing' && process.env.NEXT_PUBLIC_APP_VERSION && (
             <p className="text-right text-[10px] opacity-50 mt-1">
               v{process.env.NEXT_PUBLIC_APP_VERSION}
+              {process.env.NEXT_PUBLIC_BUILD_ID && ` · ${process.env.NEXT_PUBLIC_BUILD_ID}`}
             </p>
           )}
         </div>

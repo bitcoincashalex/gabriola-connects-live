@@ -1,6 +1,7 @@
 // components/Header.tsx
-// Version: 2.7.1 - Added Volunteer Admin access and mobile search
-// Date: 2025-01-13
+// Version: 2.8.0 - Added Notices Inbox link (super admin)
+// Previous: 2.7.1 - Added Volunteer Admin access and mobile search
+// Date: 2026-10-10
 'use client';
 
 import Link from 'next/link';
@@ -376,6 +377,18 @@ export default function Header() {
                           >
                             <AlertTriangle className="w-5 h-5" />
                             <span>Alert Administration</span>
+                          </Link>
+                        )}
+
+                        {/* Notices Inbox - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/notices"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <AlertTriangle className="w-5 h-5" />
+                            <span>Notices Inbox</span>
                           </Link>
                         )}
                         
