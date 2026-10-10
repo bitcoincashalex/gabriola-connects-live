@@ -1,6 +1,7 @@
 // components/Header.tsx
-// Version: 2.8.0 - Added Notices Inbox link (super admin)
-// Previous: 2.7.1 - Added Volunteer Admin access and mobile search
+// Version: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
+// Previous: 2.8.0 - Added Notices Inbox link (super admin)
+// Earlier: 2.7.1 - Added Volunteer Admin access and mobile search
 // Date: 2026-10-10
 'use client';
 
@@ -149,13 +150,13 @@ export default function Header() {
   return (
     <>
     <header className="bg-gabriola-green text-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
         <div className="flex items-center justify-between h-20">
 
           {/* Logo */}
           <button onClick={goHome} className="flex items-center gap-3 hover:opacity-90 transition">
             <div className="text-left">
-              <h1 className="text-xl md:text-3xl font-bold leading-tight">
+              <h1 className="text-xl md:text-3xl font-bold leading-tight whitespace-nowrap">
                 Gabriola Connects
               </h1>
               <p className="text-xs md:text-sm opacity-90">Your Island Community Hub</p>
@@ -437,7 +438,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/signin"
-                className="bg-white text-gabriola-green px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition"
+                className="bg-white text-gabriola-green px-4 md:px-6 py-2 rounded-full font-bold hover:bg-gray-100 transition whitespace-nowrap"
               >
                 Sign In
               </Link>

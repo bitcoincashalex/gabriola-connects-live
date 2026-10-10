@@ -1,5 +1,7 @@
 // components/Footer.tsx
-// v3.9.0 - Site version (package.json) + deploy commit shown bottom right on the front page
+// v4.0.0 - Bottom menu stays fixed to the bottom of the screen on every page (like a phone app),
+//          with room left under the footer so nothing is hidden behind it
+// Previous: v3.9.0 - Site version (package.json) + deploy commit shown bottom right on the front page
 // Previous: v3.8.0 - Fixed Forum to go to /community (not /community-hub)
 // Date: 2026-10-10
 
@@ -89,8 +91,12 @@ export default function Footer({ activeTab = '' }: FooterProps) {
   return (
     <footer>
       {/* Bottom Navigation Bar */}
-      <nav className="bg-white border-t-2 border-gabriola-green/20 shadow-lg">
-        <div className="flex justify-around items-center h-20 max-w-screen-xl mx-auto px-4">
+      <nav
+        aria-label="Main"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E3DCCF] shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex justify-around items-center h-16 max-w-screen-xl mx-auto px-2">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -110,13 +116,13 @@ export default function Footer({ activeTab = '' }: FooterProps) {
                 key={tab.id}
                 href={href}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
-                  isActive ? 'text-gabriola-green' : 'text-gray-500 hover:text-gabriola-green-light'
+                  isActive ? 'text-gabriola-green' : 'text-[#3A4640] hover:text-gabriola-green'
                 }`}
               >
-                <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
-                  <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'scale-110' : ''}`} />
+                <div className={`px-3 py-1 rounded-xl transition-all ${isActive ? 'bg-gabriola-green/10' : ''}`}>
+                  <Icon className="w-6 h-6" />
                 </div>
-                <span className={`text-xs md:text-sm mt-1 font-medium ${isActive ? 'font-bold' : ''}`}>
+                <span className={`text-[11px] md:text-xs mt-0.5 font-medium ${isActive ? 'font-bold' : ''}`}>
                   {tab.label}
                 </span>
               </Link>
@@ -126,7 +132,10 @@ export default function Footer({ activeTab = '' }: FooterProps) {
       </nav>
 
       {/* Footer Links */}
-      <div className="bg-gabriola-green-dark text-white py-4 text-center text-xs">
+      <div
+        className="bg-gabriola-green-dark text-white pt-4 text-center text-xs"
+        style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+      >
         <div className="max-w-7xl mx-auto px-6">
           <p className="mb-2">
             Open source • Free to use with attribution • MIT license

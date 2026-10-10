@@ -1,6 +1,7 @@
 // Path: components/EventsManager.tsx
-// Version: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
-// Previous: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
+// Version: 5.0.3 - Attribution now lists all event sources (was "Sample events data")
+// Previous: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
+// Earlier: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
 // Date: 2026-10-10
 
 'use client';
@@ -535,15 +536,16 @@ export default function EventsManager() {
           <h2 className="text-3xl font-bold text-gabriola-green-dark mb-3">Upcoming Events</h2>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
             <p className="text-sm text-blue-800">
-              Sample events data from{' '}
+              Events from the{' '}
               <a 
                 href="https://directory.gabriolaevents.ca/gabriola-events/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="font-semibold text-gabriola-green hover:text-gabriola-green-dark underline"
               >
-                Gabriola Chamber of Commerce website
+                Gabriola Chamber of Commerce events directory
               </a>
+              , Rollo Centre, Community Hall, Recreation Society and islanders
             </p>
           </div>
         </div>

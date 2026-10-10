@@ -1,15 +1,15 @@
 // components/NextEventWidget.tsx
-// Shows next 2 upcoming events - REDESIGNED
-// Version: 4.3.2 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
-// Previous: 4.3.1 - Removed "Next:" label, made 2nd event bigger and more readable
-// Date: 2025-12-22
+// Shows next 2 upcoming events (body of the front page Calendar card)
+// Version: 5.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page;
+//                  this shows only the events, in dark text for the white card. No emoji.
+// Previous: 4.3.2 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
+// Date: 2026-10-10
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
-import { Calendar, AlertCircle } from 'lucide-react';
 
 interface EventInfo {
   id: string;
@@ -49,7 +49,7 @@ export function NextEventWidget() {
         if (!data || data.length < 2) {
           const todayEvents = data || [];
           const remaining = 2 - todayEvents.length;
-          
+
           const result = await queryWithTimeout(async () =>
             supabase
               .from('events')
@@ -61,8 +61,7 @@ export function NextEventWidget() {
               .order('start_time', { ascending: true })
               .limit(remaining)
           );
-          
-          // Combine today's events with future events
+
           data = [...todayEvents, ...(result.data || [])];
           error = result.error;
         }
@@ -91,161 +90,46 @@ export function NextEventWidget() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="text-white/70 text-sm">
-        Loading...
-      </div>
-    );
+    return <div className="text-sm text-[#5B6660] pt-3 border-t border-[#EEE8DD]">Loading...</div>;
   }
 
   if (hasError) {
     return (
-      <div className="space-y-3">
-        {/* Big Icon LEFT + Big Title RIGHT */}
-        <div className="flex items-center gap-4">
-          <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-            <Calendar className="w-10 h-10 text-white" />
-          </div>
-          <h3 className="text-3xl font-bold text-white">Calendar</h3>
-        </div>
-        
-        <div className="text-sm text-white/90">Upcoming events</div>
-        
-        {/* Timeout Error State */}
-        <div className="text-center py-2">
-          <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white/90" />
-          <p className="font-medium text-sm mb-1 text-white">Unable to load events</p>
-          <p className="text-xs text-white/70">Please refresh the page to try again</p>
-        </div>
+      <div className="text-sm text-[#5B6660] pt-3 border-t border-[#EEE8DD]">
+        Unable to load events. Please refresh the page to try again.
       </div>
     );
   }
 
   if (nextEvents.length === 0) {
-    return (
-      <div className="space-y-3">
-        {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-        <div className="flex items-center gap-4">
-          {/* Big Icon in Circle */}
-          <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-            <Calendar className="w-10 h-10 text-white" />
-          </div>
-          
-          {/* Big Title */}
-          <h3 className="text-3xl font-bold text-white">
-            Calendar
-          </h3>
-        </div>
-        
-        {/* Description - CHANGED */}
-        <div className="text-sm text-white/90">
-          Upcoming events
-        </div>
-        
-        <div className="text-sm text-white/70">
-          No upcoming events
-        </div>
-      </div>
-    );
+    return <div className="text-sm text-[#5B6660] pt-3 border-t border-[#EEE8DD]">No upcoming events</div>;
   }
 
-  // Helper function to format date display
   const formatDateDisplay = (dateString: string): string => {
     const eventDate = parseISO(dateString);
-    if (isToday(eventDate)) {
-      return 'Today';
-    } else if (isTomorrow(eventDate)) {
-      return 'Tomorrow';
-    } else {
-      return format(eventDate, 'MMM d');
-    }
+    if (isToday(eventDate)) return 'Today';
+    if (isTomorrow(eventDate)) return 'Tomorrow';
+    return format(eventDate, 'EEE MMM d');
   };
 
-  // Helper function to format time display
   const formatTimeDisplay = (timeString: string | null): string => {
     if (!timeString) return 'All day';
     return format(parseISO(`2000-01-01T${timeString}`), 'h:mm a');
   };
 
-  // Get first and second events
-  const firstEvent = nextEvents[0];
-  const secondEvent = nextEvents[1];
-
-  // Format first event data
-  const firstDateDisplay = formatDateDisplay(firstEvent.start_date);
-  const firstTimeDisplay = formatTimeDisplay(firstEvent.start_time);
-  const firstTitle = firstEvent.title.length > 40 
-    ? firstEvent.title.substring(0, 37) + '...'
-    : firstEvent.title;
-  const firstLocation = firstEvent.location.length > 30
-    ? firstEvent.location.substring(0, 27) + '...'
-    : firstEvent.location;
-
   return (
-    <div className="space-y-3">
-      {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-      <div className="flex items-center gap-4">
-        {/* Big Icon in Circle */}
-        <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-          <Calendar className="w-10 h-10 text-white" />
-        </div>
-        
-        {/* Big Title */}
-        <h3 className="text-3xl font-bold text-white">
-          Calendar
-        </h3>
-      </div>
-      
-      {/* Description - CHANGED */}
-      <div className="text-sm text-white/90">
-        Upcoming events
-      </div>
-      
-      {/* FIRST Event - Full Details */}
-      <div className="space-y-1">
-        {/* Event Title - Readable & Bold */}
-        <div className="text-base font-semibold text-white line-clamp-2">
-          {firstTitle}
-        </div>
-        
-        {/* Date & Time - Medium & Visible */}
-        <div className="text-lg font-medium text-white/90">
-          {firstDateDisplay} • {firstTimeDisplay}
-        </div>
-        
-        {/* Location - Supporting Info */}
-        {firstEvent.location && (
-          <div className="text-sm text-white/80">
-            📍 {firstLocation}
+    <div className="flex flex-col">
+      {nextEvents.map(event => (
+        <div key={event.id} className="pt-3 mt-0 border-t border-[#EEE8DD] pb-3 last:pb-0 space-y-1">
+          <div className="text-base font-semibold leading-snug line-clamp-2">{event.title}</div>
+          <div className="text-sm font-semibold text-gabriola-green">
+            {formatDateDisplay(event.start_date)} · {formatTimeDisplay(event.start_time)}
           </div>
-        )}
-      </div>
-
-      {/* SECOND Event (if exists) - Bigger without "Next:" label */}
-      {secondEvent && (
-        <>
-          <div className="border-t border-white/20 pt-2.5">
-            {/* Title - Bigger and more readable */}
-            <div className="text-base font-semibold text-white line-clamp-1">
-              {secondEvent.title.length > 40 
-                ? secondEvent.title.substring(0, 37) + '...'
-                : secondEvent.title}
-            </div>
-            {/* Date & Time - Bigger */}
-            <div className="text-base font-medium text-white/90 mt-1">
-              {formatDateDisplay(secondEvent.start_date)} • {formatTimeDisplay(secondEvent.start_time)}
-            </div>
-            {/* Location - More readable */}
-            {secondEvent.location && (
-              <div className="text-sm text-white/80 mt-0.5">
-                📍 {secondEvent.location.length > 30 
-                  ? secondEvent.location.substring(0, 27) + '...'
-                  : secondEvent.location}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+          {event.location && (
+            <div className="text-[13px] text-[#5B6660] truncate">{event.location}</div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

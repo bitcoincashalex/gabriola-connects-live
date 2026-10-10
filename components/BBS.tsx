@@ -1,6 +1,7 @@
 // Path: components/BBS.tsx
-// Version: 5.1.0 - Added auto-scroll to thread list on category/search selection
-// Date: 2025-12-20
+// Version: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
+// Previous: 5.1.0 - Added auto-scroll to thread list on category/search selection
+// Date: 2026-10-10
 
 'use client';
 
@@ -250,7 +251,8 @@ export default function BBS() {
             {canCreatePost && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="fixed bottom-8 right-8 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
+                aria-label="New post"
+                className="fixed bottom-24 right-6 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
               >
                 <Plus className="w-8 h-8" />
               </button>

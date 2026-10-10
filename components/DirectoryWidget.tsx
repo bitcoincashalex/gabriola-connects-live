@@ -1,14 +1,14 @@
 // components/DirectoryWidget.tsx
-// Shows business count with simple invite - REDESIGNED to match Alerts widget style
-// Version: 5.0.1 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
-// Previous: 5.0.0 - Added timeout handling + error state
-// Date: 2025-12-22
+// Business count line for the front page Directory card
+// Version: 6.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page;
+//                  this is the one line under the title, in dark text for the white card.
+// Previous: 5.0.1 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
+// Date: 2026-10-10
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
-import { Book, AlertCircle } from 'lucide-react';
 
 export function DirectoryWidget() {
   const [totalCount, setTotalCount] = useState(0);
@@ -44,65 +44,12 @@ export function DirectoryWidget() {
     return () => clearInterval(interval);
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="text-white/70 text-sm">
-        Loading...
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-4">
-          <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-            <Book className="w-10 h-10 text-white" />
-          </div>
-          <h3 className="text-3xl font-bold text-white">Directory</h3>
-        </div>
-        
-        <div className="text-sm text-white/90">Local businesses & services</div>
-        
-        {/* Timeout Error State */}
-        <div className="text-center py-2">
-          <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white/90" />
-          <p className="font-medium text-sm mb-1 text-white">Unable to load directory</p>
-          <p className="text-xs text-white/70">Please refresh the page to try again</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <span>Local businesses &amp; services</span>;
+  if (hasError) return <span>Local businesses &amp; services</span>;
 
   return (
-    <div className="space-y-3">
-      {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-      <div className="flex items-center gap-4">
-        {/* Big Icon in Circle */}
-        <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-          <Book className="w-10 h-10 text-white" />
-        </div>
-        
-        {/* Big Title */}
-        <h3 className="text-3xl font-bold text-white">
-          Directory
-        </h3>
-      </div>
-      
-      {/* Description */}
-      <div className="text-sm text-white/90">
-        Local businesses & services
-      </div>
-      
-      {/* Business Count - Large & Visible */}
-      <div className="text-lg font-semibold text-white">
-        {totalCount} local {totalCount === 1 ? 'business' : 'businesses'}
-      </div>
-      
-      {/* Simple Invite Message */}
-      <div className="text-base text-white/90 font-medium">
-        Support local • Shop Gabriola
-      </div>
-    </div>
+    <span className="text-sm text-[#1F2A24]">
+      <strong>{totalCount} local {totalCount === 1 ? 'business' : 'businesses'}</strong> · Support local · Shop Gabriola
+    </span>
   );
 }

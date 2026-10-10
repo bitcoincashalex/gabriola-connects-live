@@ -1,7 +1,9 @@
 // components/NextFerryWidget.tsx
-// Ferry display for landing page - REDESIGNED
-// Shows next ferry from both terminals - NO TIMEOUT (BC Ferries API can be slow)
-// Version: 5.4.0 - Live line only when it matters: Nanaimo sailings 10+ min late, or a
+// Next ferry from both terminals (body of the front page Ferry card)
+// Version: 6.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page.
+//                  Each next sailing shows how long until it leaves ("in 15 min"), counted from
+//                  the current Gabriola time and updated every 30 seconds.
+// Previous: 5.4.0 - Live line only when it matters: Nanaimo sailings 10+ min late, or a
 //                  cancellation. One short line, no "on time" line, no "Live" tag.
 // Previous: 5.3.0 - Live line always shows (on time / late from 2 min / cancelled)
 // Previous: 5.2.0 - Uses the public widget connection (no login wait), lets the database use
@@ -14,8 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseWithTimeout';
-import { Anchor, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
+import { AlertCircle } from 'lucide-react';
 
 interface FerryInfo {
   time: string;
@@ -25,11 +26,38 @@ interface FerryInfo {
   arrivalTerminal: string;
 }
 
+// Minutes since midnight, Gabriola time
+function pacificNowMinutes(): number {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  return Number(parts.find(p => p.type === 'hour')?.value) * 60 + Number(parts.find(p => p.type === 'minute')?.value);
+}
+
+// "1:10 PM" -> minutes since midnight
+function displayToMinutes(t: string): number | null {
+  const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = Number(m[1]) % 12;
+  if (m[3].toUpperCase() === 'PM') h += 12;
+  return h * 60 + Number(m[2]);
+}
+
+function untilText(t: string, nowMin: number): string | null {
+  const dep = displayToMinutes(t);
+  if (dep === null) return null;
+  const diff = dep - nowMin;
+  if (diff <= 0) return 'leaving now';
+  if (diff < 60) return `in ${diff} min`;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return m === 0 ? `in ${h} hr` : `in ${h} hr ${m} min`;
+}
+
 export function NextFerryWidget() {
   const [fromGabriola, setFromGabriola] = useState<FerryInfo | null>(null);
   const [fromNanaimo, setFromNanaimo] = useState<FerryInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [liveNote, setLiveNote] = useState<{ text: string; kind: 'cancelled' | 'late' } | null>(null);
+  const [nowMin, setNowMin] = useState<number>(() => pacificNowMinutes());
 
   useEffect(() => {
     const loadNextFerries = async () => {
@@ -50,6 +78,7 @@ export function NextFerryWidget() {
 
         setFromGabriola(gabriolaResult.data);
         setFromNanaimo(nanaimoResult.data);
+        setNowMin(pacificNowMinutes());
 
         // Live note from BC Ferries (only if checked in the last 20 minutes)
         const fresh = metaResult.data?.last_success_at &&
@@ -62,10 +91,9 @@ export function NextFerryWidget() {
         let note: { text: string; kind: 'cancelled' | 'late' } | null = null;
         if (fresh) {
           // Cancellations still relevant: upcoming, or within the last hour
-          const nowParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
-          const nowMin = Number(nowParts.find(p => p.type === 'hour')?.value) * 60 + Number(nowParts.find(p => p.type === 'minute')?.value);
+          const current = pacificNowMinutes();
           const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-          const cancelled = live.filter(l => l.status === 'cancelled' && toMin(l.scheduled_time) >= nowMin - 60);
+          const cancelled = live.filter(l => l.status === 'cancelled' && toMin(l.scheduled_time) >= current - 60);
           const lastDeparted = [...live].reverse().find(l => l.status === 'departed');
           if (cancelled.length > 0) {
             note = { kind: 'cancelled', text: `Cancelled: ${cancelled.map(c => toDisplay(c.scheduled_time)).join(', ')} from Nanaimo` };
@@ -83,115 +111,48 @@ export function NextFerryWidget() {
 
     loadNextFerries();
 
-    // Refresh every 60 seconds
+    // Refresh sailings every 60 seconds; countdown every 30 seconds
     const interval = setInterval(loadNextFerries, 60000);
-    return () => clearInterval(interval);
+    const tick = setInterval(() => setNowMin(pacificNowMinutes()), 30000);
+    return () => { clearInterval(interval); clearInterval(tick); };
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="text-white/70 text-sm">
-        Loading...
-      </div>
-    );
+    return <div className="text-sm text-[#5B6660]">Loading...</div>;
   }
 
-  // Handle case where both are done for the day
   if (!fromGabriola && !fromNanaimo) {
-    return (
-      <div className="space-y-3">
-        {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-        <div className="flex items-center gap-4">
-          {/* Big Icon in Circle */}
-          <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-            <Anchor className="w-10 h-10 text-white" />
-          </div>
-          
-          {/* Big Title */}
-          <h3 className="text-3xl font-bold text-white">
-            Ferry
-          </h3>
-        </div>
-        
-        {/* Description */}
-        <div className="text-sm text-white/90">
-          Schedule & real-time status
-        </div>
-        
-        <div className="text-base text-white/80">
-          Service ended for today
-        </div>
-      </div>
-    );
+    return <div className="text-base text-[#5B6660]">Service ended for today</div>;
   }
+
+  const Box = ({ label, ferry }: { label: string; ferry: FerryInfo | null }) => (
+    <div className="bg-[#F3F5FA] rounded-xl p-3">
+      <div className="text-[13px] text-[#5B6660]">{label}</div>
+      {ferry ? (
+        <>
+          <div className="text-2xl font-bold text-[#002774] leading-tight">{ferry.time}</div>
+          {untilText(ferry.time, nowMin) && (
+            <div className="text-[13px] font-semibold text-[#1F2A24]">{untilText(ferry.time, nowMin)}</div>
+          )}
+        </>
+      ) : (
+        <div className="text-base text-[#5B6660] mt-1">Done for today</div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="space-y-3">
-      {/* Big Icon LEFT + Big Title RIGHT - Like Alerts */}
-      <div className="flex items-center gap-4">
-        {/* Big Icon in Circle */}
-        <div className="p-4 bg-white/20 rounded-full flex-shrink-0">
-          <Anchor className="w-10 h-10 text-white" />
-        </div>
-        
-        {/* Big Title */}
-        <h3 className="text-3xl font-bold text-white">
-          Ferry
-        </h3>
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
+        <Box label="From Gabriola" ferry={fromGabriola} />
+        <Box label="From Nanaimo" ferry={fromNanaimo} />
       </div>
-      
-      {/* Description */}
-      <div className="text-sm text-white/90">
-        Schedule & real-time status
-      </div>
-      
+
       {/* Live delay / cancellation from BC Ferries */}
       {liveNote && (
-        <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white ${liveNote.kind === 'cancelled' ? 'bg-red-600/80' : 'bg-white/25'}`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${liveNote.kind === 'cancelled' ? 'bg-[#B42318] text-white' : 'bg-[#FDF0E1] text-[#8A3E00]'}`}>
+          <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
           <span>{liveNote.text}</span>
-        </div>
-      )}
-
-      {/* From Gabriola */}
-      {fromGabriola ? (
-        <div>
-          <div className="text-sm text-white/80 mb-1">
-            Next from Gabriola
-          </div>
-          <div className="text-2xl font-bold text-white">
-            {fromGabriola.time}
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="text-sm text-white/70 mb-1">
-            From Gabriola
-          </div>
-          <div className="text-base text-white/60">
-            Done for today
-          </div>
-        </div>
-      )}
-      
-      {/* From Nanaimo */}
-      {fromNanaimo ? (
-        <div>
-          <div className="text-sm text-white/80 mb-1">
-            Next from Nanaimo
-          </div>
-          <div className="text-2xl font-bold text-white">
-            {fromNanaimo.time}
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="text-sm text-white/70 mb-1">
-            From Nanaimo
-          </div>
-          <div className="text-base text-white/60">
-            Done for today
-          </div>
         </div>
       )}
     </div>

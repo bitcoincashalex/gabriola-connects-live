@@ -1,17 +1,17 @@
 // components/ForumWidget.tsx
-// Shows latest discussion topics and volunteer opportunities
-// Version: 6.4.0 - Outer <Link> changed to <div>. The landing page card already links to
+// Shows latest discussion topics and volunteer opportunities (body of the front page Community card)
+// Version: 7.0.0 - Front page redesign: no longer draws its own blue card inside the front page
+//                  card (the card, icon and title are drawn by the front page). Dark text on white.
+// Previous: 6.4.0 - Outer <Link> changed to <div>. The landing page card already links to
 //                  /community-hub, and a link inside a link broke page hydration (React #418/#423).
 //                  Error state: removed nested Sign In link.
 // Previous: 6.3.0 - Removed background bubbles that were overlapping volunteer count on iOS
-// Date: 2026-10-09
+// Date: 2026-10-10
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
-import { MessageSquare, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
 
 export function ForumWidget() {
   const [latestTopics, setLatestTopics] = useState<string[]>([]);
@@ -21,7 +21,7 @@ export function ForumWidget() {
 
   useEffect(() => {
     fetchForumStats();
-    
+
     // Subscribe to changes
     const channel = supabase
       .channel('forum_changes')
@@ -42,7 +42,7 @@ export function ForumWidget() {
   const fetchForumStats = async () => {
     try {
       setHasError(false);
-      
+
       // Get latest 5 topics (with timeout)
       const { data: latest } = await queryWithTimeout(async () =>
         supabase
@@ -81,76 +81,40 @@ export function ForumWidget() {
     }
   };
 
-  return (
-    <div
-      className="group bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 p-6 text-white overflow-hidden relative"
-    >
-      {/* Content */}
-      <div className="relative">
-        {/* Header - Updated text sizing */}
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="p-2.5 bg-white/20 rounded-full flex-shrink-0">
-            <MessageSquare className="w-8 h-8" />
-          </div>
-          {/* Bigger title */}
-          <h3 className="text-2xl font-bold leading-tight">Community</h3>
-        </div>
-
-        {/* Description - Two lines, readable size */}
-        <div className="text-xs text-blue-100 mb-3 leading-snug">
-          Forum • Emergency • Map
-          <br />
-          News • Volunteer
-        </div>
-
-        {loading ? (
-          <div className="space-y-2">
-            <div className="h-6 bg-white/20 rounded animate-pulse"></div>
-            <div className="h-4 bg-white/20 rounded w-3/4 animate-pulse"></div>
-          </div>
-        ) : hasError ? (
-          /* Timeout Error State */
-          <div className="text-center py-2">
-            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-90" />
-            <p className="font-medium text-sm mb-1">Unable to load discussions</p>
-<p className="text-xs text-blue-100">Please refresh the page to try again</p>
-          </div>
-        ) : (
-          <>
-            {/* Latest Discussions Header */}
-            <div className="mb-2">
-              <p className="text-xs text-blue-100 font-semibold uppercase tracking-wide">Latest discussions:</p>
-            </div>
-
-            {/* Latest 5 Topics */}
-            {latestTopics.length > 0 ? (
-              <div className="space-y-1.5 mb-3">
-                {latestTopics.map((topic, idx) => (
-                  <p key={idx} className="text-sm font-medium truncate leading-tight">
-                    • {topic}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-blue-100 mb-3">No active discussions yet</p>
-            )}
-
-            {/* Volunteer Opportunities Count */}
-            <div className="pt-2 border-t border-white/20">
-              <p className="text-sm font-medium">
-                {volunteerCount} Volunteer {volunteerCount === 1 ? 'opportunity' : 'opportunities'} available
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Hover Arrow */}
-        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
+  if (loading) {
+    return (
+      <div className="border-t border-[#EEE8DD] pt-3 space-y-2" aria-label="Loading">
+        <div className="h-4 bg-[#EEE8DD] rounded animate-pulse" />
+        <div className="h-4 bg-[#EEE8DD] rounded w-3/4 animate-pulse" />
       </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="border-t border-[#EEE8DD] pt-3 text-sm text-[#5B6660]">
+        Unable to load discussions. Please refresh the page to try again.
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-[#EEE8DD]">
+      <p className="text-xs font-bold uppercase tracking-wide text-[#5B6660] pt-3 pb-1">Latest discussions</p>
+
+      {latestTopics.length > 0 ? (
+        <div className="divide-y divide-[#F1ECE3]">
+          {latestTopics.map((topic, idx) => (
+            <p key={idx} className="text-[15px] py-2 truncate">{topic}</p>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-[#5B6660] py-2">No active discussions yet</p>
+      )}
+
+      <p className="text-sm font-semibold text-gabriola-green pt-2">
+        {volunteerCount} volunteer {volunteerCount === 1 ? 'opportunity' : 'opportunities'} available
+      </p>
     </div>
   );
 }

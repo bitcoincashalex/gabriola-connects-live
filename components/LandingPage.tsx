@@ -1,18 +1,22 @@
 // components/LandingPage.tsx
-// v5.0.2 - About text: added "ferry times"
+// v6.0.0 - Front page redesign: full Gabriola flag on a navy band (no grey wash, no crop) in place
+//          of the emoji links; white cards with small icons in place of the five gradients; alert
+//          card only turns colour when an alert is active; stats relabelled "Registered residents"
+//          and "Total registrations"; solid green share button.
+// Previous: v5.0.2 - About text: added "ferry times"
 // Previous: v5.0.1 - Fixed Firefox z-index bug (card background covering widget content)
 // Date: 2026-10-10
 'use client';
 
 import Link from 'next/link';
-import { Calendar, MessageSquare, Book, Anchor, Bell, AlertTriangle, Users, UserCheck, CalendarDays, Building2 } from 'lucide-react';
+import { Calendar, MessageSquare, Book, Anchor } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { NextFerryWidget } from '@/components/NextFerryWidget';
 import { NextEventWidget } from '@/components/NextEventWidget';
 import { DirectoryWidget } from '@/components/DirectoryWidget';
 import { ForumWidget } from '@/components/ForumWidget';
 import { AlertsWidget } from '@/components/AlertsWidget';
+import { HomeCard } from '@/components/HomeCard';
 
 interface LandingPageProps {
   // No props needed - all navigation uses direct routes
@@ -103,15 +107,15 @@ function ShareAndInstallSection() {
   };
 
   return (
-    <div className="text-center mt-12">
-      <div className="inline-block bg-gradient-to-r from-gabriola-green to-gabriola-green-light text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+    <div className="text-center mt-6">
+      <div className="inline-block w-full sm:w-auto bg-gabriola-green text-white rounded-2xl shadow-sm hover:bg-gabriola-green-dark transition-colors">
         
         {/* SHARE BUTTON */}
         <button
           onClick={handleShare}
-          className="w-full px-8 py-4 hover:scale-105 transition-transform"
+          className="w-full px-6 py-4 min-h-[48px]"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
@@ -131,7 +135,7 @@ function ShareAndInstallSection() {
           <div className="px-8 py-4">
             <button
               onClick={handleInstall}
-              className="w-full flex items-center gap-3 hover:scale-105 transition-transform"
+              className="w-full flex items-center gap-3"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -155,7 +159,7 @@ function ShareAndInstallSection() {
           <div className="px-8 py-4">
             <button
               onClick={() => setShowIOSInstructions(!showIOSInstructions)}
-              className="w-full flex items-center gap-3 hover:scale-105 transition-transform"
+              className="w-full flex items-center gap-3"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -200,9 +204,6 @@ function ShareAndInstallSection() {
 }
 
 export default function LandingPage() {
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  const [activeAlertCount, setActiveAlertCount] = useState<number>(0);
-  
   // Community stats
   const [stats, setStats] = useState({
     residents: 0,
@@ -212,36 +213,21 @@ export default function LandingPage() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Fetch active alert count
   useEffect(() => {
-    fetchActiveAlertCount();
     fetchCommunityStats();
   }, []);
-
-  const fetchActiveAlertCount = async () => {
-    // FIXED: Added expires_at filter to match AlertsManager and EmergencyAlertBanner
-    const { count, error } = await supabase
-      .from('alerts')
-      .select('*', { count: 'exact', head: true })
-      .eq('active', true)
-      .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);  // FIXED: Filter expired
-
-    if (!error && count !== null) {
-      setActiveAlertCount(count);
-    }
-  };
 
   const fetchCommunityStats = async () => {
     try {
       // Fetch stats from public API (bypasses RLS)
       const response = await fetch('/api/stats');
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch stats');
       }
-      
+
       const data = await response.json();
-      
+
       setStats({
         residents: data.residents || 0,
         totalMembers: data.totalMembers || 0,
@@ -255,222 +241,72 @@ export default function LandingPage() {
     }
   };
 
-  const cards = [
-    {
-      id: 'calendar',
-      title: 'Calendar',
-      description: 'Island events & activities',
-      icon: Calendar,
-      color: 'from-gabriola-green to-gabriola-green-dark',
-      textColor: 'text-white',
-    },
-    {
-      id: 'ferry',
-      title: 'Ferry',
-      description: 'Schedule & real-time status',
-      icon: Anchor,
-      color: 'from-teal-500 to-teal-700',
-      textColor: 'text-white',
-    },
-    {
-      id: 'community',
-      title: 'Community',
-      description: 'Forum, contacts & resources',
-      icon: MessageSquare,
-      color: 'from-gabriola-ocean to-blue-700',
-      textColor: 'text-white',
-    },
-    {
-      id: 'directory',
-      title: 'Directory',
-      description: 'Local businesses & services',
-      icon: Book,
-      color: 'from-purple-500 to-purple-700',
-      textColor: 'text-white',
-    },
+  const statTiles = [
+    { value: stats.residents, label: 'Registered residents' },
+    { value: stats.totalMembers, label: 'Total registrations' },
+    { value: stats.upcomingEvents, label: 'Upcoming events' },
+    { value: stats.businesses, label: 'Local businesses' },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gabriola-sand/30 via-white to-gabriola-green/10">
-      {/* Header with Flag as Main Background */}
-      <div className="relative py-12 px-6 shadow-lg overflow-hidden">
-        <div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'url(/gabriola-flag.gif)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
-        <div className="absolute inset-0 bg-black/30" />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h1 className="text-5xl font-display font-bold mb-3 text-white" style={{
-            textShadow: '2px 2px 8px rgba(0,0,0,0.8), -1px -1px 4px rgba(0,0,0,0.6)'
-          }}>
-            Gabriola Connects
-          </h1>
-          <p className="text-xl text-white mb-4" style={{
-            textShadow: '1px 1px 6px rgba(0,0,0,0.8), -1px -1px 3px rgba(0,0,0,0.6)'
-          }}>
-            Your Island Community Hub
-          </p>
-
-          {/* Quick Navigation Icons */}
-          <div className="flex justify-center items-center gap-3 sm:gap-5 mt-4">
-            <button
-              onClick={() => window.location.href = '/events'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">📅</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Events</span>
-            </button>
-
-            <button
-              onClick={() => window.location.href = '/ferry'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">⛴️</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Ferry</span>
-            </button>
-
-            <button
-              onClick={() => window.location.href = '/community'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">💬</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Forum</span>
-            </button>
-
-            <button
-              onClick={() => window.location.href = '/directory'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">📖</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Directory</span>
-            </button>
-
-            <button
-              onClick={() => window.location.href = '/alerts'}
-              className="flex items-center gap-1.5 text-white hover:scale-110 transition-transform group"
-            >
-              <span className="text-lg sm:text-xl">🔔</span>
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap" style={{
-                textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-              }}>Alerts</span>
-            </button>
+    <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
+      {/* Flag band: the Gabriola Island flag in full, on the flag's own navy */}
+      <section className="bg-[#002774] text-white text-center pt-7 md:pt-10">
+        <div className="max-w-4xl mx-auto px-6 flex flex-col items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/gabriola-flag.gif"
+            alt="Gabriola Island flag"
+            width={380}
+            height={216}
+            className="w-[228px] md:w-[300px] h-auto rounded-md border-[3px] border-white shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
+          />
+          <div>
+            <h1 className="font-display font-bold text-[34px] md:text-5xl leading-tight">Gabriola Connects</h1>
+            <p className="text-[17px] md:text-xl text-[#D6DEF0] mt-1">Your Island Community Hub</p>
           </div>
         </div>
-      </div>
+        {/* White curve, echoing the island on the flag */}
+        <svg viewBox="0 0 390 44" preserveAspectRatio="none" aria-hidden="true" className="block w-full h-8 md:h-14 mt-2">
+          <path d="M0 44 L0 30 C 90 4, 210 -6, 390 22 L390 44 Z" fill="#F6F2EA" />
+        </svg>
+      </section>
 
-      {/* Main Cards Grid */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {cards.map((card) => {
-            const Icon = card.icon;
-            const isHovered = hoveredCard === card.id;
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-2 pb-10">
+        {/* Main cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-5 items-start">
+          <HomeCard href="/calendar" icon={Calendar} title="Calendar" subtitle="Upcoming events">
+            <NextEventWidget />
+          </HomeCard>
 
-            // Determine the route for each card
-            let href = '/';
-            if (card.id === 'calendar') href = '/calendar';
-            else if (card.id === 'community') href = '/community-hub';
-            else if (card.id === 'ferry') href = '/ferry';
-            else if (card.id === 'directory') href = '/directory';
+          <HomeCard href="/ferry" icon={Anchor} title="Ferry" subtitle="Schedule & live status" tone="navy">
+            <NextFerryWidget />
+          </HomeCard>
 
-            return (
-              <Link
-                key={card.id}
-                href={href}
-                onMouseEnter={() => setHoveredCard(card.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-                className={`
-                  relative overflow-hidden
-                  bg-gradient-to-br ${card.color}
-                  rounded-3xl p-8
-                  shadow-xl hover:shadow-2xl
-                  transform transition-all duration-300
-                  ${isHovered ? 'scale-105 -translate-y-2' : 'scale-100'}
-                  cursor-pointer
-                  group
-                  block
-                `}
-              >
-                <div className={`relative z-10 ${card.textColor}`}>
-                  {/* Widgets now include their own icon, title, and description */}
-                  {card.id === 'calendar' && <NextEventWidget />}
-                  {card.id === 'community' && <ForumWidget />}
-                  {card.id === 'ferry' && <NextFerryWidget />}
-                  {card.id === 'directory' && <DirectoryWidget />}
-                </div>
+          <HomeCard href="/community-hub" icon={MessageSquare} title="Community" subtitle="Forum · Emergency · Map · News · Volunteer">
+            <ForumWidget />
+          </HomeCard>
 
-                <div className={`
-                  absolute -bottom-12 -right-12 w-48 h-48 
-                  rounded-full bg-white/10 -z-10
-                  transform transition-transform duration-500
-                  ${isHovered ? 'scale-150' : 'scale-100'}
-                `} />
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Community Alerts Banner with AlertsWidget */}
-        <button
-          onClick={() => window.location.href = '/alerts'}
-          className="w-full max-w-5xl mx-auto bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
-        >
-          <div className="flex items-center justify-between p-8">
-            <div className="flex items-center gap-6 flex-1">
-              {/* Bell Icon with Badge */}
-              <div className="relative flex-shrink-0">
-                <div className="p-4 bg-white/20 rounded-full group-hover:scale-110 transition-transform">
-                  <Bell className="w-10 h-10" />
-                </div>
-                {/* Alert Count Badge */}
-                {activeAlertCount > 0 && (
-                  <div className="absolute -top-2 -right-2 bg-red-600 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center animate-pulse">
-                    {activeAlertCount}
-                  </div>
-                )}
-              </div>
-
-              {/* AlertsWidget - Shows alert summary */}
-              <div className="text-left flex-1">
-                <h3 className="text-3xl font-bold mb-3">Community Alerts</h3>
-                <AlertsWidget />
-              </div>
-            </div>
-
-            {/* Arrow */}
-            <div className="text-4xl group-hover:translate-x-2 transition-transform flex-shrink-0">
-              →
-            </div>
+          <div className="flex flex-col gap-3.5 md:gap-5">
+            <HomeCard href="/directory" icon={Book} title="Directory" subtitle={<DirectoryWidget />} />
+            <AlertsWidget />
           </div>
-        </button>
+        </div>
 
         {/* About Section */}
-        <div className="mt-12 bg-white/80 backdrop-blur rounded-2xl p-10 shadow-lg border border-white/60">
-          <h2 className="text-3xl font-bold text-gabriola-green-dark mb-6 text-center">
+        <div className="mt-6 md:mt-10 bg-white rounded-2xl p-6 md:p-10 border border-[#E3DCCF] text-center">
+          <h2 className="font-display text-2xl md:text-3xl font-bold text-gabriola-green-dark mb-3">
             Welcome to Your Island Community
           </h2>
-          <p className="text-lg text-gray-700 mb-6 text-center leading-relaxed max-w-3xl mx-auto">
+          <p className="text-base md:text-lg text-[#3A4640] mb-4 leading-relaxed max-w-3xl mx-auto">
             Gabriola Connects is built by islanders, for islanders. Discover events, ferry times, join discussions, 
             support local businesses, and stay connected with our community of 4,500 residents.
           </p>
-          <p className="text-gray-500 text-xs text-center">
+          <p className="text-[#5B6660] text-[13px]">
             Brought to you by the{' '}
             <Link 
               href="/strachan" 
-              className="text-gabriola-green hover:text-gabriola-green-dark underline font-medium transition-colors"
+              className="text-gabriola-green hover:text-gabriola-green-dark underline font-semibold transition-colors"
             >
               Strachan family
             </Link>
@@ -482,62 +318,15 @@ export default function LandingPage() {
 
         {/* Community Stats */}
         {!statsLoading && (
-          <div className="mt-8">
-            <div className="bg-gradient-to-r from-gray-50 to-green-50/30 rounded-xl p-5 border border-gray-200/50 shadow-sm">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Verified Residents */}
-                <div className="text-center">
-                  <div className="flex justify-center mb-1.5">
-                    <UserCheck className="w-4 h-4 text-gabriola-green" />
-                  </div>
-                  <div className="text-2xl font-bold text-gabriola-green mb-1">
-                    {stats.residents.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-600 font-medium">
-                    Island Residents
-                  </div>
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {statTiles.map(tile => (
+              <div key={tile.label} className="bg-white border border-[#E3DCCF] rounded-xl p-3.5">
+                <div className="text-[26px] font-bold text-gabriola-green-dark leading-tight">
+                  {tile.value.toLocaleString()}
                 </div>
-
-                {/* Total Members */}
-                <div className="text-center">
-                  <div className="flex justify-center mb-1.5">
-                    <Users className="w-4 h-4 text-gabriola-ocean" />
-                  </div>
-                  <div className="text-2xl font-bold text-gabriola-ocean mb-1">
-                    {stats.totalMembers.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-600 font-medium">
-                    Community Members
-                  </div>
-                </div>
-
-                {/* Upcoming Events */}
-                <div className="text-center">
-                  <div className="flex justify-center mb-1.5">
-                    <CalendarDays className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-purple-600 mb-1">
-                    {stats.upcomingEvents.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-600 font-medium">
-                    Upcoming Events
-                  </div>
-                </div>
-
-                {/* Local Businesses */}
-                <div className="text-center">
-                  <div className="flex justify-center mb-1.5">
-                    <Building2 className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-amber-600 mb-1">
-                    {stats.businesses.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-600 font-medium">
-                    Local Businesses
-                  </div>
-                </div>
+                <div className="text-[13px] text-[#5B6660]">{tile.label}</div>
               </div>
-            </div>
+            ))}
           </div>
         )}
       </div>

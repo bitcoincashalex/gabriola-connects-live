@@ -1,6 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
-// Date: 2025-12-24
+// Version: 3.0.3 - Attribution now lists all event sources (was "Sample events data")
+// Previous: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
+// Date: 2026-10-10
 // FIX: "Switch to Full Event Form" opens in same window (removed target="_blank")
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
@@ -441,18 +442,17 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
         </div>
         
         {/* Prominent Attribution */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3 text-sm font-medium text-blue-700">
+          Events from the{' '}
           <a 
             href="https://directory.gabriolaevents.ca/gabriola-events/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-sm font-medium text-blue-700 hover:text-blue-900 transition-colors inline-flex items-center gap-1"
+            className="underline hover:text-blue-900 transition-colors"
           >
-            <span>Sample events data from Gabriola Chamber of Commerce</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
+            Gabriola Chamber of Commerce events directory
           </a>
+          , Rollo Centre, Community Hall, Recreation Society and islanders
         </div>
         
         <p className="text-sm text-gray-600">

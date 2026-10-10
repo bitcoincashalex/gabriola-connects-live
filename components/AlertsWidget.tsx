@@ -1,12 +1,17 @@
 // components/AlertsWidget.tsx
-// v2.0.1 - Error state: removed Sign In link (it sat inside the alerts banner button, invalid HTML)
+// v3.0.0 - Front page redesign: draws the whole Community Alerts card. White when all clear;
+//          the card turns red (emergency/warning), amber (advisory) or navy (info) only when
+//          an alert is active. Shows how many alerts are active. No emoji.
+// Previous: v2.0.1 - Error state: removed Sign In link (it sat inside the alerts banner button, invalid HTML)
 // Previous: v2.0.0 - Shows top active alert summary for landing page + timeout handling
-// Date: 2025-12-22
+// Date: 2026-10-10
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
-import { AlertTriangle, Info, AlertCircle } from 'lucide-react';
+import { Bell, ChevronRight } from 'lucide-react';
+import { HomeCard } from '@/components/HomeCard';
 
 interface Alert {
   id: string;
@@ -17,8 +22,18 @@ interface Alert {
   created_at: string;
 }
 
+const SEVERITY_ORDER: Record<string, number> = { emergency: 4, warning: 3, advisory: 2, info: 1 };
+
+const SEVERITY_STYLE: Record<string, { bg: string; label: string }> = {
+  emergency: { bg: 'bg-[#B42318]', label: 'EMERGENCY' },
+  warning: { bg: 'bg-[#B42318]', label: 'WARNING' },
+  advisory: { bg: 'bg-[#9A4A00]', label: 'ADVISORY' },
+  info: { bg: 'bg-[#002774]', label: 'INFO' },
+};
+
 export function AlertsWidget() {
   const [topAlert, setTopAlert] = useState<Alert | null>(null);
+  const [activeCount, setActiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -41,132 +56,74 @@ export function AlertsWidget() {
 
       if (error || !data || data.length === 0) {
         setTopAlert(null);
-        setLoading(false);
+        setActiveCount(0);
         return;
       }
 
-      // Sort by severity (emergency > warning > advisory > info) in JavaScript
-      const severityOrder: Record<string, number> = {
-        'emergency': 4,
-        'warning': 3,
-        'advisory': 2,
-        'info': 1
-      };
-
-      const sortedAlerts = [...data].sort((a, b) => {
-        const aSeverity = severityOrder[a.severity as string] || 0;
-        const bSeverity = severityOrder[b.severity as string] || 0;
-        const severityDiff = bSeverity - aSeverity;
-        if (severityDiff !== 0) return severityDiff;
-        // If same severity, newest first
+      // Most severe first, then newest
+      const sorted = [...data].sort((a, b) => {
+        const diff = (SEVERITY_ORDER[b.severity as string] || 0) - (SEVERITY_ORDER[a.severity as string] || 0);
+        if (diff !== 0) return diff;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
-      setTopAlert(sortedAlerts[0]);
+      setTopAlert(sorted[0] as Alert);
+      setActiveCount(sorted.length);
     } catch (error) {
       console.error('Error fetching top alert:', error);
       setHasError(true);
       setTopAlert(null);
+      setActiveCount(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'emergency':
-        return <AlertTriangle className="w-4 h-4" />;
-      case 'warning':
-        return <AlertCircle className="w-4 h-4" />;
-      case 'advisory':
-        return <AlertCircle className="w-4 h-4" />;
-      case 'info':
-        return <Info className="w-4 h-4" />;
-      default:
-        return <Info className="w-4 h-4" />;
-    }
-  };
-
-  const getSeverityBadge = (severity: string) => {
-    switch (severity) {
-      case 'emergency':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-100 rounded text-xs font-bold border border-red-400/30">
-            {getSeverityIcon(severity)}
-            EMERGENCY
-          </span>
-        );
-      case 'warning':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-600/20 text-orange-100 rounded text-xs font-bold border border-orange-400/30">
-            {getSeverityIcon(severity)}
-            WARNING
-          </span>
-        );
-      case 'advisory':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-600/20 text-yellow-100 rounded text-xs font-bold border border-yellow-400/30">
-            {getSeverityIcon(severity)}
-            ADVISORY
-          </span>
-        );
-      case 'info':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-600/20 text-blue-100 rounded text-xs font-bold border border-blue-400/30">
-            {getSeverityIcon(severity)}
-            INFO
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-white/70 text-sm">
-        Loading alerts...
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <div className="text-center py-2">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white/90" />
-        <p className="font-medium text-sm mb-1 text-white">Unable to load alerts</p>
-        <p className="text-xs text-white/70">Please refresh the page to try again</p>
-      </div>
-    );
-  }
-
   if (!topAlert) {
+    const line = loading
+      ? 'Loading alerts...'
+      : hasError
+        ? 'Unable to load alerts. Please refresh the page to try again.'
+        : 'No active alerts — all clear!';
     return (
-      <div className="text-white/90 text-sm">
-        ✅ No active alerts — all clear!
-      </div>
+      <HomeCard
+        href="/alerts"
+        icon={Bell}
+        title="Community Alerts"
+        subtitle={<span className={!loading && !hasError ? 'text-sm font-semibold text-gabriola-green' : ''}>{line}</span>}
+      />
     );
   }
+
+  const style = SEVERITY_STYLE[topAlert.severity] || SEVERITY_STYLE.info;
+  const category = topAlert.category ? topAlert.category.charAt(0).toUpperCase() + topAlert.category.slice(1) : '';
 
   return (
-    <div className="space-y-2">
-      {/* Severity Badge */}
-      <div className="flex items-center gap-2">
-        {getSeverityBadge(topAlert.severity)}
-        <span className="text-xs text-white/60">
-          {topAlert.category.charAt(0).toUpperCase() + topAlert.category.slice(1)}
-        </span>
+    <Link
+      href="/alerts"
+      className={`group block ${style.bg} text-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="relative w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+          <Bell className="w-[22px] h-[22px]" aria-hidden="true" />
+          {activeCount > 1 && (
+            <span className="absolute -top-2 -right-2 bg-white text-[#1F2A24] text-xs font-bold min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center">
+              {activeCount}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="font-display text-[21px] font-bold leading-tight">Community Alerts</h2>
+          </div>
+          <div className="text-xs font-bold tracking-wide mt-1">
+            {style.label}{category && <span className="font-medium opacity-90"> · {category}</span>}
+          </div>
+          <div className="font-semibold mt-1 line-clamp-1">{topAlert.title}</div>
+          <div className="text-sm opacity-95 line-clamp-2">{topAlert.message}</div>
+        </div>
+        <ChevronRight className="w-5 h-5 flex-shrink-0 mt-2 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
       </div>
-
-      {/* Alert Title */}
-      <div className="font-semibold text-white line-clamp-1">
-        {topAlert.title}
-      </div>
-
-      {/* Alert Message (truncated) */}
-      <div className="text-sm text-white/80 line-clamp-2">
-        {topAlert.message}
-      </div>
-    </div>
+    </Link>
   );
 }
