@@ -1,8 +1,9 @@
 // Path: components/BBS.tsx
-// Version: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
+// Version: 6.0.1 - Topic rows no longer show a scrollbar on computers
+// Previous: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
 //                  row that scrolls sideways (sub-topics open in a second row), compact post list.
 //                  Signed-in member line kept, without the large text. No emoji.
-// Previous: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
+// Earlier: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
 // Earlier: 5.1.0 - Added auto-scroll to thread list on category/search selection
 // Date: 2026-10-10
 
@@ -233,7 +234,7 @@ export default function BBS() {
           />
 
           {/* Topics: one row that scrolls sideways */}
-          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Forum topics">
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Forum topics">
             <button onClick={() => { setActiveCategory('all'); setOpenParent(null); }} className={chip(activeCategory === 'all')}>
               All Posts
             </button>
@@ -256,7 +257,7 @@ export default function BBS() {
 
           {/* Sub-topics of the open topic */}
           {openChildren.length > 0 && (
-            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1">
+            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {openChildren.map(child => (
                 <button key={child.slug} onClick={() => setActiveCategory(child.slug)} className={chip(activeCategory === child.slug)}>
                   {child.name}
