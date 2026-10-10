@@ -1,7 +1,10 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities
-// Version: 6.3.0 - Removed background bubbles that were overlapping volunteer count on iOS
-// Date: 2025-01-14
+// Version: 6.4.0 - Outer <Link> changed to <div>. The landing page card already links to
+//                  /community-hub, and a link inside a link broke page hydration (React #418/#423).
+//                  Error state: removed nested Sign In link.
+// Previous: 6.3.0 - Removed background bubbles that were overlapping volunteer count on iOS
+// Date: 2026-10-09
 
 'use client';
 
@@ -79,8 +82,7 @@ export function ForumWidget() {
   };
 
   return (
-    <Link
-      href="/community-hub"
+    <div
       className="group bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 p-6 text-white overflow-hidden relative"
     >
       {/* Content */}
@@ -111,14 +113,7 @@ export function ForumWidget() {
           <div className="text-center py-2">
             <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-90" />
             <p className="font-medium text-sm mb-1">Unable to load discussions</p>
-            <p className="text-xs text-blue-100 mb-3">Sign in to see the latest</p>
-            <Link
-              href="/signin"
-              className="inline-block px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Sign In
-            </Link>
+<p className="text-xs text-blue-100">Please refresh the page to try again</p>
           </div>
         ) : (
           <>
@@ -156,6 +151,6 @@ export function ForumWidget() {
           </svg>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

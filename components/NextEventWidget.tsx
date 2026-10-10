@@ -1,6 +1,7 @@
 // components/NextEventWidget.tsx
 // Shows next 2 upcoming events - REDESIGNED
-// Version: 4.3.1 - Removed "Next:" label, made 2nd event bigger and more readable
+// Version: 4.3.2 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
+// Previous: 4.3.1 - Removed "Next:" label, made 2nd event bigger and more readable
 // Date: 2025-12-22
 
 'use client';
@@ -9,7 +10,6 @@ import { useState, useEffect } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
 import { format, isToday, isTomorrow, parseISO } from 'date-fns';
 import { Calendar, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
 
 interface EventInfo {
   id: string;
@@ -115,13 +115,7 @@ export function NextEventWidget() {
         <div className="text-center py-2">
           <AlertCircle className="w-8 h-8 mx-auto mb-2 text-white/90" />
           <p className="font-medium text-sm mb-1 text-white">Unable to load events</p>
-          <p className="text-xs text-white/70 mb-3">Sign in to see the latest</p>
-          <Link
-            href="/signin"
-            className="inline-block px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
-          >
-            Sign In
-          </Link>
+          <p className="text-xs text-white/70">Please refresh the page to try again</p>
         </div>
       </div>
     );
