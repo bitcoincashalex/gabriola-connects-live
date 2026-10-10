@@ -1,6 +1,7 @@
 // components/LandingPage.tsx
-// v5.0.1 - Fixed Firefox z-index bug (card background covering widget content)
-// Date: 2025-12-22
+// v5.0.2 - About text: added "ferry times"
+// Previous: v5.0.1 - Fixed Firefox z-index bug (card background covering widget content)
+// Date: 2026-10-10
 'use client';
 
 import Link from 'next/link';
@@ -462,7 +463,7 @@ export default function LandingPage() {
             Welcome to Your Island Community
           </h2>
           <p className="text-lg text-gray-700 mb-6 text-center leading-relaxed max-w-3xl mx-auto">
-            Gabriola Connects is built by islanders, for islanders. Discover events, join discussions, 
+            Gabriola Connects is built by islanders, for islanders. Discover events, ferry times, join discussions, 
             support local businesses, and stay connected with our community of 4,500 residents.
           </p>
           <p className="text-gray-500 text-xs text-center">
