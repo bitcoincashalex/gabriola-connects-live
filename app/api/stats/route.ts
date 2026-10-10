@@ -1,10 +1,15 @@
 // app/api/stats/route.ts
-// Version: 1.0.0 - Public community stats API
-// Date: 2025-12-18
+// Version: 1.1.0 - Counts refresh every 5 minutes (they were frozen at build time, so the
+//                  front page showed stale numbers until the next deploy); "today" uses
+//                  Gabriola's date instead of UTC
+// Previous: 1.0.0 - Public community stats API (2025-12-18)
+// Date: 2026-10-10
 // Purpose: Provide public access to community stats counts without exposing user data
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+
+export const revalidate = 300; // seconds
 
 // Use service role key to bypass RLS for counting
 const supabaseAdmin = createClient(
@@ -26,7 +31,7 @@ export async function GET() {
       .select('*', { count: 'exact', head: true });
 
     // Count upcoming events (future events only)
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const { count: eventCount } = await supabaseAdmin
       .from('events')
       .select('*', { count: 'exact', head: true })
