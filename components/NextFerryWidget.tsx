@@ -1,8 +1,9 @@
 // components/NextFerryWidget.tsx
 // Ferry display for landing page - REDESIGNED
 // Shows next ferry from both terminals - NO TIMEOUT (BC Ferries API can be slow)
-// Version: 5.3.0 - Live line always shows when BC Ferries data is fresh: last Nanaimo sailing
-//                  "on time" or "X min late" (from 2 minutes), or a cancellation
+// Version: 5.4.0 - Live line only when it matters: Nanaimo sailings 10+ min late, or a
+//                  cancellation. One short line, no "on time" line, no "Live" tag.
+// Previous: 5.3.0 - Live line always shows (on time / late from 2 min / cancelled)
 // Previous: 5.2.0 - Uses the public widget connection (no login wait), lets the database use
 //                  Gabriola time instead of the visitor's clock, and shows a live delay or
 //                  cancellation line from BC Ferries when Nanaimo sailings are running late
@@ -13,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseWithTimeout';
-import { Anchor, AlertCircle, CheckCircle } from 'lucide-react';
+import { Anchor, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface FerryInfo {
@@ -28,7 +29,7 @@ export function NextFerryWidget() {
   const [fromGabriola, setFromGabriola] = useState<FerryInfo | null>(null);
   const [fromNanaimo, setFromNanaimo] = useState<FerryInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [liveNote, setLiveNote] = useState<{ text: string; kind: 'cancelled' | 'late' | 'ontime' } | null>(null);
+  const [liveNote, setLiveNote] = useState<{ text: string; kind: 'cancelled' | 'late' } | null>(null);
 
   useEffect(() => {
     const loadNextFerries = async () => {
@@ -58,7 +59,7 @@ export function NextFerryWidget() {
           const [h, m] = t.split(':').map(Number);
           return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
         };
-        let note: { text: string; kind: 'cancelled' | 'late' | 'ontime' } | null = null;
+        let note: { text: string; kind: 'cancelled' | 'late' } | null = null;
         if (fresh) {
           // Cancellations still relevant: upcoming, or within the last hour
           const nowParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
@@ -67,12 +68,9 @@ export function NextFerryWidget() {
           const cancelled = live.filter(l => l.status === 'cancelled' && toMin(l.scheduled_time) >= nowMin - 60);
           const lastDeparted = [...live].reverse().find(l => l.status === 'departed');
           if (cancelled.length > 0) {
-            note = { kind: 'cancelled', text: `Cancelled from Nanaimo: ${cancelled.map(c => toDisplay(c.scheduled_time)).join(', ')}` };
-          } else if (lastDeparted && lastDeparted.actual_departure) {
-            const late = lastDeparted.delay_minutes || 0;
-            note = late >= 2
-              ? { kind: 'late', text: `Last from Nanaimo: ${toDisplay(lastDeparted.scheduled_time)} left ${toDisplay(lastDeparted.actual_departure)}, ${late} min late` }
-              : { kind: 'ontime', text: `Last from Nanaimo: ${toDisplay(lastDeparted.scheduled_time)}, on time` };
+            note = { kind: 'cancelled', text: `Cancelled: ${cancelled.map(c => toDisplay(c.scheduled_time)).join(', ')} from Nanaimo` };
+          } else if (lastDeparted && (lastDeparted.delay_minutes || 0) >= 10) {
+            note = { kind: 'late', text: `Running ${lastDeparted.delay_minutes} min late from Nanaimo` };
           }
         }
         setLiveNote(note);
@@ -149,12 +147,9 @@ export function NextFerryWidget() {
       
       {/* Live delay / cancellation from BC Ferries */}
       {liveNote && (
-        <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white ${liveNote.kind === 'cancelled' ? 'bg-red-600/80' : liveNote.kind === 'late' ? 'bg-white/25' : 'bg-white/15'}`}>
-          {liveNote.kind === 'ontime'
-            ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+        <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white ${liveNote.kind === 'cancelled' ? 'bg-red-600/80' : 'bg-white/25'}`}>
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{liveNote.text}</span>
-          <span className="ml-auto text-[10px] font-normal opacity-75 whitespace-nowrap">Live</span>
         </div>
       )}
 
