@@ -1,5 +1,7 @@
 // app/calendar/page.tsx
-// Version: 1.1.0 - Loads all events (was cut off at Supabase's 1,000-row limit, hiding
+// Version: 1.1.1 - Page background matches the new calendar; event pop-up shows the Source
+//                  (source name and link were not being passed through, so it was blank)
+// Previous: 1.1.0 - Loads all events (was cut off at Supabase's 1,000-row limit, hiding
 //                  everything after early June 2026) and no longer shows deleted events
 // Previous: 1.0.0 - Dedicated Calendar page (eliminates flash navigation) (2025-12-20)
 // Date: 2026-10-10
@@ -90,6 +92,10 @@ export default function CalendarPage() {
           
           // Media
           image_url: event.image_url,
+
+          // Where the listing came from (shown as "Source" in the event pop-up)
+          source_name: event.source_name,
+          source_url: event.source_url,
           
           // Metadata
           created_at: event.created_at || new Date().toISOString(),
@@ -109,7 +115,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gabriola-sand/10">
+    <div className="flex flex-col min-h-screen bg-[#F6F2EA]">
       <main className="flex-1 overflow-auto">
         <Calendar events={events} loading={loading} />
       </main>

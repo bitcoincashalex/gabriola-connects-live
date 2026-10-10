@@ -1,7 +1,8 @@
 // components/EventDetailModal.tsx
 // Reusable event detail modal - extracted from Calendar.tsx
-// Version: 1.2.0 - Added gallery_images support with lightbox
-// Date: 2025-01-11
+// Version: 1.2.1 - Times shown as 10:00 AM (was 10:00:00)
+// Previous: 1.2.0 - Added gallery_images support with lightbox
+// Date: 2026-10-10
 
 'use client';
 
@@ -9,6 +10,7 @@ import { useState } from 'react';
 import { Event } from '@/lib/types';
 import { X, Clock, MapPin, Mail, Phone, ZoomIn } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatEventTime } from '@/components/CalendarList';
 
 interface EventDetailModalProps {
   event: Event | null;
@@ -37,7 +39,7 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
         `Hi,\n\nI would like to RSVP for the following event:\n\n` +
         `Event: ${selectedEvent.title}\n` +
         `Date: ${format(ensureDate(selectedEvent.start_date), 'MMMM d, yyyy')}\n` +
-        `Time: ${selectedEvent.start_time}\n` +
+        `Time: ${formatEventTime(selectedEvent.start_time, selectedEvent.is_all_day)}\n` +
         `Location: ${selectedEvent.location}\n\n` +
         `Please confirm my attendance.\n\nThank you!`
       );
@@ -107,8 +109,8 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
               <Clock className="w-5 h-5 text-gabriola-green flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="font-medium">{event.start_time}</span>
-                  {event.end_time && <span className="text-gray-500">- {event.end_time}</span>}
+                  <span className="font-medium">{formatEventTime(event.start_time, event.is_all_day)}</span>
+                  {event.end_time && !event.is_all_day && <span className="text-gray-500">- {formatEventTime(event.end_time)}</span>}
                   <span className="text-gray-500">
                     on {format(ensureDate(event.start_date), 'MMMM d, yyyy')}
                     {event.end_date && ensureDate(event.end_date).getTime() !== ensureDate(event.start_date).getTime() && 

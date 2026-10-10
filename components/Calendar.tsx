@@ -1,6 +1,11 @@
 // Path: components/Calendar.tsx
-// Version: 3.0.3 - Attribution now lists all event sources (was "Sample events data")
-// Previous: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
+// Version: 4.0.0 - Calendar redesign: List view (day by day, the default on phones) and Month view
+//                  with a toggle; filter by venue; shows "Loading events..." until events arrive
+//                  (was "0 events" over an empty calendar); times shown as 10:00 AM (was 10:00:00);
+//                  second Sign In button removed (the site header has one); day's events no longer
+//                  in a small box that scrolls on its own; page no longer jumps down on first load.
+// Previous: 3.0.3 - Attribution now lists all event sources (was "Sample events data")
+// Earlier: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
 // Date: 2026-10-10
 // FIX: "Switch to Full Event Form" opens in same window (removed target="_blank")
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
@@ -11,10 +16,11 @@ import Link from 'next/link';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { Event } from '@/lib/types';
-import { X, MapPin, Clock, Plus, Mail, Phone, Upload, LogIn, UserCircle } from 'lucide-react';
+import { X, Clock, Plus, Upload, UserCircle, List, CalendarDays } from 'lucide-react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import EventDetailModal from '@/components/EventDetailModal';
+import CalendarList, { formatEventTime, eventPlace } from '@/components/CalendarList';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar-custom.css';
 
@@ -62,6 +68,22 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   const [showAddForm, setShowAddForm] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
+  const [view, setView] = useState<'list' | 'month'>('list');
+  const [venueFilter, setVenueFilter] = useState<string>('');
+  const firstDateRun = useRef(true);
+
+  // Phones start on the list, computers on the month. A choice the visitor makes is remembered.
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem('gc-calendar-view'); } catch {}
+    if (saved === 'list' || saved === 'month') setView(saved);
+    else setView(window.innerWidth < 768 ? 'list' : 'month');
+  }, []);
+
+  const chooseView = (v: 'list' | 'month') => {
+    setView(v);
+    try { localStorage.setItem('gc-calendar-view', v); } catch {}
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -108,8 +130,9 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     loadVenues();
   }, []);
 
-  // Auto-scroll to event list when date is selected
+  // Auto-scroll to event list when a date is picked (not on first load)
   useEffect(() => {
+    if (firstDateRun.current) { firstDateRun.current = false; return; }
     // Small delay to let event list render first
     setTimeout(() => {
       eventListRef.current?.scrollIntoView({ 
@@ -148,13 +171,33 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     setImagePreview(null);
   };
 
+  // Venues to filter by: the places with the most events, busiest first
+  const venueOptions = useMemo(() => {
+    if (!Array.isArray(events)) return [];
+    const counts = new Map<string, number>();
+    for (const e of events) {
+      const place = e ? eventPlace(e) : '';
+      if (place) counts.set(place, (counts.get(place) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .filter(([, n]) => n >= 2)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 40)
+      .map(([name]) => name);
+  }, [events]);
+
+  const shownEvents = useMemo(() => {
+    if (!Array.isArray(events)) return [];
+    return venueFilter ? events.filter(e => e && eventPlace(e) === venueFilter) : events;
+  }, [events, venueFilter]);
+
   const calendarEvents = useMemo(() => {
     // Safety: Return empty array if events is not a valid array
-    if (!Array.isArray(events) || events.length === 0) {
+    if (!Array.isArray(shownEvents) || shownEvents.length === 0) {
       return [];
     }
     
-    return events
+    return shownEvents
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .map(event => ({
         title: event.title || 'Untitled Event',
@@ -162,15 +205,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
         end: ensureDate(event.end_date || event.start_date),
         resource: event,
       }));
-  }, [events]);
+  }, [shownEvents]);
 
   const eventsForSelectedDate = useMemo(() => {
     // Safety: Return empty array if events is not a valid array
-    if (!Array.isArray(events) || events.length === 0) {
+    if (!Array.isArray(shownEvents) || shownEvents.length === 0) {
       return [];
     }
     
-    return events
+    return shownEvents
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .filter(event => {
         try {
@@ -186,7 +229,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
         const timeB = b.start_time || '00:00:00';
         return timeA.localeCompare(timeB);
       });
-  }, [events, selectedDate]);
+  }, [shownEvents, selectedDate]);
 
   const handleSelectSlot = ({ start }: { start: Date }) => {
     setSelectedDate(start);
@@ -341,7 +384,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
         `Hi,\n\nI would like to RSVP for the following event:\n\n` +
         `Event: ${event.title}\n` +
         `Date: ${format(ensureDate(event.start_date), 'MMMM d, yyyy')}\n` +
-        `Time: ${event.start_time}\n` +
+        `Time: ${formatEventTime(event.start_time, event.is_all_day)}\n` +
         `Location: ${event.location}\n\n` +
         `Please confirm my attendance.\n\nThank you!`
       );
@@ -408,56 +451,76 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-4 border-b border-gabriola-green/20">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-display font-bold text-gabriola-green">
+    <div className="flex flex-col h-full bg-[#F6F2EA] text-[#1F2A24]">
+      <div className="px-4 pt-4 pb-3 bg-white border-b border-[#E3DCCF]">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h1 className="text-2xl font-display font-bold text-gabriola-green-dark">
             Island Events
           </h1>
-          <div className="flex items-center gap-2">
-            {user ? (
-              <>
-                <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 mr-2">
-                  <UserCircle className="w-5 h-5" />
-                  <span>{user.username}</span>
-                </div>
-                <button
-                  onClick={() => setShowAddForm(!showAddForm)}
-                  className="bg-gabriola-green text-white px-4 py-2 rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {showAddForm ? 'Cancel' : 'Add Event'}
-                </button>
-              </>
-            ) : (
+          {user && (
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-[#5B6660] mr-2">
+                <UserCircle className="w-5 h-5" />
+                <span>{user.username}</span>
+              </div>
               <button
-                onClick={() => window.location.href = '/signin'}
-                className="bg-white text-gabriola-green border-2 border-gabriola-green px-4 py-2 rounded-lg font-semibold hover:bg-gabriola-green hover:text-white transition-colors flex items-center gap-2"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="bg-gabriola-green text-white px-4 py-2 min-h-[44px] rounded-lg font-semibold hover:bg-gabriola-green-dark transition-colors flex items-center gap-2"
               >
-                <LogIn className="w-4 h-4" />
-                Sign In
+                <Plus className="w-4 h-4" />
+                {showAddForm ? 'Cancel' : 'Add Event'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        
-        {/* Prominent Attribution */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3 text-sm font-medium text-blue-700">
+
+        {/* Attribution */}
+        <p className="text-[13px] text-[#5B6660] mb-3">
           Events from the{' '}
-          <a 
-            href="https://directory.gabriolaevents.ca/gabriola-events/" 
-            target="_blank" 
+          <a
+            href="https://directory.gabriolaevents.ca/gabriola-events/"
+            target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-blue-900 transition-colors"
+            className="underline text-gabriola-green hover:text-gabriola-green-dark"
           >
             Gabriola Chamber of Commerce events directory
           </a>
           , Rollo Centre, Community Hall, Recreation Society and islanders
-        </div>
-        
-        <p className="text-sm text-gray-600">
-          {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} on {format(selectedDate, 'MMMM d, yyyy')}
         </p>
+
+        {/* View toggle + venue filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-gabriola-green overflow-hidden" role="group" aria-label="Calendar view">
+            <button
+              onClick={() => chooseView('list')}
+              aria-pressed={view === 'list'}
+              className={`flex items-center gap-1.5 px-4 min-h-[44px] text-sm font-semibold transition-colors ${view === 'list' ? 'bg-gabriola-green text-white' : 'bg-white text-gabriola-green hover:bg-gabriola-green/10'}`}
+            >
+              <List className="w-4 h-4" aria-hidden="true" /> List
+            </button>
+            <button
+              onClick={() => chooseView('month')}
+              aria-pressed={view === 'month'}
+              className={`flex items-center gap-1.5 px-4 min-h-[44px] text-sm font-semibold border-l border-gabriola-green transition-colors ${view === 'month' ? 'bg-gabriola-green text-white' : 'bg-white text-gabriola-green hover:bg-gabriola-green/10'}`}
+            >
+              <CalendarDays className="w-4 h-4" aria-hidden="true" /> Month
+            </button>
+          </div>
+
+          <label className="flex-1 min-w-[180px] md:max-w-sm">
+            <span className="sr-only">Filter by venue</span>
+            <select
+              value={venueFilter}
+              onChange={e => setVenueFilter(e.target.value)}
+              className="w-full min-h-[44px] px-3 rounded-lg border border-[#CFC6B4] bg-white text-sm text-[#1F2A24] focus:outline-none focus:ring-2 focus:ring-gabriola-green"
+            >
+              <option value="">All venues</option>
+              {venueOptions.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {showAddForm && (
@@ -598,47 +661,61 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
         </div>
       )}
 
-      <div className="flex-1 overflow-auto p-4">
-        <div className="h-full min-h-[600px]">
-          <BigCalendar
-            localizer={localizer}
-            events={calendarEvents}
-            startAccessor="start"
-            endAccessor="end"
-            views={[Views.MONTH]}
-            defaultView={Views.MONTH}
-            date={selectedDate}
-            onNavigate={handleNavigate}
-            onSelectSlot={handleSelectSlot}
-            onSelectEvent={handleSelectEvent}
-            selectable
-            className="h-full"
-            style={{ minHeight: '600px' }}
-          />
-        </div>
-      </div>
-
-      {eventsForSelectedDate.length > 0 && !selectedEvent && (
-        <div ref={eventListRef} className="border-t border-gabriola-green/20 p-4 bg-gabriola-sand/30 overflow-y-auto max-h-64">
-          <h3 className="font-semibold text-gabriola-green-dark mb-3">
-            Events on {format(selectedDate, 'MMMM d')}:
-          </h3>
-          <div className="space-y-2">
-            {eventsForSelectedDate.map(event => (
-              <button
-                key={event.id}
-                onClick={() => setSelectedEvent(event)}
-                className="w-full text-left p-3 bg-white rounded-lg hover:bg-gabriola-green/5 transition-colors border border-gabriola-green/20"
-              >
-                <div className="font-medium text-gabriola-green-dark">{event.title}</div>
-                <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                  <Clock className="w-3 h-3" />
-                  {event.start_time}
-                </div>
-              </button>
-            ))}
+      {loading ? (
+        <div className="py-20 text-center text-[#5B6660]" role="status">Loading events...</div>
+      ) : view === 'list' ? (
+        <CalendarList events={shownEvents} onSelect={setSelectedEvent} />
+      ) : (
+        <>
+          <div className="p-4 bg-white">
+            <p className="text-sm text-[#5B6660] mb-2">
+              {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} on {format(selectedDate, 'MMMM d, yyyy')}
+            </p>
+            <div className="min-h-[600px]">
+              <BigCalendar
+                localizer={localizer}
+                events={calendarEvents}
+                startAccessor="start"
+                endAccessor="end"
+                views={[Views.MONTH]}
+                defaultView={Views.MONTH}
+                date={selectedDate}
+                onNavigate={handleNavigate}
+                onSelectSlot={handleSelectSlot}
+                onSelectEvent={handleSelectEvent}
+                selectable
+                className="h-full"
+                style={{ minHeight: '600px' }}
+              />
+            </div>
           </div>
-        </div>
+
+          {eventsForSelectedDate.length > 0 && !selectedEvent && (
+            <div ref={eventListRef} className="p-4 scroll-mt-24">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gabriola-green-dark mb-2">
+                Events on {format(selectedDate, 'EEEE, MMMM d')}
+              </h3>
+              <div className="bg-white border border-[#E3DCCF] rounded-2xl divide-y divide-[#EEE8DD] overflow-hidden">
+                {eventsForSelectedDate.map(event => (
+                  <button
+                    key={event.id}
+                    onClick={() => setSelectedEvent(event)}
+                    className="w-full text-left flex gap-3 px-4 py-3 min-h-[56px] hover:bg-[#F6F2EA] transition-colors"
+                  >
+                    <span className="w-[72px] flex-shrink-0 text-sm font-semibold text-gabriola-green pt-0.5 flex items-start gap-1">
+                      <Clock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                      {formatEventTime(event.start_time, event.is_all_day)}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[15px] font-semibold leading-snug">{event.title}</span>
+                      {eventPlace(event) && <span className="block text-[13px] text-[#5B6660] truncate">{eventPlace(event)}</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Event Detail Modal */}
