@@ -1,6 +1,10 @@
 // components/ThreadCard.tsx
-// Version: 7.0.7 - Removed redundant RPC call (trigger handles score update)
-// Date: 2025-12-22
+// Version: 8.0.0 - Compact card for the forum redesign: topic name on top, smaller title, two-line
+//                  preview with formatting marks (**, ##, links) taken out, one line for author,
+//                  time, votes, replies and views. Edit/pin/delete/report buttons are visible on
+//                  phones (they only showed on mouse hover before). No emoji.
+// Previous: 7.0.7 - Removed redundant RPC call (trigger handles score update)
+// Date: 2026-10-10
 
 'use client';
 
@@ -16,16 +20,31 @@ import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import ImageGallery from '@/components/ImageGallery';
 import EditPostModal from '@/components/EditPostModal';
-import LinkifyText from '@/components/LinkifyText';
+
+// Plain-text preview: removes markdown marks so "**Posted by:**" shows as "Posted by:"
+function previewText(body: string): string {
+  return (body || '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')            // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')         // links -> their text
+    .replace(/^\s*([-*_]\s*){3,}$/gm, '')               // divider lines (---)
+    .replace(/^\s{0,3}#{1,6}\s*/gm, '')                // headings
+    .replace(/^\s{0,3}>\s?/gm, '')                     // quotes
+    .replace(/^\s*[-*+]\s+/gm, '')                     // list bullets
+    .replace(/(\*\*|__|\*|_|~~|`)/g, '')               // bold, italic, strike, code
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export default function ThreadCard({ 
   thread, 
   currentUser, 
-  onRefresh 
+  onRefresh,
+  categoryName
 }: { 
   thread: any; 
   currentUser: any; 
   onRefresh: () => void;
+  categoryName?: string;
 }) {
   const { user } = useUser();
   const isAdmin = user?.is_super_admin || user?.role === 'admin';
@@ -239,7 +258,7 @@ export default function ThreadCard({
     <>
       <div className="relative group">
         {/* Admin + Author Controls */}
-        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10">
+        <div className="absolute top-3 right-3 flex gap-2 md:opacity-0 md:group-hover:opacity-100 transition z-10">
           {/* Edit button (author only) */}
           {isAuthor && !thread.is_anonymous && (
             <button
@@ -287,171 +306,113 @@ export default function ThreadCard({
 
         {/* Thread Card */}
         <Link href={`/community/thread/${thread.id}`} className="block">
-          <div className={`bg-white rounded-2xl shadow hover:shadow-lg transition p-6 border-2 ${
-            isPinned ? 'border-yellow-400' : 'border-transparent'
+          <div className={`rounded-2xl px-4 py-3.5 border transition-shadow hover:shadow-md ${
+            isPinned ? 'bg-[#FFFBEB] border-[#E8C96A]' : 'bg-white border-[#E3DCCF]'
           }`}>
-            {isPinned && (
-              <div className="flex items-center gap-2 text-yellow-600 font-bold text-sm mb-2">
-                <Pin className="w-4 h-4" />
-                PINNED
-              </div>
-            )}
+            <div className={`flex items-center gap-1.5 text-xs font-bold mb-1 ${isPinned ? 'text-[#8A5A00] tracking-wide' : 'text-gabriola-green'} ${(isAuthor || isAdmin || (!isOwnPost && user)) ? 'pr-36 md:pr-0' : ''}`}>
+              {isPinned && <Pin className="w-3.5 h-3.5" aria-hidden="true" />}
+              {isPinned ? 'PINNED · ' : ''}{categoryName || (thread.category || '').replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+            </div>
 
-            <h3 className="text-2xl font-bold text-gabriola-green-dark mb-3">
+            <h3 className="text-[17px] font-bold leading-snug text-[#1F2A24]">
               {thread.title}
             </h3>
 
-            {/* Body Preview */}
-            <div className="text-gray-700 mb-4 line-clamp-3">
-              <LinkifyText>{thread.body}</LinkifyText>
-            </div>
+            {/* Two-line preview, plain text */}
+            {thread.body && (
+              <p className="text-sm text-[#3A4640] leading-relaxed mt-1 line-clamp-2">
+                {previewText(thread.body)}
+              </p>
+            )}
 
-            {/* Image Gallery */}
+            {/* Images */}
             {!imagesLoading && images.length > 0 && (
-              <div 
-                onClick={(e) => e.preventDefault()}
-                className="mb-4"
-              >
+              <div onClick={(e) => e.preventDefault()} className="mt-2">
                 <ImageGallery images={images} />
               </div>
             )}
 
-            {/* Link Preview */}
+            {/* Link */}
             {thread.link_url && (
-              <div className="mb-4">
-                <a
-                  href={thread.link_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-2 text-gabriola-green hover:text-gabriola-green-dark text-sm font-medium"
-                >
-                  <Link2 className="w-4 h-4" />
-                  <span className="underline truncate max-w-md">{thread.link_url}</span>
-                </a>
-              </div>
+              <a
+                href={thread.link_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1.5 inline-flex items-center gap-1.5 text-gabriola-green hover:text-gabriola-green-dark text-sm font-medium max-w-full"
+              >
+                <Link2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                <span className="underline truncate">{thread.link_url}</span>
+              </a>
             )}
 
-            {/* Author info */}
-            <div className="flex items-center gap-3 mb-4">
-              {/* Avatar */}
-              {!thread.is_anonymous && thread.author?.avatar_url ? (
-                <img 
-                  src={thread.author.avatar_url} 
-                  alt={thread.display_name}
-                  className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
-                  {thread.is_anonymous ? '?' : (thread.display_name?.charAt(0) || '?')}
-                </div>
-              )}
-              
-              {/* Name and badges */}
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">{thread.display_name || 'Anonymous'}</span>
-                
-                {/* Resident Badge */}
-                {!thread.is_anonymous && thread.author?.is_resident && (
-                  <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                    🏝️ Resident
+            {/* Author, time, votes, replies, views */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 text-[13px] text-[#5B6660]">
+              <span className="flex items-center gap-1.5 min-w-0">
+                {!thread.is_anonymous && thread.author?.avatar_url ? (
+                  <img
+                    src={thread.author.avatar_url}
+                    alt=""
+                    className="w-5 h-5 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="w-5 h-5 rounded-full bg-[#EEE8DD] flex items-center justify-center text-[10px] font-bold text-[#5B6660]" aria-hidden="true">
+                    {thread.is_anonymous ? '?' : (thread.display_name?.charAt(0) || '?')}
                   </span>
                 )}
-                
-                {/* Anonymous Badge */}
+                <span className="font-medium text-[#3A4640] truncate">{thread.display_name || 'Anonymous'}</span>
+                {!thread.is_anonymous && thread.author?.is_resident && (
+                  <span className="bg-[#E6EFE8] text-gabriola-green-dark px-1.5 py-0.5 rounded-full text-[11px] font-semibold">Resident</span>
+                )}
                 {thread.is_anonymous && (
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
+                  <span className="bg-[#EEE8DD] px-1.5 py-0.5 rounded-full text-[11px] font-semibold">Anonymous</span>
                 )}
-                
-                {/* Send Message Button */}
-                {canMessageAuthor && (
-                  <button
-                    onClick={handleMessageClick}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full transition text-xs font-medium"
-                    title="Send private message"
-                  >
-                    <Mail className="w-3 h-3" />
-                    Message
-                  </button>
-                )}
-                
-                <span className="text-gray-400">•</span>
-                <span>{formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}</span>
-                
-                {/* Edited indicator */}
-                {thread.edited_at && (
-                  <>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-xs italic text-gray-500">edited</span>
-                  </>
-                )}
-              </div>
-            </div>
+              </span>
+              <span>{formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}{thread.edited_at ? ' · edited' : ''}</span>
 
-            {/* Stats and Voting */}
-            <div className="flex items-center gap-6 text-sm text-gray-600">
-              {/* Voting buttons */}
-              {user && (
-                <div 
-                  className="flex items-center gap-1"
-                  onClick={(e) => e.preventDefault()}
-                >
+              {/* Votes */}
+              {user ? (
+                <span className="flex items-center" onClick={(e) => e.preventDefault()}>
                   <button
                     onClick={() => handleVote('upvote')}
                     disabled={voting}
-                    className={`p-1 rounded hover:bg-gray-100 transition ${
-                      userVote === 'upvote' ? 'text-green-600' : 'text-gray-400'
-                    }`}
-                    title="Upvote"
+                    aria-label="Upvote"
+                    className={`w-8 h-8 flex items-center justify-center rounded hover:bg-[#F6F2EA] ${userVote === 'upvote' ? 'text-green-600' : 'text-[#5B6660]'}`}
                   >
                     <ChevronUp className="w-5 h-5" />
                   </button>
-                  <span className={`font-semibold min-w-[2rem] text-center ${getScoreColor(voteScore)}`}>
-                    {voteScore}
-                  </span>
+                  <span className={`font-semibold min-w-[1.25rem] text-center ${getScoreColor(voteScore)}`}>{voteScore}</span>
                   <button
                     onClick={() => handleVote('downvote')}
                     disabled={voting}
-                    className={`p-1 rounded hover:bg-gray-100 transition ${
-                      userVote === 'downvote' ? 'text-red-600' : 'text-gray-400'
-                    }`}
-                    title="Downvote"
+                    aria-label="Downvote"
+                    className={`w-8 h-8 flex items-center justify-center rounded hover:bg-[#F6F2EA] ${userVote === 'downvote' ? 'text-red-600' : 'text-[#5B6660]'}`}
                   >
                     <ChevronDown className="w-5 h-5" />
                   </button>
-                </div>
-              )}
-              
-              {/* Just display score if not logged in */}
-              {!user && (
-                <span className={`flex items-center gap-2 font-semibold ${getScoreColor(voteScore)}`}>
-                  <ChevronUp className="w-4 h-4" />
-                  {voteScore}
+                </span>
+              ) : (
+                <span className={`flex items-center gap-0.5 font-semibold ${getScoreColor(voteScore)}`} title="Votes">
+                  <ChevronUp className="w-4 h-4" aria-hidden="true" />{voteScore}
                 </span>
               )}
 
-              {/* Reply count */}
-              <span className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                {thread.reply_count || 0}
+              <span className="flex items-center gap-1" title="Replies">
+                <MessageSquare className="w-4 h-4" aria-hidden="true" />{thread.reply_count || 0}
+              </span>
+              <span className="flex items-center gap-1" title="Views">
+                <Eye className="w-4 h-4" aria-hidden="true" />{thread.view_count || 0}
               </span>
 
-              {/* View count */}
-              <span className="flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                {thread.view_count || 0}
-              </span>
-
-              {/* Category badge */}
-              <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-600">
-                {thread.category.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-              </span>
-
-              {/* Image count indicator */}
-              {images.length > 0 && (
-                <span className="text-xs text-gray-500">
-                  📷 {images.length}
-                </span>
+              {canMessageAuthor && (
+                <button
+                  onClick={handleMessageClick}
+                  className="flex items-center gap-1 px-2 min-h-[28px] bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                  title="Send private message"
+                >
+                  <Mail className="w-3 h-3" aria-hidden="true" />
+                  Message
+                </button>
               )}
             </div>
           </div>

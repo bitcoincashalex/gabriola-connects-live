@@ -1,6 +1,9 @@
 // Path: components/BBS.tsx
-// Version: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
-// Previous: 5.1.0 - Added auto-scroll to thread list on category/search selection
+// Version: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
+//                  row that scrolls sideways (sub-topics open in a second row), compact post list.
+//                  Signed-in member line kept, without the large text. No emoji.
+// Previous: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
+// Earlier: 5.1.0 - Added auto-scroll to thread list on category/search selection
 // Date: 2026-10-10
 
 'use client';
@@ -20,7 +23,7 @@ export default function BBS() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['politics'])); // Politics expanded by default
+  const [openParent, setOpenParent] = useState<string | null>(null); // top-level topic whose sub-topics are showing
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -161,185 +164,127 @@ export default function BBS() {
   const topLevelCategories = categories.filter(cat => !cat.parent_id);
   const getChildren = (parentId: string) => categories.filter(cat => cat.parent_id === parentId);
 
-  // Toggle category expansion
-  const toggleCategory = (slug: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(slug)) {
-      newExpanded.delete(slug);
-    } else {
-      newExpanded.add(slug);
-    }
-    setExpandedCategories(newExpanded);
-  };
-
-  // Handle category click
+  // A topic with sub-topics opens a second row; one without sub-topics is selected
   const handleCategoryClick = (category: any) => {
     const children = getChildren(category.id);
-    
     if (children.length > 0) {
-      // Has children - toggle expansion
-      toggleCategory(category.slug);
+      setOpenParent(openParent === category.slug ? null : category.slug);
     } else {
-      // No children - select category
+      setOpenParent(null);
       setActiveCategory(category.slug);
     }
   };
 
+  const categoryNames: Record<string, string> = Object.fromEntries(categories.map(c => [c.slug, c.name]));
+  const openParentCat = topLevelCategories.find(c => c.slug === openParent);
+  const openChildren = openParentCat ? getChildren(openParentCat.id) : [];
+  const parentOfActive = categories.find(c => c.slug === activeCategory)?.parent_id;
+
+  const chip = (selected: boolean) =>
+    `flex-shrink-0 flex items-center gap-1 px-4 min-h-[40px] rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+      selected ? 'bg-gabriola-green text-white' : 'bg-white border border-[#CFC6B4] text-[#1F2A24] hover:border-gabriola-green'
+    }`;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h1 className="text-5xl font-bold text-gabriola-green">Community Forum</h1>
-              <p className="text-xl text-gray-600 mt-2">Real conversations. Real neighbours. Real Gabriola.</p>
+    <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
+      <div className="bg-white border-b border-[#E3DCCF]">
+        <div className="max-w-5xl mx-auto px-4 pt-4 pb-3 space-y-3">
+          <div>
+            <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Community Forum</h1>
+            <p className="text-sm md:text-base text-[#5B6660]">Real conversations. Real neighbours. Real Gabriola.</p>
+          </div>
 
-              {isAnonymous ? (
-                // Anonymous user - show signup CTA
-                <div className="mt-4 bg-gabriola-green/10 border-2 border-gabriola-green rounded-lg p-4">
-                  <p className="text-lg font-medium text-gabriola-green mb-2">
-                    👋 Browsing as a guest
-                  </p>
-                  <p className="text-gray-700 mb-3">
-                    Sign up to join the conversation, post threads, and reply to your neighbours!
-                  </p>
-                  <div className="flex gap-3">
-                    <Link
-                      href="/signup"
-                      className="bg-gabriola-green text-white px-6 py-2 rounded-lg font-bold hover:bg-gabriola-green-dark transition"
-                    >
-                      Sign Up Free
-                    </Link>
-                    <Link
-                      href="/signin"
-                      className="bg-white text-gabriola-green border-2 border-gabriola-green px-6 py-2 rounded-lg font-bold hover:bg-gray-50 transition"
-                    >
-                      Sign In
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                // Logged-in user - show user info
-                <>
-                  <div className="flex flex-wrap items-center gap-3 mt-4 text-lg">
-                    <span className="font-medium">Logged in as</span>
-                    <span className="font-bold text-gabriola-green">
-                      {user.full_name || user.email}
-                    </span>
-
-                    {roles.map(role => (
-                      <span
-                        key={role.label}
-                        className={`${role.color} text-white px-3 py-1 rounded-full text-sm font-bold`}
-                      >
-                        {role.label}
-                      </span>
-                    ))}
-                  </div>
-
-                  {u.forum_read_only && (
-                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Notice:</strong> Your account is in read-only mode. You can view posts but cannot create new ones or reply.
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {canCreatePost && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                aria-label="New post"
-                className="fixed bottom-24 right-6 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
+          {isAnonymous ? (
+            <div className="flex items-center justify-between gap-3 bg-[#E6EFE8] rounded-xl px-3 py-2.5">
+              <p className="text-sm text-gabriola-green-dark">Browsing as a guest. Sign in to post or reply.</p>
+              <Link
+                href="/signup"
+                className="flex-shrink-0 flex items-center min-h-[40px] px-3.5 rounded-lg bg-gabriola-green text-white text-sm font-semibold hover:bg-gabriola-green-dark transition-colors whitespace-nowrap"
               >
-                <Plus className="w-8 h-8" />
-              </button>
-            )}
-          </div>
+                Sign Up Free
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-[#5B6660]">
+                <span>Signed in as</span>
+                <span className="font-semibold text-gabriola-green-dark">{user.full_name || user.email}</span>
+                {roles.map(role => (
+                  <span key={role.label} className={`${role.color} text-white px-2 py-0.5 rounded-full text-xs font-bold`}>
+                    {role.label}
+                  </span>
+                ))}
+              </div>
+              {u.forum_read_only && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Notice:</strong> Your account is in read-only mode. You can view posts but cannot create new ones or reply.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
 
-          {/* SEARCH BAR - NEW! */}
-          <div className="mb-6">
-            <ForumSearchBar
-              onSearch={handleSearch}
-              onClear={handleClearSearch}
-              resultCount={searchResultCount}
-              isSearching={isSearching}
-            />
-          </div>
+          <ForumSearchBar
+            onSearch={handleSearch}
+            onClear={handleClearSearch}
+            resultCount={searchResultCount}
+            isSearching={isSearching}
+          />
 
-          {/* Category Tabs with Hierarchy */}
-          <div className="flex flex-wrap gap-3">
-            {/* All Posts - Special category */}
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`px-6 py-3 rounded-full font-medium transition ${
-                activeCategory === 'all'
-                  ? 'bg-gabriola-green text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
+          {/* Topics: one row that scrolls sideways */}
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Forum topics">
+            <button onClick={() => { setActiveCategory('all'); setOpenParent(null); }} className={chip(activeCategory === 'all')}>
               All Posts
             </button>
-
-            {/* Top-level categories */}
             {topLevelCategories.map(category => {
-              const children = getChildren(category.id);
-              const hasChildren = children.length > 0;
-              const isExpanded = expandedCategories.has(category.slug);
-
+              const hasChildren = getChildren(category.id).length > 0;
+              const selected = activeCategory === category.slug || parentOfActive === category.id || openParent === category.slug;
               return (
-                <div key={category.slug} className="flex flex-col gap-2">
-                  {/* Parent Category */}
-                  <button
-                    onClick={() => handleCategoryClick(category)}
-                    className={`px-6 py-3 rounded-full font-medium transition flex items-center gap-2 ${
-                      activeCategory === category.slug
-                        ? 'bg-gabriola-green text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {category.name}
-                    {hasChildren && (
-                      isExpanded ? 
-                        <ChevronDown className="w-4 h-4" /> : 
-                        <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
-
-                  {/* Child Categories (shown when expanded) */}
-                  {hasChildren && isExpanded && (
-                    <div className="flex flex-wrap gap-2 ml-4">
-                      {children.map(child => (
-                        <button
-                          key={child.slug}
-                          onClick={() => setActiveCategory(child.slug)}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                            activeCategory === child.slug
-                              ? 'bg-gabriola-green text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                          }`}
-                        >
-                          {child.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button
+                  key={category.slug}
+                  onClick={() => handleCategoryClick(category)}
+                  aria-expanded={hasChildren ? openParent === category.slug : undefined}
+                  className={chip(selected)}
+                >
+                  {category.name}
+                  {hasChildren && (openParent === category.slug ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />)}
+                </button>
               );
             })}
           </div>
+
+          {/* Sub-topics of the open topic */}
+          {openChildren.length > 0 && (
+            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1">
+              {openChildren.map(child => (
+                <button key={child.slug} onClick={() => setActiveCategory(child.slug)} className={chip(activeCategory === child.slug)}>
+                  {child.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {canCreatePost && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              aria-label="New post"
+              className="fixed bottom-24 right-6 bg-gabriola-green text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:bg-gabriola-green-dark transition z-50"
+            >
+              <Plus className="w-8 h-8" />
+            </button>
+          )}
         </div>
       </div>
 
-      <div ref={threadListRef} className="max-w-7xl mx-auto px-6 py-8">
+      <div ref={threadListRef} className="max-w-5xl mx-auto px-4 py-4 scroll-mt-24">
         <ThreadList 
           key={refreshKey} 
           category={activeCategory} 
           currentUser={user || null}
           searchQuery={searchQuery}
           onSearchResults={handleSearchResults}
+          categoryNames={categoryNames}
         />
       </div>
 

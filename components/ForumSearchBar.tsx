@@ -1,6 +1,9 @@
 // components/ForumSearchBar.tsx
-// Version: 1.4.0 - Block forum search for anon, NO duplicate CTA message
-// Date: 2025-01-14
+// Version: 1.5.0 - Forum redesign: one full-width box (no longer cut off on phones); guests see
+//                  "Sign in to search the forum" with no greyed-out Advanced button; Advanced is
+//                  an icon button for members; no pop-up alert for guests
+// Previous: 1.4.0 - Block forum search for anon, NO duplicate CTA message
+// Date: 2026-10-10
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -53,26 +56,14 @@ export default function ForumSearchBar({
     onClear();
   };
 
-  const handleInputFocus = () => {
-    if (!user) {
-      // Just show a brief tooltip-style message
-      alert('Please sign in to search the forum.');
-    }
-  };
 
-  const handleAdvancedClick = (e: React.MouseEvent) => {
-    if (!user) {
-      e.preventDefault();
-      alert('Please sign in to use advanced search.');
-    }
-  };
 
   return (
-    <div className="space-y-3">
-      {/* Search Input */}
-      <div className="flex gap-3 items-center">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+    <div className="space-y-2">
+      <div className="flex gap-2 items-center">
+        <label className="flex-1 relative">
+          <span className="sr-only">Search the forum</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#5B6660]" aria-hidden="true" />
           <input
             type="text"
             value={query}
@@ -81,45 +72,36 @@ export default function ForumSearchBar({
                 setQuery(e.target.value);
               }
             }}
-            onFocus={handleInputFocus}
-            placeholder={user ? "Search threads and replies..." : "Sign in to search forum..."}
+            placeholder={user ? 'Search threads and replies...' : 'Sign in to search the forum'}
             disabled={!user}
-            className={`w-full pl-12 pr-12 py-3 text-base border-2 rounded-xl transition ${
-              user 
-                ? 'border-gray-300 focus:border-gabriola-green focus:outline-none' 
-                : 'border-gray-200 bg-gray-50 cursor-not-allowed text-gray-500'
+            className={`w-full min-h-[44px] pl-10 pr-10 text-[15px] border rounded-xl transition ${
+              user
+                ? 'border-[#CFC6B4] bg-white focus:border-gabriola-green focus:outline-none focus:ring-2 focus:ring-gabriola-green/30'
+                : 'border-[#E3DCCF] bg-[#F6F2EA] cursor-not-allowed text-[#5B6660]'
             }`}
           />
           {query && user && (
             <button
               onClick={handleClear}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-              title="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-[#5B6660] hover:text-[#1F2A24]"
+              aria-label="Clear search"
             >
               <X className="w-5 h-5" />
             </button>
           )}
-        </div>
+        </label>
 
-        {/* Advanced Search Button */}
-        {user ? (
+        {/* Advanced search (members only) */}
+        {user && (
           <Link
             href="/community/search"
-            className="flex items-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition font-medium whitespace-nowrap"
-            title="Advanced Search"
+            className="flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] px-3 border border-[#CFC6B4] bg-white hover:border-gabriola-green text-[#1F2A24] rounded-xl transition font-medium whitespace-nowrap"
+            aria-label="Advanced search"
+            title="Advanced search"
           >
             <SlidersHorizontal className="w-5 h-5" />
-            <span>Advanced</span>
+            <span className="hidden sm:inline text-sm">Advanced</span>
           </Link>
-        ) : (
-          <button
-            onClick={handleAdvancedClick}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-100 text-gray-400 rounded-xl font-medium whitespace-nowrap opacity-50 cursor-not-allowed"
-            title="Sign in to use advanced search"
-          >
-            <SlidersHorizontal className="w-5 h-5" />
-            <span>Advanced</span>
-          </button>
         )}
       </div>
 
@@ -134,7 +116,7 @@ export default function ForumSearchBar({
       {user && !isSearching && debouncedQuery.length >= 2 && resultCount !== undefined && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            ✓ Found <span className="font-semibold text-gabriola-green">{resultCount}</span> {resultCount === 1 ? 'result' : 'results'} for "{debouncedQuery}"
+            Found <span className="font-semibold text-gabriola-green">{resultCount}</span> {resultCount === 1 ? 'result' : 'results'} for "{debouncedQuery}"
           </div>
           <button
             onClick={handleClear}

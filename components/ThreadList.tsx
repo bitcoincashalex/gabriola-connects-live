@@ -1,6 +1,8 @@
 // Path: components/ThreadList.tsx
-// Version: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
-// Date: 2025-01-14
+// Version: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
+//                  tighter spacing, quieter loading and empty text
+// Previous: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
+// Date: 2026-10-10
 
 'use client';
 
@@ -14,13 +16,15 @@ interface ThreadListProps {
   currentUser: User | null;
   searchQuery?: string;
   onSearchResults?: (count: number) => void;
+  categoryNames?: Record<string, string>;
 }
 
 export default function ThreadList({ 
   category, 
   currentUser,
   searchQuery,
-  onSearchResults
+  onSearchResults,
+  categoryNames = {}
 }: ThreadListProps) {
   const [threads, setThreads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,15 +144,15 @@ export default function ThreadList({
     }
   };
 
-  if (loading) return <p className="text-center py-20">Loading threads...</p>;
+  if (loading) return <p className="text-center py-16 text-[#5B6660]" role="status">Loading posts...</p>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2.5">
       {threads.map((thread) => (
-        <ThreadCard key={thread.id} thread={thread} currentUser={currentUser} onRefresh={fetchThreads} />
+        <ThreadCard key={thread.id} thread={thread} currentUser={currentUser} onRefresh={fetchThreads} categoryName={categoryNames[thread.category]} />
       ))}
       {threads.length === 0 && (
-        <p className="text-center py-20 text-gray-500">
+        <p className="text-center py-16 text-[#5B6660]">
           {searchQuery && searchQuery.trim().length >= 2 
             ? `No threads found matching "${searchQuery}"`
             : 'No threads yet — be the first!'}
