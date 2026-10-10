@@ -1,6 +1,7 @@
 // Path: app/auth/callback/page.tsx
-// Version: 1.0.0 - Google (OAuth) sign in landing page
-// Date: 2026-10-09
+// Version: 1.1.0 - Gives up after 20 seconds with a clear message instead of spinning forever
+// Previous: 1.0.0 - Google (OAuth) sign in landing page
+// Date: 2026-10-10
 // Purpose: Google sends the user back here after sign in. The Supabase client
 //          picks the session up from the URL automatically (detectSessionInUrl).
 //          This page then checks the user's profile exists (created by the
@@ -14,6 +15,8 @@ import { Loader2, AlertCircle } from 'lucide-react';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const GIVE_UP_MS = 20000;
+
 function backToSignIn(message: string) {
   window.location.href = '/signin?error=' + encodeURIComponent(message);
 }
@@ -23,6 +26,10 @@ export default function AuthCallbackPage() {
   const [failed, setFailed] = useState('');
 
   useEffect(() => {
+    const giveUp = setTimeout(() => {
+      setFailed('Signing in is taking too long. Close any other Gabriola Connects tabs, then try Continue with Google again.');
+    }, GIVE_UP_MS);
+
     const finish = async () => {
       // Google or Supabase can send an error back (e.g. user pressed Cancel)
       const query = new URLSearchParams(window.location.search);
@@ -74,10 +81,16 @@ export default function AuthCallbackPage() {
       }
 
       // Full page load so AuthProvider picks up the signed in user
+      clearTimeout(giveUp);
       window.location.href = '/';
     };
 
-    finish();
+    finish().catch(err => {
+      clearTimeout(giveUp);
+      console.error('[auth/callback]', err);
+      setFailed('Something went wrong finishing your Google sign in. Please try again.');
+    });
+    return () => clearTimeout(giveUp);
   }, []);
 
   return (

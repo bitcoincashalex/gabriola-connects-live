@@ -1,8 +1,11 @@
 // lib/supabase.ts
-// Version: 2.0.0 - Updated BBSPost type for voting system
-// Date: 2025-12-11
+// Version: 2.1.0 - Login lock is now per tab (processLock). The default lock is shared by every
+//                  gabriolaconnects.ca tab in the browser, so one stuck or sleeping tab could
+//                  freeze sign-in and page loads in all the others.
+// Previous: 2.0.0 - Updated BBSPost type for voting system
+// Date: 2026-10-10
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, processLock } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -15,7 +18,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    lock: processLock,
   },
   db: {
     schema: 'public'
