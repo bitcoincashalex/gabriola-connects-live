@@ -1,6 +1,8 @@
 // app/layout.tsx
-// v4.5.0 - Added LoadingTimeout safety net for infinite loading
-// Date: 2024-12-24
+// v4.6.0 - Share picture (public/og-share.jpg) shown when a link to the site is posted on
+//          Facebook, in a text or in an email
+// Previous: v4.5.0 - Added LoadingTimeout safety net for infinite loading
+// Date: 2026-10-11
 import Header from '@/components/Header';
 import { AuthProvider } from '@/components/AuthProvider';
 import LoadingTimeout from '@/components/LoadingTimeout';
@@ -9,8 +11,21 @@ import GoogleAnalytics from '@/components/GoogleAnalytics';
 import './globals.css';
 
 export const metadata = {
+  metadataBase: new URL('https://www.gabriolaconnects.ca'),
   title: 'Gabriola Connects',
   description: 'Your Island Community Hub - Events, Forum, Directory, Ferry, and Alerts for Gabriola Island, BC',
+  openGraph: {
+    type: 'website',
+    siteName: 'Gabriola Connects',
+    title: 'Gabriola Connects',
+    description: 'Your Island Community Hub - Events, Forum, Directory, Ferry, and Alerts for Gabriola Island, BC',
+    locale: 'en_CA',
+    images: [{ url: '/og-share.jpg', width: 1200, height: 630, alt: 'Gabriola Connects - Your Island Community Hub, on the Gabriola Island flag' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/og-share.jpg'],
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
