@@ -1,7 +1,8 @@
 // components/Directory.tsx
-// Version: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
+// Version: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
+// Previous: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
 //                  (dropped "For demo purposes")
-// Previous: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
+// Earlier: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
 //                  screen); categories as a sideways row of main groups with sub-categories opening
 //                  underneath (choosing a main group also shows its sub-categories' businesses);
 //                  compact rows grouped by category with name, category, address and a call button
@@ -430,7 +431,7 @@ export default function Directory() {
           </label>
 
           {/* Main groups: one row that scrolls sideways */}
-          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Categories">
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0 md:flex-wrap md:overflow-visible" aria-label="Categories">
             <button onClick={() => { setSelectedCategory('All'); setOpenMain(null); }} className={chip(selectedCategory === 'All')}>
               All
             </button>
@@ -458,7 +459,7 @@ export default function Directory() {
 
           {/* Sub-categories of the open group */}
           {openSubs.length > 0 && (
-            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0 md:flex-wrap md:overflow-visible">
               <button onClick={() => setSelectedCategory(openMain!)} className={chip(selectedCategory === openMain)}>
                 All {openMain}
               </button>
