@@ -1,7 +1,9 @@
 // components/HeaderSearch.tsx
 // Context-aware search with forum advanced search link
-// Version: 2.1.0 - Added modal callbacks for events and businesses
-// Date: 2025-12-20
+// Version: 2.1.1 - Forum hint shortened to "Search forum..." (the longer one was cut off), and the
+//                  Advanced Forum Search link stays on one line on narrow computer screens
+// Previous: 2.1.0 - Added modal callbacks for events and businesses
+// Date: 2026-10-11
 
 'use client';
 
@@ -37,7 +39,7 @@ export default function HeaderSearch({ onSelectEvent, onSelectBusiness }: Header
 
   // Get placeholder text based on scope
   const placeholder = 
-    isOnForum ? 'Search forum... (or use Advanced Search →)' :
+    isOnForum ? 'Search forum...' :
     scope === 'all' ? 'Search everything...' :
     scope === 'events' ? 'Search events...' :
     scope === 'directory' ? 'Search directory...' :
@@ -120,7 +122,7 @@ export default function HeaderSearch({ onSelectEvent, onSelectBusiness }: Header
         <div className="mt-1">
           <a
             href="/community/search"
-            className="text-xs text-white/80 hover:text-white hover:underline flex items-center gap-1"
+            className="text-xs text-white/80 hover:text-white hover:underline flex items-center gap-1 whitespace-nowrap"
           >
             Advanced Forum Search →
           </a>

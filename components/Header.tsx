@@ -1,8 +1,9 @@
 // components/Header.tsx
-// Version: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
-// Previous: 2.8.0 - Added Notices Inbox link (super admin)
+// Version: 2.8.2 - Computer width: the search box shrinks to make room, so "Sign In" no longer covers "Alerts"
+// Previous: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
+// Earlier: 2.8.0 - Added Notices Inbox link (super admin)
 // Earlier: 2.7.1 - Added Volunteer Admin access and mobile search
-// Date: 2026-10-10
+// Date: 2026-10-11
 'use client';
 
 import Link from 'next/link';
@@ -154,7 +155,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
 
           {/* Logo */}
-          <button onClick={goHome} className="flex items-center gap-3 hover:opacity-90 transition">
+          <button onClick={goHome} className="flex-shrink-0 flex items-center gap-3 hover:opacity-90 transition">
             <div className="text-left">
               <h1 className="text-xl md:text-3xl font-bold leading-tight whitespace-nowrap">
                 Gabriola Connects
@@ -164,7 +165,7 @@ export default function Header() {
           </button>
 
           {/* Search — hidden on mobile - NOW CONTEXT-AWARE! */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-8">
+          <div className="hidden md:flex flex-1 min-w-0 max-w-xl mx-4 xl:mx-6">
             <HeaderSearch 
               onSelectEvent={setSelectedEvent}
               onSelectBusiness={setSelectedBusiness}
@@ -172,7 +173,7 @@ export default function Header() {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-8 text-lg">
+          <nav className="hidden lg:flex flex-shrink-0 items-center gap-5 xl:gap-6 text-base xl:text-lg whitespace-nowrap">
             {navItems.map((item) =>
               item.onClick ? (
                 <button key={item.label} onClick={item.onClick} className="hover:underline">
@@ -187,7 +188,7 @@ export default function Header() {
           </nav>
 
           {/* Right side — user menu or sign in */}
-          <div className="flex items-center gap-4">
+          <div className="flex-shrink-0 flex items-center gap-4 ml-4 lg:ml-6">
             {user ? (
               <div className="relative" ref={menuRef}>
                 {/* User Menu Button */}
