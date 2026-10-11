@@ -1,6 +1,7 @@
 // app/messages/[userId]/page.tsx
-// Version: 2.0.0 - Added improved read receipts with timestamps and clickable images
-// Date: 2024-12-13
+// Version: 2.1.0 - Conversations with the Gabriola Connects account (forum reply notices) show
+//                  "reply in the forum thread" instead of a message box, since nobody reads that inbox
+// Date: 2026-10-11
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -11,6 +12,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { ArrowLeft, Send, Image as ImageIcon, Link2, X, Loader2 } from 'lucide-react';
 import ImageLightbox from '@/components/ImageLightbox';
+import { NEWS_AUTHOR_ID } from '@/lib/forum';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -28,6 +30,8 @@ export default function ConversationPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const otherUserId = params.userId as string;
+  // Forum reply notices come from this account; nobody reads its inbox
+  const isNoticeAccount = otherUserId === NEWS_AUTHOR_ID;
 
   useEffect(() => {
     if (!user) {
@@ -228,7 +232,14 @@ export default function ConversationPage() {
         </div>
       </div>
 
-      {/* Input */}
+      {/* Notices account: no replies here */}
+      {isNoticeAccount ? (
+      <div className="bg-white border-t px-4 py-4">
+        <p className="max-w-4xl mx-auto text-sm text-[#5B6660]">
+          These are automatic notices. To answer someone, open the link in the notice and reply in the forum thread, not here.
+        </p>
+      </div>
+      ) : (
       <div className="bg-white border-t px-4 py-4">
         <form onSubmit={handleSend} className="max-w-4xl mx-auto">
           {linkUrl && (
@@ -289,6 +300,7 @@ export default function ConversationPage() {
           </div>
         </form>
       </div>
+      )}
 
       {/* Image Lightbox */}
       {lightboxImage && (
