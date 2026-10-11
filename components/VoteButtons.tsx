@@ -1,7 +1,8 @@
 // components/VoteButtons.tsx
 // Reusable upvote/downvote component for posts and replies
-// Version: 1.2.1 - Changed insert to upsert to prevent 409 conflicts
-// Date: 2025-12-22
+// Version: 1.3.0 - Optional horizontal layout (used under forum posts)
+// Previous: 1.2.1 - Changed insert to upsert to prevent 409 conflicts
+// Date: 2026-10-11
 
 'use client';
 
@@ -16,6 +17,7 @@ interface VoteButtonsProps {
   initialScore: number;
   authorId?: string; // ID of the post/reply author
   onScoreChange?: (newScore: number) => void;
+  horizontal?: boolean; // arrows and score side by side
 }
 
 export default function VoteButtons({ 
@@ -23,7 +25,8 @@ export default function VoteButtons({
   itemType, 
   initialScore,
   authorId,
-  onScoreChange 
+  onScoreChange,
+  horizontal = false
 }: VoteButtonsProps) {
   const { user } = useUser();
   const [score, setScore] = useState(initialScore);
@@ -165,7 +168,7 @@ export default function VoteButtons({
   // If it's the user's own content, just show the score (no voting)
   if (isOwnContent) {
     return (
-      <div className="flex flex-col items-center gap-1">
+      <div className={`flex ${horizontal ? 'flex-row' : 'flex-col'} items-center gap-1`}>
         <div className="p-1 text-gray-300">
           <ChevronUp className="w-6 h-6" />
         </div>
@@ -180,7 +183,7 @@ export default function VoteButtons({
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className={`flex ${horizontal ? 'flex-row' : 'flex-col'} items-center gap-1`}>
       {/* Upvote button */}
       <button
         onClick={() => handleVote('upvote')}

@@ -1,6 +1,7 @@
 // components/ReplyForm.tsx
-// Version: 3.1.1 - CRITICAL: Fixed state closure bug in paste handler
-// Date: 2025-12-21
+// Version: 3.1.2 - Reply box matches the new forum look (white card, smaller heading)
+// Previous: 3.1.1 - CRITICAL: Fixed state closure bug in paste handler
+// Date: 2026-10-11
 
 'use client';
 
@@ -202,8 +203,8 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8">
-      <h3 className="text-2xl font-bold text-gray-900 mb-6">Post a Reply</h3>
+    <form onSubmit={handleSubmit} className="bg-white border border-[#E3DCCF] rounded-2xl p-5 md:p-6 mb-6">
+      <h3 className="font-display text-xl font-bold text-gabriola-green-dark mb-4">Post a Reply</h3>
 
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">

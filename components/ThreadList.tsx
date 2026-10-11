@@ -1,7 +1,8 @@
 // Path: components/ThreadList.tsx
-// Version: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
+// Version: 4.5.0 - "Island News" and "Discussions" filters (posts by the news account / everyone else)
+// Previous: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
 //                  tighter spacing, quieter loading and empty text
-// Previous: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
+// Earlier: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
 // Date: 2026-10-10
 
 'use client';
@@ -9,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import ThreadCard from './ThreadCard';
+import { NEWS_AUTHOR_ID, NEWS_FILTER, DISCUSSIONS_FILTER } from '@/lib/forum';
 import { User } from '@/lib/types';
 
 interface ThreadListProps {
@@ -53,8 +55,12 @@ export default function ThreadList({
       `)
       .eq('is_active', true);
 
-    // Category filter
-    if (category !== 'all') {
+    // Topic filter (Island News / Discussions are filters on who posted, not real topics)
+    if (category === NEWS_FILTER) {
+      query = query.eq('user_id', NEWS_AUTHOR_ID);
+    } else if (category === DISCUSSIONS_FILTER) {
+      query = query.neq('user_id', NEWS_AUTHOR_ID);
+    } else if (category !== 'all') {
       query = query.eq('category', category);
     }
 
@@ -111,7 +117,11 @@ export default function ThreadList({
             .in('id', additionalPostIds);
 
           // Apply category filter to additional threads too
-          if (category !== 'all') {
+          if (category === NEWS_FILTER) {
+            additionalQuery = additionalQuery.eq('user_id', NEWS_AUTHOR_ID);
+          } else if (category === DISCUSSIONS_FILTER) {
+            additionalQuery = additionalQuery.neq('user_id', NEWS_AUTHOR_ID);
+          } else if (category !== 'all') {
             additionalQuery = additionalQuery.eq('category', category);
           }
 

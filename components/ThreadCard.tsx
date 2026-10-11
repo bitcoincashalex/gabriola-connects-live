@@ -1,9 +1,11 @@
 // components/ThreadCard.tsx
-// Version: 8.0.0 - Compact card for the forum redesign: topic name on top, smaller title, two-line
+// Version: 8.1.0 - Island News posts (by Claude) are labelled ISLAND NEWS in navy; Share button
+//                  on every card (phone share sheet, or copies the link)
+// Previous: 8.0.0 - Compact card for the forum redesign: topic name on top, smaller title, two-line
 //                  preview with formatting marks (**, ##, links) taken out, one line for author,
 //                  time, votes, replies and views. Edit/pin/delete/report buttons are visible on
 //                  phones (they only showed on mouse hover before). No emoji.
-// Previous: 7.0.7 - Removed redundant RPC call (trigger handles score update)
+// Earlier: 7.0.7 - Removed redundant RPC call (trigger handles score update)
 // Date: 2026-10-10
 
 'use client';
@@ -20,6 +22,9 @@ import { useUser } from '@/components/AuthProvider';
 import SendMessageModal from '@/components/SendMessageModal';
 import ImageGallery from '@/components/ImageGallery';
 import EditPostModal from '@/components/EditPostModal';
+import ShareButton from '@/components/ShareButton';
+import { isNewsPost } from '@/lib/forum';
+import { Newspaper } from 'lucide-react';
 
 // Plain-text preview: removes markdown marks so "**Posted by:**" shows as "Posted by:"
 function previewText(body: string): string {
@@ -309,8 +314,13 @@ export default function ThreadCard({
           <div className={`rounded-2xl px-4 py-3.5 border transition-shadow hover:shadow-md ${
             isPinned ? 'bg-[#FFFBEB] border-[#E8C96A]' : 'bg-white border-[#E3DCCF]'
           }`}>
-            <div className={`flex items-center gap-1.5 text-xs font-bold mb-1 ${isPinned ? 'text-[#8A5A00] tracking-wide' : 'text-gabriola-green'} ${(isAuthor || isAdmin || (!isOwnPost && user)) ? 'pr-36 md:pr-0' : ''}`}>
+            <div className={`flex items-center gap-1.5 text-xs font-bold mb-1 ${isPinned ? 'text-[#8A5A00] tracking-wide' : isNewsPost(thread) ? 'text-[#002774]' : 'text-gabriola-green'} ${(isAuthor || isAdmin || (!isOwnPost && user)) ? 'pr-36 md:pr-0' : ''}`}>
               {isPinned && <Pin className="w-3.5 h-3.5" aria-hidden="true" />}
+              {!isPinned && isNewsPost(thread) && (
+                <span className="inline-flex items-center gap-1 bg-[#002774] text-white px-1.5 py-0.5 rounded text-[10px] tracking-wide">
+                  <Newspaper className="w-3 h-3" aria-hidden="true" />ISLAND NEWS
+                </span>
+              )}
               {isPinned ? 'PINNED · ' : ''}{categoryName || (thread.category || '').replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
             </div>
 
@@ -403,6 +413,13 @@ export default function ThreadCard({
               <span className="flex items-center gap-1" title="Views">
                 <Eye className="w-4 h-4" aria-hidden="true" />{thread.view_count || 0}
               </span>
+
+              <ShareButton
+                url={`https://www.gabriolaconnects.ca/community/thread/${thread.id}`}
+                title={thread.title}
+                label={false}
+                className="ml-auto -my-1"
+              />
 
               {canMessageAuthor && (
                 <button

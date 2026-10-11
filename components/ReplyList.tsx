@@ -1,6 +1,8 @@
 // Path: components/ReplyList.tsx
-// Version: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
-// Date: 2025-12-22
+// Version: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
+//                  (bold, lists, links) like posts do; nested replies indent less on phones
+// Previous: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
+// Date: 2026-10-11
 
 'use client';
 
@@ -15,7 +17,7 @@ import VoteButtons from '@/components/VoteButtons';
 import ImageLightbox from '@/components/ImageLightbox';
 import ImageGallery from '@/components/ImageGallery';
 import EditReplyModal from '@/components/EditReplyModal';
-import LinkifyText from '@/components/LinkifyText';
+import PostBody from '@/components/PostBody';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 
 interface Reply {
@@ -139,9 +141,9 @@ export default function ReplyList({ postId, onRefresh }: Props) {
 
   if (!replies.length) {
     return (
-      <div className="text-center py-12 bg-gray-50 rounded-xl">
-        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-        <p className="text-gray-500 text-lg">No replies yet — be the first!</p>
+      <div className="text-center py-8 bg-white border border-[#E3DCCF] rounded-2xl">
+        <MessageSquare className="w-8 h-8 text-[#CFC6B4] mx-auto mb-2" aria-hidden="true" />
+        <p className="text-[#5B6660]">No replies yet — be the first!</p>
       </div>
     );
   }
@@ -175,9 +177,9 @@ export default function ReplyList({ postId, onRefresh }: Props) {
     };
 
     return (
-      <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-gray-200' : ''}`}>
-        <div className="bg-white rounded-xl shadow-sm p-5 mb-4 relative group">
-          <div className="flex gap-4">
+      <div className={`${depth > 0 ? 'ml-3 md:ml-8 pl-3 md:pl-4 border-l-2 border-[#E3DCCF]' : ''}`}>
+        <div className="bg-white border border-[#E3DCCF] rounded-2xl p-4 mb-3 relative group">
+          <div className="flex gap-3">
             {/* Vote Buttons - Left side (only for logged-in users) */}
             {user ? (
               <div className="flex-shrink-0">
@@ -258,13 +260,13 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                   {/* Resident Badge - only if not anonymous */}
                   {!reply.is_anonymous && reply.author?.is_resident && (
                     <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                      🏝️ Resident
+                      Resident
                     </span>
                   )}
                   
                   {/* Anonymous Badge */}
                   {reply.is_anonymous && (
-                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">🕶️ Anonymous</span>
+                    <span className="text-xs bg-[#EEE8DD] px-2 py-0.5 rounded-full font-semibold">Anonymous</span>
                   )}
                   
                   {/* Send Message Button */}
@@ -313,9 +315,7 @@ export default function ReplyList({ postId, onRefresh }: Props) {
               )}
 
               {/* Body */}
-              <div className="whitespace-pre-wrap text-gray-800 mb-3">
-                <LinkifyText>{reply.body}</LinkifyText>
-              </div>
+              <PostBody text={reply.body} className="text-[#1F2A24] mb-3 break-words" />
 
               {/* Actions */}
               <div className="flex items-center gap-4 text-sm text-gray-500">

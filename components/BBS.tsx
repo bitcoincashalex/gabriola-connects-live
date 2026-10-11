@@ -1,6 +1,7 @@
 // Path: components/BBS.tsx
-// Version: 6.0.1 - Topic rows no longer show a scrollbar on computers
-// Previous: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
+// Version: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
+// Previous: 6.0.1 - Topic rows no longer show a scrollbar on computers
+// Earlier: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
 //                  row that scrolls sideways (sub-topics open in a second row), compact post list.
 //                  Signed-in member line kept, without the large text. No emoji.
 // Earlier: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
@@ -17,6 +18,7 @@ import ThreadList from './ThreadList';
 import ForumSearchBar from './ForumSearchBar';
 import { Plus, AlertCircle, Ban, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { NEWS_FILTER, DISCUSSIONS_FILTER } from '@/lib/forum';
 
 export default function BBS() {
   const { user } = useUser();
@@ -237,6 +239,12 @@ export default function BBS() {
           <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Forum topics">
             <button onClick={() => { setActiveCategory('all'); setOpenParent(null); }} className={chip(activeCategory === 'all')}>
               All Posts
+            </button>
+            <button onClick={() => { setActiveCategory(NEWS_FILTER); setOpenParent(null); }} className={chip(activeCategory === NEWS_FILTER)}>
+              Island News
+            </button>
+            <button onClick={() => { setActiveCategory(DISCUSSIONS_FILTER); setOpenParent(null); }} className={chip(activeCategory === DISCUSSIONS_FILTER)}>
+              Discussions
             </button>
             {topLevelCategories.map(category => {
               const hasChildren = getChildren(category.id).length > 0;
