@@ -1,6 +1,7 @@
 // Path: components/BBS.tsx
-// Version: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
-// Previous: 6.0.1 - Topic rows no longer show a scrollbar on computers
+// Version: 6.1.1 - On computers the topic rows wrap onto more lines instead of being cut off
+// Previous: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
+// Earlier: 6.0.1 - Topic rows no longer show a scrollbar on computers
 // Earlier: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
 //                  row that scrolls sideways (sub-topics open in a second row), compact post list.
 //                  Signed-in member line kept, without the large text. No emoji.
@@ -236,7 +237,7 @@ export default function BBS() {
           />
 
           {/* Topics: one row that scrolls sideways */}
-          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Forum topics">
+          <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0 md:flex-wrap md:overflow-visible" role="tablist" aria-label="Forum topics">
             <button onClick={() => { setActiveCategory('all'); setOpenParent(null); }} className={chip(activeCategory === 'all')}>
               All Posts
             </button>
@@ -265,7 +266,7 @@ export default function BBS() {
 
           {/* Sub-topics of the open topic */}
           {openChildren.length > 0 && (
-            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:px-0 md:flex-wrap md:overflow-visible">
               {openChildren.map(child => (
                 <button key={child.slug} onClick={() => setActiveCategory(child.slug)} className={chip(activeCategory === child.slug)}>
                   {child.name}
