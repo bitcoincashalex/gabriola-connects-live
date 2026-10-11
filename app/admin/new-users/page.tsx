@@ -1,6 +1,8 @@
 // Path: app/admin/new-users/page.tsx
-// Version: 1.0.0 - New User Signup Notifications
-// Date: 2024-12-10
+// Version: 1.1.0 - Verify Resident works: uses the verify_resident() database function (the old
+//                  direct update was quietly blocked by the database). Works with or without a postal code.
+// Previous: 1.0.0 - New User Signup Notifications
+// Date: 2026-10-11
 
 'use client';
 
@@ -79,19 +81,14 @@ export default function NewUsersPage() {
   const verifyAsResident = async (userId: string) => {
     setProcessing(userId);
     
-    const { error } = await supabase
-      .from('users')
-      .update({ 
-        is_resident: true,
-        can_post: true,
-        can_comment: true
-      })
-      .eq('id', userId);
+    const { data: updated, error } = await supabase.rpc('verify_resident', { target_user: userId });
 
-    if (!error) {
-      await fetchNewUsers();
-    } else {
+    if (error) {
       alert('Error verifying user: ' + error.message);
+    } else if (!updated) {
+      alert('That user could not be found. Refresh the page and try again.');
+    } else {
+      await fetchNewUsers();
     }
     
     setProcessing(null);
