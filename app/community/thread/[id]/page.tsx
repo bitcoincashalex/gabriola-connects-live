@@ -1,6 +1,8 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 5.3.1 - Added auto-linkify for URLs in body text
-// Date: 2025-12-21
+// Version: 5.4.0 - Post text shows its formatting (bold, headings, lists, links) instead of
+//                  showing ** and [text](url) marks; plain posts keep line breaks and clickable links
+// Previous: 5.3.1 - Added auto-linkify for URLs in body text
+// Date: 2026-10-11
 
 'use client';
 
@@ -20,6 +22,7 @@ import ImageGallery from '@/components/ImageGallery';
 import EditThreadModal from '@/components/EditThreadModal';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 import LinkifyText from '@/components/LinkifyText';
+import PostBody from '@/components/PostBody';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -312,9 +315,10 @@ export default function ThreadPage() {
               )}
 
               {/* Content Body */}
-              <div className="prose prose-lg max-w-none mb-8 whitespace-pre-wrap text-gray-700 leading-relaxed">
-                <LinkifyText>{thread.body}</LinkifyText>
-              </div>
+              <PostBody
+                text={thread.body}
+                className="max-w-none mb-8 text-lg text-gray-700 leading-relaxed break-words"
+              />
 
               {/* Stats and Actions */}
               <div className="flex items-center justify-between pt-6 border-t">
