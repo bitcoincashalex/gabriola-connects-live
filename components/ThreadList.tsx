@@ -1,9 +1,11 @@
 // Path: components/ThreadList.tsx
-// Version: 4.5.0 - "Island News" and "Discussions" filters (posts by the news account / everyone else)
-// Previous: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
+// Version: 4.6.0 - Newest posts first (by when they were posted). updated_at changed whenever a
+//                  post was viewed or edited, so old posts kept jumping to the top
+// Previous: 4.5.0 - "Island News" and "Discussions" filters (posts by the news account / everyone else)
+// Earlier: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
 //                  tighter spacing, quieter loading and empty text
 // Earlier: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
-// Date: 2026-10-10
+// Date: 2026-10-11
 
 'use client';
 
@@ -72,11 +74,11 @@ export default function ThreadList({
       query = query.or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`);
     }
 
-    // Ordering: Pinned posts first, then by latest activity
+    // Ordering: Pinned posts first, then newest posts first
     query = query
       .order('global_pinned', { ascending: false })
       .order('pin_order', { ascending: false })
-      .order('updated_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     const { data, error } = await query;
 
@@ -137,8 +139,8 @@ export default function ThreadList({
               if (a.global_pinned !== b.global_pinned) return b.global_pinned ? 1 : -1;
               // Then pin_order
               if (a.pin_order !== b.pin_order) return (b.pin_order || 0) - (a.pin_order || 0);
-              // Then updated_at (latest activity)
-              return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+              // Then newest posts first
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             });
           }
         }
