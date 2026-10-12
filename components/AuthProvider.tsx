@@ -1,6 +1,11 @@
 // Path: components/AuthProvider.tsx
-// Version: 3.2.0 - BULLETPROOF FIX: Detect and clear stale sessions on load
-// Date: 2025-12-22
+// Version: 3.3.0 - Fixed pages getting stuck on "Loading..." until refreshed. The sign-in listener
+//                  waited on a database query inside Supabase's own sign-in lock; when the login
+//                  token refreshed in the background, every other query on the page waited behind
+//                  it forever. The profile now loads just after the listener returns, and a token
+//                  refresh no longer reloads the profile at all.
+// Previous: 3.2.0 - BULLETPROOF FIX: Detect and clear stale sessions on load
+// Date: 2026-10-11
 
 'use client';
 
@@ -145,7 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getSession();
 
     console.log('🟢 Setting up auth state listener...');
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // IMPORTANT: this callback must not await any Supabase call. Supabase holds its sign-in lock
+    // while it runs, so a query here can lock up every other query on the page. The profile
+    // load is deferred with setTimeout so it runs after the lock is released.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       
       console.log('🔵 Auth event:', event);
@@ -156,7 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔵 SIGNED_IN ignored - getSession will handle profile loading');
         return;
       }
-      
+
+      // A background token refresh doesn't change who is signed in, so keep the profile we have
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+
+      setTimeout(async () => {
+      if (!mounted) return;
       if (session?.user) {
         console.log('🔵 Fetching profile for:', session.user.id);
         
@@ -232,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (mounted) {
         setLoading(false);
       }
+      }, 0);
     });
 
     return () => {
