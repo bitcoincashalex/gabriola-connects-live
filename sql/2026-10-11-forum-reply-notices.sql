@@ -1,5 +1,7 @@
 -- ============================================================================
--- Forum reply notices - Version 1.1.0 - 2026-10-11
+-- Forum reply notices - Version 1.2.0 - 2026-10-11
+-- 1.2.0: the link in each notice goes straight to the new reply (thread address + #reply-<id>).
+--        Safe to run again over 1.0 or 1.1.
 -- Run in Supabase > SQL Editor. Runs as one unit: if anything fails, nothing changes.
 --
 -- 1. Renames the Claude account to "Gabriola Connects" (the account that sends notices),
@@ -74,7 +76,7 @@ BEGIN
 
   who := CASE WHEN NEW.is_anonymous IS TRUE THEN 'Someone'
               ELSE COALESCE(NULLIF(trim(NEW.display_name), ''), 'Someone') END;
-  url := 'https://www.gabriolaconnects.ca/community/thread/' || NEW.post_id;
+  url := 'https://www.gabriolaconnects.ca/community/thread/' || NEW.post_id || '#reply-' || NEW.id;
 
   -- Up to two notices: the post's author, then the author of the reply being answered
   FOR recipient, kind IN

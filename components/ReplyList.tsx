@@ -1,7 +1,9 @@
 // Path: components/ReplyList.tsx
-// Version: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
+// Version: 5.3.0 - Share button on each reply. Its link (thread address + #reply-<id>) opens the
+//                  thread scrolled to that reply, which is briefly highlighted
+// Previous: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
 //                  (bold, lists, links) like posts do; nested replies indent less on phones
-// Previous: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
+// Earlier: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
 // Date: 2026-10-11
 
 'use client';
@@ -19,6 +21,7 @@ import ImageGallery from '@/components/ImageGallery';
 import EditReplyModal from '@/components/EditReplyModal';
 import PostBody from '@/components/PostBody';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
+import ShareButton from '@/components/ShareButton';
 
 interface Reply {
   id: string;
@@ -54,12 +57,31 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   const [editingReply, setEditingReply] = useState<Reply | null>(null);
   const [messagingUser, setMessagingUser] = useState<{ id: string; name: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const isAdmin = user?.is_super_admin || (user as any)?.admin_forum;
 
   useEffect(() => {
     fetchReplies();
   }, [postId]);
+
+  // A shared reply link ends in #reply-<id>: once the replies are on the page, scroll to that one
+  // and highlight it for a few seconds. Scrolls again shortly after, in case images above it
+  // finished loading and pushed it down.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hash.startsWith('#reply-')) return;
+    const id = decodeURIComponent(hash.slice('#reply-'.length));
+    const scrollToReply = () => {
+      document.getElementById(`reply-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    setHighlightId(id);
+    const t1 = setTimeout(scrollToReply, 100);
+    const t2 = setTimeout(scrollToReply, 1200);
+    const t3 = setTimeout(() => setHighlightId(null), 4000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [loading]);
 
   useEffect(() => {
     if (onRefresh) {
@@ -178,7 +200,12 @@ export default function ReplyList({ postId, onRefresh }: Props) {
 
     return (
       <div className={`${depth > 0 ? 'ml-3 md:ml-8 pl-3 md:pl-4 border-l-2 border-[#E3DCCF]' : ''}`}>
-        <div className="bg-white border border-[#E3DCCF] rounded-2xl p-4 mb-3 relative group">
+        <div
+          id={`reply-${reply.id}`}
+          className={`bg-white border rounded-2xl p-4 mb-3 relative group scroll-mt-28 transition-shadow duration-700 ${
+            highlightId === reply.id ? 'border-gabriola-green ring-4 ring-[#E6EFE8]' : 'border-[#E3DCCF]'
+          }`}
+        >
           <div className="flex gap-3">
             {/* Vote Buttons - Left side (only for logged-in users) */}
             {user ? (
@@ -326,6 +353,11 @@ export default function ReplyList({ postId, onRefresh }: Props) {
                   <Flag className="w-4 h-4" />
                   Report
                 </button>
+                <ShareButton
+                  url={`https://www.gabriolaconnects.ca/community/thread/${postId}#reply-${reply.id}`}
+                  title={`Reply from ${reply.display_name} on Gabriola Connects`}
+                  className="-mx-2.5"
+                />
                 {user ? (
                   <button
                     onClick={() => setReplyingTo(isReplying ? null : reply.id)}
