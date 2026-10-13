@@ -1,7 +1,10 @@
 // Path: components/ReplyList.tsx
-// Version: 5.3.0 - Share button on each reply. Its link (thread address + #reply-<id>) opens the
+// Version: 5.3.1 - Shared reply links now reliably scroll to the reply: jumps straight there (no
+//                  smooth animation, which some browsers pause) and repeats a few times while the
+//                  post's images load, stopping as soon as the reader scrolls or taps
+// Previous: 5.3.0 - Share button on each reply. Its link (thread address + #reply-<id>) opens the
 //                  thread scrolled to that reply, which is briefly highlighted
-// Previous: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
+// Earlier: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
 //                  (bold, lists, links) like posts do; nested replies indent less on phones
 // Earlier: 5.1.1 - Added ProfilePreviewCard for reply authors (clickable)
 // Date: 2026-10-11
@@ -65,22 +68,31 @@ export default function ReplyList({ postId, onRefresh }: Props) {
     fetchReplies();
   }, [postId]);
 
-  // A shared reply link ends in #reply-<id>: once the replies are on the page, scroll to that one
-  // and highlight it for a few seconds. Scrolls again shortly after, in case images above it
-  // finished loading and pushed it down.
+  // A shared reply link ends in #reply-<id>: once the replies are on the page, jump to that one
+  // and highlight it for a few seconds. The jump is repeated a few times because the post's
+  // images above it can finish loading later and push it down; it stops as soon as the reader
+  // scrolls, taps or uses the keyboard, so it never fights them.
   useEffect(() => {
     if (loading || typeof window === 'undefined') return;
     const hash = window.location.hash;
     if (!hash.startsWith('#reply-')) return;
     const id = decodeURIComponent(hash.slice('#reply-'.length));
+    let readerMoved = false;
+    const stop = () => { readerMoved = true; };
+    const events = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+    events.forEach(e => window.addEventListener(e, stop, { passive: true }));
     const scrollToReply = () => {
-      document.getElementById(`reply-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (readerMoved) return;
+      document.getElementById(`reply-${id}`)?.scrollIntoView({ block: 'center' });
     };
     setHighlightId(id);
-    const t1 = setTimeout(scrollToReply, 100);
-    const t2 = setTimeout(scrollToReply, 1200);
-    const t3 = setTimeout(() => setHighlightId(null), 4000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    const timers = [50, 400, 1000, 2000, 3500].map(ms => setTimeout(scrollToReply, ms));
+    const clearHighlight = setTimeout(() => setHighlightId(null), 5000);
+    return () => {
+      timers.forEach(clearTimeout);
+      clearTimeout(clearHighlight);
+      events.forEach(e => window.removeEventListener(e, stop));
+    };
   }, [loading]);
 
   useEffect(() => {
