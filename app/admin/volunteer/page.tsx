@@ -1,116 +1,125 @@
 // app/admin/volunteer/page.tsx
-// Version: 1.0.5 - Clean rebuild with verified syntax
-// Date: 2025-01-13
+// Version: 2.0.0 - Rebuilt: every listing with its status and interest count; Edit, Take down and
+//                  Put back. (Listings go live straight away, so there is no approval queue.)
+//                  Super admins and volunteer admins only.
+// Previous: 1.0.5 - Clean rebuild with verified syntax
+// Date: 2026-10-13
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import Footer from '@/components/Footer';
+import { LISTING_COLUMNS, VolunteerListing, formatListingDate, statusLabel } from '@/lib/volunteer';
 
 export default function AdminVolunteerPage() {
-  const { user } = useUser();
-  const [pendingOpps, setPendingOpps] = useState<any[]>([]);
+  const { user, loading: userLoading } = useUser();
+  const [listings, setListings] = useState<VolunteerListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showRemoved, setShowRemoved] = useState(false);
+
+  const isAdmin = !!(user?.is_super_admin || (user as any)?.admin_volunteer);
 
   useEffect(() => {
-    loadPending();
-  }, []);
+    if (isAdmin) load();
+    else if (!userLoading) setLoading(false);
+  }, [isAdmin, userLoading]);
 
-  const loadPending = async () => {
-    const { data } = await supabase
+  const load = async () => {
+    const { data, error } = await supabase
       .from('volunteer_opportunities')
-      .select('*, organization:volunteer_organizations(*)')
-      .eq('is_approved', false)
-      .eq('status', 'active')
+      .select(LISTING_COLUMNS)
       .order('created_at', { ascending: false });
-
-    setPendingOpps(data || []);
+    if (error) console.error('Error loading volunteer listings:', error);
+    setListings((data as VolunteerListing[]) || []);
     setLoading(false);
   };
 
-  const handleApprove = async (id: string) => {
-    const { error } = await supabase
+  const takeDown = async (l: VolunteerListing) => {
+    if (!confirm(`Take down "${l.title}"? It will disappear from the site. You can put it back later.`)) return;
+    const { data, error } = await supabase
       .from('volunteer_opportunities')
-      .update({ 
-        is_approved: true,
-        approved_at: new Date().toISOString() 
-      })
-      .eq('id', id);
-    
-    if (!error) {
-      alert('Opportunity approved!');
-      loadPending();
-    } else {
-      alert('Error: ' + error.message);
-    }
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user!.id })
+      .eq('id', l.id)
+      .select('id');
+    if (error || !data?.length) alert('Sorry, that didn\'t work.' + (error ? ' ' + error.message : ''));
+    else load();
   };
 
-  const handleReject = async (id: string) => {
-    const { error } = await supabase
+  const putBack = async (l: VolunteerListing) => {
+    const { data, error } = await supabase
       .from('volunteer_opportunities')
-      .update({ status: 'cancelled' })
-      .eq('id', id);
-    
-    if (!error) {
-      alert('Opportunity rejected');
-      loadPending();
-    } else {
-      alert('Error: ' + error.message);
-    }
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', l.id)
+      .select('id');
+    if (error || !data?.length) alert('Sorry, that didn\'t work.' + (error ? ' ' + error.message : ''));
+    else load();
   };
 
-  if (loading) {
+  const current = listings.filter(l => !l.deleted_at);
+  const removed = listings.filter(l => l.deleted_at);
+  const btn = 'min-h-[40px] px-3 rounded-lg border border-[#CFC6B4] bg-white text-sm font-semibold hover:border-gabriola-green inline-flex items-center';
+
+  const row = (l: VolunteerListing, removedRow: boolean) => {
+    const status = statusLabel(l);
     return (
-      <div className="flex flex-col min-h-screen">
-        <div className="flex-1 p-8">Loading...</div>
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-6">Volunteer Admin</h1>
-        
-        <div className="bg-white rounded-lg p-6">
-          <h2 className="text-xl font-bold mb-4">
-            Pending Approval ({pendingOpps.length})
-          </h2>
-          
-          {pendingOpps.length === 0 ? (
-            <p className="text-gray-600">No pending opportunities</p>
+      <li key={l.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold mb-0.5">
+            <span className={`px-2 py-0.5 rounded-full ${status === 'Live' ? 'bg-[#E6EFE8] text-gabriola-green-dark' : 'bg-[#EEE8DD] text-[#5B6660]'}`}>{status}</span>
+            <span className="text-[#5B6660]">{formatListingDate(l.start_date) || 'Ongoing'}</span>
+            <span className="text-[#5B6660]">· {l.application_count || 0} interested</span>
+          </div>
+          <Link href={`/volunteer/opportunities/${l.id}`} className="font-bold hover:underline">{l.title}</Link>
+          {l.organization_name && <p className="text-sm text-[#5B6660]">{l.organization_name}</p>}
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          {removedRow ? (
+            <button type="button" className={btn} onClick={() => putBack(l)}>Put back</button>
           ) : (
-            <div className="space-y-4">
-              {pendingOpps.map((opp: any) => (
-                <div key={opp.id} className="border p-4 rounded">
-                  <h3 className="font-bold text-lg mb-2">{opp.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Organization: {opp.organization?.name}
-                  </p>
-                  <p className="text-sm text-gray-700 mb-3">
-                    {opp.description?.slice(0, 200)}...
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleApprove(opp.id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      ✓ Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(opp.id)}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      ✗ Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <Link href={`/volunteer/opportunities/${l.id}/edit`} className={btn}>Edit</Link>
+              <button type="button" className={`${btn} text-[#B42318]`} onClick={() => takeDown(l)}>Take down</button>
+            </>
           )}
         </div>
+      </li>
+    );
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
+      <div className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 space-y-3">
+        <h1 className="font-display text-2xl font-bold text-gabriola-green-dark">Volunteer admin</h1>
+
+        {loading || userLoading ? (
+          <p className="text-center py-16 text-[#5B6660]" role="status">Loading...</p>
+        ) : !isAdmin ? (
+          <p className="bg-white border border-[#E3DCCF] rounded-2xl p-6">This page is for volunteer admins.</p>
+        ) : (
+          <>
+            <p className="text-sm text-[#5B6660]">
+              New listings go live as soon as they're posted. Take down anything that shouldn't be there.
+            </p>
+            <ul className="bg-white border border-[#E3DCCF] rounded-2xl divide-y divide-[#E3DCCF]">
+              {current.length === 0 ? <li className="p-4 text-[#5B6660]">No listings.</li> : current.map(l => row(l, false))}
+            </ul>
+
+            {removed.length > 0 && (
+              <div>
+                <button type="button" onClick={() => setShowRemoved(s => !s)} className="text-sm font-semibold text-gabriola-green hover:underline">
+                  {showRemoved ? 'Hide' : 'Show'} taken-down listings ({removed.length})
+                </button>
+                {showRemoved && (
+                  <ul className="mt-2 bg-white border border-[#E3DCCF] rounded-2xl divide-y divide-[#E3DCCF]">
+                    {removed.map(l => row(l, true))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
       <Footer />
     </div>

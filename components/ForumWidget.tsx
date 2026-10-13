@@ -1,6 +1,7 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities (body of the front page Community card)
-// Version: 7.0.0 - Front page redesign: no longer draws its own blue card inside the front page
+// Version: 7.1.0 - Volunteer count only counts current listings (not taken down, date not passed)
+// Previous: 7.0.0 - Front page redesign: no longer draws its own blue card inside the front page
 //                  card (the card, icon and title are drawn by the front page). Dark text on white.
 // Previous: 6.4.0 - Outer <Link> changed to <div>. The landing page card already links to
 //                  /community-hub, and a link inside a link broke page hydration (React #418/#423).
@@ -12,6 +13,7 @@
 
 import { useEffect, useState } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
+import { pacificToday } from '@/lib/volunteer';
 
 export function ForumWidget() {
   const [latestTopics, setLatestTopics] = useState<string[]>([]);
@@ -67,6 +69,8 @@ export function ForumWidget() {
           .select('*', { count: 'exact', head: true })
           .eq('status', 'active')
           .eq('is_approved', true)
+          .is('deleted_at', null)
+          .or(`start_date.is.null,start_date.gte.${pacificToday()}`)
       );
 
       setVolunteerCount(count || 0);
