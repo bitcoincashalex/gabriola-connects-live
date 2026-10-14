@@ -1,6 +1,8 @@
 // Path: app/admin/directory/page.tsx
-// Version: 4.0.0-UPLOAD - IMAGE UPLOAD from computer with Supabase Storage
-// Date: 2025-01-13
+// Version: 4.1.0 - Map position: "Show on the Island Map", find the pin from the address,
+//                  drag it to fix it, or remove it (saved as lat, lng, show_on_map)
+// Previous: 4.0.0-UPLOAD - IMAGE UPLOAD from computer with Supabase Storage
+// Date: 2026-10-13
 
 'use client';
 
@@ -10,6 +12,10 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { Building2, CheckCircle, XCircle, Edit, Trash2, Loader2, Shield } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// The pin map only runs in the browser
+const MapPinPicker = dynamic(() => import('@/components/MapPinPicker'), { ssr: false });
 
 interface Business {
   id: string;
@@ -60,6 +66,11 @@ interface Business {
   // Community
   islander_owned?: boolean;
   chamber_member?: boolean;
+
+  // Island Map
+  lat?: number | null;
+  lng?: number | null;
+  show_on_map?: boolean;
   
   created_at: string;
   [key: string]: any;
@@ -195,6 +206,11 @@ export default function DirectoryAdminPage() {
         // Community
         islander_owned: editingBusiness.islander_owned,
         chamber_member: editingBusiness.chamber_member,
+
+        // Island Map
+        lat: editingBusiness.lat ?? null,
+        lng: editingBusiness.lng ?? null,
+        show_on_map: editingBusiness.show_on_map !== false,
       })
       .eq('id', editingBusiness.id);
 
@@ -1144,6 +1160,20 @@ export default function DirectoryAdminPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* MAP POSITION */}
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <h3 className="font-bold text-lg text-amber-900 mb-1">Island Map</h3>
+                <p className="text-sm text-gray-600 mb-3">Where this business shows on the Island Map.</p>
+                <MapPinPicker
+                  key={editingBusiness.id}
+                  lat={editingBusiness.lat}
+                  lng={editingBusiness.lng}
+                  address={editingBusiness.address || ''}
+                  showOnMap={editingBusiness.show_on_map !== false}
+                  onChange={(v) => setEditingBusiness({ ...editingBusiness, ...v })}
+                />
               </div>
 
               {/* SECTION 4: HOURS */}

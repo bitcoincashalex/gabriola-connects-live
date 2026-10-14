@@ -1,6 +1,7 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.1.0 - Activated Volunteer Opportunities module
-// Date: 2025-01-13
+// Version: 1.2.0 - Island Map is live (links to /map)
+// Previous: 1.1.0 - Activated Volunteer Opportunities module
+// Date: 2026-10-13
 
 import { MessageSquare, AlertCircle, Map, Newspaper, Heart } from 'lucide-react';
 import Link from 'next/link';
@@ -88,27 +89,30 @@ export default function CommunityHubPage() {
               </div>
             </Link>
 
-            {/* Island Map - Coming Soon */}
-            <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed">
+            {/* Island Map */}
+            <Link
+              href="/map"
+              className="block bg-white border-2 border-[#9A4A00]/60 rounded-2xl p-8 hover:shadow-xl transition-all group"
+            >
               <div className="flex items-start gap-4">
-                <div className="p-4 bg-gray-200 rounded-xl">
-                  <Map className="w-10 h-10 text-gray-500" />
+                <div className="p-4 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition">
+                  <Map className="w-10 h-10 text-[#9A4A00]" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-2xl font-bold text-gray-700">
+                    <h3 className="text-2xl font-bold text-gray-900">
                       Island Map
                     </h3>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
-                      Coming Soon
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                      NEW!
                     </span>
                   </div>
-                  <p className="text-gray-500">
-                    Explore Gabriola Island with an interactive map
+                  <p className="text-gray-600">
+                    Parks, beaches, trails, businesses, venues and the ferry, with you on the map
                   </p>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Island News - Coming Soon */}
             <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed">

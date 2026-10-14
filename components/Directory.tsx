@@ -1,6 +1,8 @@
 // components/Directory.tsx
-// Version: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
-// Previous: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
+// Version: 5.1.0 - New businesses get a pin on the Island Map from their street address (exact
+//                  matches only), with a "Show on the Island Map" choice in the Add form
+// Previous: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
+// Earlier: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
 //                  (dropped "For demo purposes")
 // Earlier: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
 //                  screen); categories as a sideways row of main groups with sub-categories opening
@@ -19,6 +21,7 @@ import FileUploader from './FileUploader';
 import ImageUploadManager from './ImageUploadManager';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
 import { MapPin, Phone, Mail, Globe, Plus, X, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { geocodeGabriola } from '@/lib/geocode';
 
 interface DirectoryListing {
   id: string;
@@ -61,6 +64,7 @@ export default function Directory() {
     name: '',
     category: 'Restaurant',
     address: '',
+    show_on_map: true,
     phone: '',
     email: '',
     website: '',
@@ -274,7 +278,15 @@ export default function Directory() {
       }
     }
 
+    // Island Map: pin it only when the address matches an exact civic number on Gabriola
+    const spot = formData.show_on_map ? await geocodeGabriola(formData.address) : null;
+
     const { error } = await supabase.from('directory_businesses').insert({
+      // Island Map
+      show_on_map: formData.show_on_map,
+      lat: spot?.exact ? spot.lat : null,
+      lng: spot?.exact ? spot.lng : null,
+
       // Basic Info
       name: formData.name.trim(),
       category: finalCategory,
@@ -358,7 +370,7 @@ export default function Directory() {
       setShowAddForm(false);
       // Reset form to defaults
       setFormData({
-        name: '', category: 'Restaurant', address: '', phone: '', email: '', website: '', description: '',
+        name: '', category: 'Restaurant', address: '', show_on_map: true, phone: '', email: '', website: '', description: '',
         tagline: '', subcategory: '', services: '', specialties: '', owner_name: '', contact_phone: '', contact_email: '', established_year: '',
         address_line2: '', postal_code: '', map_url: '', location_notes: '',
         hours_monday: '', hours_tuesday: '', hours_wednesday: '', hours_thursday: '', hours_friday: '', hours_saturday: '', hours_sunday: '',
@@ -539,6 +551,10 @@ export default function Directory() {
                   <input type="text" placeholder="Postal Code (V0R 1X0)" value={formData.postal_code} onChange={e => setFormData({...formData, postal_code: e.target.value})} maxLength={7} className="w-full p-4 border rounded-lg" />
                   <input type="url" placeholder="Google Maps URL (optional)" value={formData.map_url} onChange={e => setFormData({...formData, map_url: e.target.value})} className="w-full p-4 border rounded-lg" />
                 </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" className="mt-1" checked={formData.show_on_map} onChange={e => setFormData({...formData, show_on_map: e.target.checked})} />
+                  <span>Show on the Island Map (a pin at this address). Untick this if it's your home and you'd rather not have a pin.</span>
+                </label>
                 <textarea placeholder="Location Notes (e.g., 'Behind the community hall')" value={formData.location_notes} onChange={e => setFormData({...formData, location_notes: e.target.value})} rows={2} className="w-full p-4 border rounded-lg resize-none" />
                 
                 <div className="pt-4 border-t">
