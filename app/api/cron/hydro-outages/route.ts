@@ -1,7 +1,8 @@
 // app/api/cron/hydro-outages/route.ts
 // Checks BC Hydro's Gabriola Island outage feed every 5 minutes (called by Supabase pg_cron)
 // and keeps power outage alerts on the site up to date.
-// Version: 1.0.0
+// Version: 1.0.1 - Outage alerts are 'advisory' (amber) instead of 'warning' (red)
+// Previous: 1.0.0
 // Date: 2026-10-17
 //
 // Needs these Vercel environment variables (already set for the ferry check):
@@ -11,7 +12,7 @@
 //                         (default 10, so a single house losing power doesn't become island news)
 //
 // What it does:
-//   - a new current outage (at or above the threshold) -> posts an alert (category 'hydro', 'warning')
+//   - a new current outage (at or above the threshold) -> posts an alert (category 'hydro', 'advisory')
 //   - while it lasts -> keeps the alert's numbers, cause and expiry up to date
 //   - once BC Hydro lists it as restored, or it drops off the feed -> the alert changes to
 //     "Power restored" (severity 'info') and expires 2 hours later
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     if (existing) {
       if (existing.alert_id) {
-        await supabase.from('alerts').update({ title, message, expires_at: expires, active: true }).eq('id', existing.alert_id);
+        await supabase.from('alerts').update({ title, message, severity: 'advisory', expires_at: expires, active: true }).eq('id', existing.alert_id);
       }
       await supabase.from('hydro_outages').update({ customers: o.customers, last_seen: now.toISOString() }).eq('outage_key', o.key);
       updated.push(o.area);
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     const { data: alert, error } = await supabase.from('alerts').insert({
       title, message,
-      severity: 'warning',
+      severity: 'advisory',
       category: 'hydro',
       issued_by: issuer,
       on_behalf_of_name: 'BC Hydro',
