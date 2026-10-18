@@ -1,6 +1,8 @@
 // components/CreateThread.tsx
-// Version: 4.0.3 - CRITICAL: Fixed state closure bug in paste handler
-// Date: 2025-12-21
+// Version: 4.0.4 - After an anonymous post, refresh the list of my anonymous items so the new
+//                  post shows its Delete button (anonymous posts carry no account id any more)
+// Date: 2026-10-18
+// Previous: 4.0.3 - CRITICAL: Fixed state closure bug in paste handler (2025-12-21)
 
 'use client';
 
@@ -8,6 +10,7 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Loader2, Link2, X, Clipboard } from 'lucide-react';
 import ImageUploadManager from './ImageUploadManager';
+import { refreshMyAnonymousItems } from '@/lib/anonymousItems';
 
 interface ImageData {
   id: string;
@@ -184,6 +187,8 @@ export default function CreateThread({ currentUser, defaultCategoryId, onSuccess
           // Don't fail the whole post if images fail
         }
       }
+
+      if (isAnonymous) refreshMyAnonymousItems();
 
       // Reset form
       setTitle('');

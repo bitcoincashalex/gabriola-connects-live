@@ -1,8 +1,10 @@
 // Path: components/ReplyList.tsx
-// Version: 5.3.1 - Shared reply links now reliably scroll to the reply: jumps straight there (no
+// Version: 5.3.2 - Your own anonymous replies show Edit/Delete again (anonymous replies no longer
+//                  carry your account id; the database says which are yours). Date: 2026-10-18
+// Previous: 5.3.1 - Shared reply links now reliably scroll to the reply: jumps straight there (no
 //                  smooth animation, which some browsers pause) and repeats a few times while the
 //                  post's images load, stopping as soon as the reader scrolls or taps
-// Previous: 5.3.0 - Share button on each reply. Its link (thread address + #reply-<id>) opens the
+// Earlier: 5.3.0 - Share button on each reply. Its link (thread address + #reply-<id>) opens the
 //                  thread scrolled to that reply, which is briefly highlighted
 // Earlier: 5.2.0 - Replies match the new forum look (white cards, no emoji) and show formatting
 //                  (bold, lists, links) like posts do; nested replies indent less on phones
@@ -25,12 +27,13 @@ import EditReplyModal from '@/components/EditReplyModal';
 import PostBody from '@/components/PostBody';
 import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 import ShareButton from '@/components/ShareButton';
+import { useMyAnonymousItems } from '@/lib/anonymousItems';
 
 interface Reply {
   id: string;
   post_id: string;
   parent_reply_id: string | null;
-  user_id: string;
+  user_id: string;   // null on anonymous replies (the database keeps the author private)
   body: string;
   link_url: string | null;
   image_url: string | null;
@@ -54,6 +57,7 @@ interface Props {
 
 export default function ReplyList({ postId, onRefresh }: Props) {
   const { user } = useUser();
+  const { isMine } = useMyAnonymousItems(user?.id);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -183,10 +187,12 @@ export default function ReplyList({ postId, onRefresh }: Props) {
   }
 
   const ReplyItem = ({ reply, depth = 0 }: { reply: Reply; depth?: number }) => {
-    const canDelete = isAdmin || reply.user_id === user?.id;
-    const canEdit = reply.user_id === user?.id; // Only author can edit
+    // Anonymous replies have no account id on them; the database tells us which ones are ours
+    const isOwn = !!user && (reply.user_id === user.id || isMine('reply', reply.id));
+    const canDelete = isAdmin || isOwn;
+    const canEdit = isOwn; // Only author can edit
     const isReplying = replyingTo === reply.id;
-    const canMessage = user && !reply.is_anonymous && reply.user_id !== user.id;
+    const canMessage = user && !reply.is_anonymous && !!reply.user_id && reply.user_id !== user.id;
 
     // Multi-image support
     const [images, setImages] = useState<any[]>([]);

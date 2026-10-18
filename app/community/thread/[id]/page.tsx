@@ -1,8 +1,10 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 6.0.0 - Post page redesign to match the rest of the site: smaller title, topic name
+// Version: 6.0.1 - Your own anonymous post shows Edit/Delete again (anonymous posts no longer carry
+//                  your account id; the database says which are yours). Date: 2026-10-18
+// Previous: 6.0.0 - Post page redesign to match the rest of the site: smaller title, topic name
 //                  (was the topic's web code), ISLAND NEWS label on Claude's summaries, votes and
 //                  Share button under the post, icons instead of emoji, bottom menu on this page.
-// Previous: 5.4.0 - Post text shows its formatting (bold, headings, lists, links) instead of
+// Earlier: 5.4.0 - Post text shows its formatting (bold, headings, lists, links) instead of
 //                  showing ** and [text](url) marks; plain posts keep line breaks and clickable links
 // Earlier: 5.3.1 - Added auto-linkify for URLs in body text
 // Date: 2026-10-11
@@ -28,6 +30,7 @@ import PostBody from '@/components/PostBody';
 import ShareButton from '@/components/ShareButton';
 import Footer from '@/components/Footer';
 import { isNewsPost } from '@/lib/forum';
+import { useMyAnonymousItems } from '@/lib/anonymousItems';
 
 export default function ThreadPage() {
   const params = useParams();
@@ -55,11 +58,17 @@ export default function ThreadPage() {
     trackView(params.id as string, 'post');
   }, [params.id, refreshKey]);
 
+  // Anonymous posts have no account id on them; the database tells us which ones are ours
+  const { isMine } = useMyAnonymousItems(user?.id);
+  const ownAnonymous = !!thread && isMine('post', thread.id);
+
   useEffect(() => {
     if (user && thread) {
-      setIsOwnPost(thread.user_id === user.id);
+      setIsOwnPost(thread.user_id === user.id || ownAnonymous);
+    } else {
+      setIsOwnPost(false);
     }
-  }, [user, thread]);
+  }, [user, thread, ownAnonymous]);
 
   const trackView = async (postId: string, type: 'post' | 'reply' = 'post') => {
     try {

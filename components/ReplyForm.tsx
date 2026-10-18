@@ -1,7 +1,8 @@
 // components/ReplyForm.tsx
-// Version: 3.1.2 - Reply box matches the new forum look (white card, smaller heading)
-// Previous: 3.1.1 - CRITICAL: Fixed state closure bug in paste handler
-// Date: 2026-10-11
+// Version: 3.1.3 - After an anonymous reply, refresh the list of my anonymous items so the new
+//                  reply shows its Edit/Delete buttons (anonymous replies carry no account id any more)
+// Previous: 3.1.2 - Reply box matches the new forum look (white card, smaller heading) (2026-10-11)
+// Date: 2026-10-18
 
 'use client';
 
@@ -10,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { Loader2, Link2 } from 'lucide-react';
 import ImageUploadManager from './ImageUploadManager';
+import { refreshMyAnonymousItems } from '@/lib/anonymousItems';
 
 interface ImageData {
   id: string;
@@ -187,6 +189,8 @@ export default function ReplyForm({ postId, parentReplyId = null, onSuccess, onC
         .from('bbs_posts')
         .update({ reply_count: count || 0 })
         .eq('id', postId);
+
+      if (isAnonymous) refreshMyAnonymousItems();
 
       // Reset form
       setBody('');

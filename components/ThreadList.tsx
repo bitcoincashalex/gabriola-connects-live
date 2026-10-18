@@ -1,11 +1,13 @@
 // Path: components/ThreadList.tsx
-// Version: 4.6.0 - Newest posts first (by when they were posted). updated_at changed whenever a
+// Version: 4.6.1 - "Discussions" keeps anonymous posts. They have no account id now, and the
+//                  database's "not the news account" filter quietly dropped posts with none
+// Previous: 4.6.0 - Newest posts first (by when they were posted). updated_at changed whenever a
 //                  post was viewed or edited, so old posts kept jumping to the top
-// Previous: 4.5.0 - "Island News" and "Discussions" filters (posts by the news account / everyone else)
+// Earlier: 4.5.0 - "Island News" and "Discussions" filters (posts by the news account / everyone else)
 // Earlier: 4.4.0 - Compact list for the forum redesign: passes topic names to each card,
 //                  tighter spacing, quieter loading and empty text
 // Earlier: 4.3.0 - Fixed sort order: pinned first, then by latest activity (updated_at)
-// Date: 2026-10-11
+// Date: 2026-10-18
 
 'use client';
 
@@ -61,7 +63,8 @@ export default function ThreadList({
     if (category === NEWS_FILTER) {
       query = query.eq('user_id', NEWS_AUTHOR_ID);
     } else if (category === DISCUSSIONS_FILTER) {
-      query = query.neq('user_id', NEWS_AUTHOR_ID);
+      // Filtered below, after loading: anonymous posts have no account id and a
+      // "not the news account" filter in the database would drop them
     } else if (category !== 'all') {
       query = query.eq('category', category);
     }
@@ -90,6 +93,9 @@ export default function ThreadList({
     }
 
     let results = data || [];
+    if (category === DISCUSSIONS_FILTER) {
+      results = results.filter((t: any) => t.user_id !== NEWS_AUTHOR_ID);
+    }
 
     // If searching, also find threads with matching replies
     if (searchQuery && searchQuery.trim().length >= 2) {
@@ -122,7 +128,7 @@ export default function ThreadList({
           if (category === NEWS_FILTER) {
             additionalQuery = additionalQuery.eq('user_id', NEWS_AUTHOR_ID);
           } else if (category === DISCUSSIONS_FILTER) {
-            additionalQuery = additionalQuery.neq('user_id', NEWS_AUTHOR_ID);
+            // filtered below (see above)
           } else if (category !== 'all') {
             additionalQuery = additionalQuery.eq('category', category);
           }
@@ -131,7 +137,10 @@ export default function ThreadList({
 
           if (additionalThreads) {
             // Combine results
-            results = [...results, ...additionalThreads];
+            const extra = category === DISCUSSIONS_FILTER
+              ? additionalThreads.filter((t: any) => t.user_id !== NEWS_AUTHOR_ID)
+              : additionalThreads;
+            results = [...results, ...extra];
             
             // Re-sort combined results
             results.sort((a, b) => {

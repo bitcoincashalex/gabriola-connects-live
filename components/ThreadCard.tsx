@@ -1,7 +1,9 @@
 // components/ThreadCard.tsx
-// Version: 8.1.0 - Island News posts (by Claude) are labelled ISLAND NEWS in navy; Share button
+// Version: 8.1.1 - Your own anonymous posts show Delete again (anonymous posts no longer carry your
+//                  account id; the database says which are yours). Date: 2026-10-18
+// Previous: 8.1.0 - Island News posts (by Claude) are labelled ISLAND NEWS in navy; Share button
 //                  on every card (phone share sheet, or copies the link)
-// Previous: 8.0.0 - Compact card for the forum redesign: topic name on top, smaller title, two-line
+// Earlier: 8.0.0 - Compact card for the forum redesign: topic name on top, smaller title, two-line
 //                  preview with formatting marks (**, ##, links) taken out, one line for author,
 //                  time, votes, replies and views. Edit/pin/delete/report buttons are visible on
 //                  phones (they only showed on mouse hover before). No emoji.
@@ -24,6 +26,7 @@ import ImageGallery from '@/components/ImageGallery';
 import EditPostModal from '@/components/EditPostModal';
 import ShareButton from '@/components/ShareButton';
 import { isNewsPost } from '@/lib/forum';
+import { useMyAnonymousItems } from '@/lib/anonymousItems';
 import { Newspaper } from 'lucide-react';
 
 // Plain-text preview: removes markdown marks so "**Posted by:**" shows as "Posted by:"
@@ -53,7 +56,9 @@ export default function ThreadCard({
 }) {
   const { user } = useUser();
   const isAdmin = user?.is_super_admin || user?.role === 'admin';
-  const isAuthor = user && thread.user_id === user.id;
+  const { isMine } = useMyAnonymousItems(user?.id);
+  // Anonymous posts have no account id on them; the database tells us which ones are ours
+  const isAuthor = !!user && (thread.user_id === user.id || isMine('post', thread.id));
   const isPinned = thread.global_pinned === true;
   
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -244,7 +249,7 @@ export default function ThreadCard({
     return 'text-gray-600';
   };
 
-  const isOwnPost = user && thread.user_id === user.id;
+  const isOwnPost = isAuthor;
   const canMessageAuthor = user && !thread.is_anonymous && !isOwnPost;
 
   const handleMessageClick = (e: React.MouseEvent) => {

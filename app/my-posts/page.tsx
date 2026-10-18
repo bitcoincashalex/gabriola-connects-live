@@ -1,6 +1,8 @@
 // app/my-posts/page.tsx
-// Version: 1.0.2 - Simplified: Single "View Post" button (removed redundant Edit)
-// Date: 2025-12-22
+// Version: 1.1.0 - Anonymous posts and replies show here again. They no longer carry the
+//                  author's account id, so their ids come from the database (my_anonymous_items)
+// Date: 2026-10-18
+// Previous: 1.0.2 - Simplified: Single "View Post" button (removed redundant Edit) (2025-12-22)
 
 'use client';
 
@@ -8,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
+import { getMyAnonymousIds } from '@/lib/anonymousItems';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -63,11 +66,19 @@ export default function MyPostsPage() {
   const loadPosts = async () => {
     setLoading(true);
     
+    // My anonymous items have no account id on them, so ask the database which ones are mine
+    const [anonPostIds, anonReplyIds] = await Promise.all([
+      getMyAnonymousIds(user!.id, 'post'),
+      getMyAnonymousIds(user!.id, 'reply'),
+    ]);
+    const mineFilter = (ids: string[]) =>
+      ids.length > 0 ? `user_id.eq.${user!.id},id.in.(${ids.join(',')})` : `user_id.eq.${user!.id}`;
+
     // Fetch threads
     const { data: threadsData } = await supabase
       .from('bbs_posts')
       .select('id, title, is_anonymous, category, vote_score, reply_count, is_active, created_at, edited_at')
-      .eq('user_id', user!.id)
+      .or(mineFilter(anonPostIds))
       .order('created_at', { ascending: false });
 
     // Fetch replies
@@ -83,7 +94,7 @@ export default function MyPostsPage() {
         edited_at,
         post:bbs_posts!bbs_replies_post_id_fkey(id, title)
       `)
-      .eq('user_id', user!.id)
+      .or(mineFilter(anonReplyIds))
       .order('created_at', { ascending: false });
 
     // Combine and format
