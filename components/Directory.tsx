@@ -1,5 +1,8 @@
 // components/Directory.tsx
-// Version: 5.2.0 - Search matches the start of words as you type: "b" finds Brent and Bruno's,
+// Version: 5.3.0 - Owners can edit their own listing: an Edit button shows on businesses you added
+//                  (and on every business for directory admins), opening the same form filled in.
+//                  New businesses now record who added them (they never did, so nobody owned one).
+// Previous: 5.2.0 - Search matches the start of words as you type: "b" finds Brent and Bruno's,
 //                  not every business with a b somewhere in it (nearly all have "Gabriola").
 //                  Several words narrow it down ("hair st"). Searches the name and category.
 //                  While searching, results are one list with names starting with it first.
@@ -25,7 +28,7 @@ import { useUser } from '@/components/AuthProvider';
 import FileUploader from './FileUploader';
 import ImageUploadManager from './ImageUploadManager';
 import BusinessDetailModal from '@/components/BusinessDetailModal';
-import { MapPin, Phone, Mail, Globe, Plus, X, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { MapPin, Phone, Mail, Globe, Plus, X, Search, ChevronRight, ChevronDown, Pencil } from 'lucide-react';
 import { geocodeGabriola } from '@/lib/geocode';
 
 interface DirectoryListing {
@@ -38,6 +41,8 @@ interface DirectoryListing {
   website?: string;
   description?: string;
   image?: string;
+  created_by?: string | null;
+  [field: string]: any;
 }
 
 interface BusinessCategory {
@@ -63,8 +68,12 @@ export default function Directory() {
   const [files, setFiles] = useState<string[]>([]);
   const [businessImages, setBusinessImages] = useState<Array<{id: string; url: string; file?: File}>>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<DirectoryListing | null>(null);
+  const [editing, setEditing] = useState<DirectoryListing | null>(null);   // the business being edited, if any
+  const [saving, setSaving] = useState(false);
+  const isDirectoryAdmin = !!(user?.is_super_admin || (user as any)?.admin_directory);
+  const canEdit = (l: DirectoryListing) => !!user && (isDirectoryAdmin || (!!l.created_by && l.created_by === user.id));
 
-  const [formData, setFormData] = useState({
+  const blankForm = () => ({
     // Existing basic fields
     name: '',
     category: 'Restaurant',
@@ -141,6 +150,7 @@ export default function Directory() {
     logo_url: '',
     cover_image_url: '',
   });
+  const [formData, setFormData] = useState(blankForm());
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -271,8 +281,39 @@ export default function Directory() {
       selected ? 'bg-gabriola-green text-white' : 'bg-white border border-[#CFC6B4] text-[#1F2A24] hover:border-gabriola-green'
     }`;
 
+  // Fill the form from a business, for editing
+  const startEdit = (l: DirectoryListing) => {
+    const base: any = blankForm();
+    const filled: any = {};
+    for (const key of Object.keys(base)) {
+      const value = l[key];
+      if (typeof base[key] === 'boolean') filled[key] = typeof value === 'boolean' ? value : base[key];
+      else filled[key] = value === null || value === undefined ? '' : String(value);
+    }
+    const known = [...mainCategories, ...subcategories].some(c => c.name === l.category);
+    filled.category = known ? l.category : 'Other';
+    setCustomCategory(known ? '' : (l.category || ''));
+    setFormData(filled);
+    setFiles([]);
+    setBusinessImages([]);
+    setEditing(l);
+    setSelectedBusiness(null);
+    setShowAddForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeForm = () => {
+    setShowAddForm(false);
+    setEditing(null);
+    setFormData(blankForm());
+    setFiles([]);
+    setBusinessImages([]);
+    setCustomCategory('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     const finalCategory = formData.category === 'Other' ? customCategory.trim() : formData.category;
     if (!formData.name.trim() || !finalCategory || !formData.address.trim()) {
       alert('Please fill in Business Name, Category, and Address');
@@ -300,14 +341,20 @@ export default function Directory() {
       }
     }
 
-    // Island Map: pin it only when the address matches an exact civic number on Gabriola
-    const spot = formData.show_on_map ? await geocodeGabriola(formData.address) : null;
+    setSaving(true);
 
-    const { error } = await supabase.from('directory_businesses').insert({
+    // Island Map: pin it only when the address matches an exact civic number on Gabriola.
+    // When editing, the pin is only looked up again if the address changed.
+    const addressChanged = !editing || (editing.address || '').trim() !== formData.address.trim();
+    const spot = formData.show_on_map && addressChanged ? await geocodeGabriola(formData.address) : null;
+    const pin = addressChanged
+      ? { lat: spot?.exact ? spot.lat : null, lng: spot?.exact ? spot.lng : null }
+      : {};
+
+    const row: any = {
       // Island Map
       show_on_map: formData.show_on_map,
-      lat: spot?.exact ? spot.lat : null,
-      lng: spot?.exact ? spot.lng : null,
+      ...pin,
 
       // Basic Info
       name: formData.name.trim(),
@@ -381,11 +428,33 @@ export default function Directory() {
       video_url: formData.video_url.trim() || null,
       
       // Media
-      image: files[0] || null,
       logo_url: formData.logo_url || null,
       cover_image_url: formData.cover_image_url || null,
-      gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
-    });
+    };
+    // Photos: only replaced when new ones were added
+    if (!editing || files[0]) row.image = files[0] || null;
+    if (!editing || uploadedImageUrls.length > 0) row.gallery_images = uploadedImageUrls.length > 0 ? uploadedImageUrls : null;
+
+    if (editing) {
+      const { data: saved, error: saveError } = await supabase
+        .from('directory_businesses')
+        .update(row)
+        .eq('id', editing.id)
+        .select('id');
+      setSaving(false);
+      if (saveError || !saved || saved.length === 0) {
+        alert('Sorry, the changes couldn\'t be saved.' + (saveError ? ' ' + saveError.message : ' Only the person who added this business can edit it.'));
+        return;
+      }
+      alert('Changes saved.');
+      closeForm();
+      const { data } = await supabase.from('directory_businesses').select('*');
+      if (data) setListings(data);
+      return;
+    }
+
+    const { error } = await supabase.from('directory_businesses').insert({ ...row, created_by: user?.id || null });
+    setSaving(false);
 
     if (!error) {
       alert('Business added! Thank you! 🌟');
@@ -443,7 +512,7 @@ export default function Directory() {
             <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Island Directory</h1>
             {user && (
               <button
-                onClick={() => setShowAddForm(!showAddForm)}
+                onClick={() => (showAddForm ? closeForm() : setShowAddForm(true))}
                 className="flex-shrink-0 bg-gabriola-green text-white px-4 min-h-[44px] rounded-lg font-semibold hover:bg-gabriola-green-dark flex items-center gap-2"
               >
                 {showAddForm ? <X className="w-5 h-5" aria-hidden="true" /> : <Plus className="w-5 h-5" aria-hidden="true" />}
@@ -510,7 +579,7 @@ export default function Directory() {
       {/* Add Form */}
       {showAddForm && (
         <div className="max-w-2xl mx-auto p-8 bg-white border-b">
-          <h3 className="text-2xl font-bold text-gabriola-green mb-6">Add Your Business</h3>
+          <h3 className="text-2xl font-bold text-gabriola-green mb-6">{editing ? `Edit ${editing.name}` : 'Add Your Business'}</h3>
           <form onSubmit={handleSubmit} className="space-y-8">
             
             {/* SECTION 1: Basic Information */}
@@ -819,14 +888,19 @@ export default function Directory() {
             {/* Note */}
             <div className="bg-[#E6EFE8] rounded-lg p-4">
               <p className="text-sm text-gabriola-green-dark">
-                Your business will appear in the directory right away.
+                {editing ? 'Your changes show in the directory as soon as you save.' : 'Your business will appear in the directory right away.'}
               </p>
             </div>
 
             {/* Submit Button */}
-            <button type="submit" className="w-full bg-gabriola-green text-white py-5 rounded-xl font-bold text-lg hover:bg-gabriola-green-dark shadow-lg hover:shadow-xl transition-all">
-              Submit Business Listing
+            <button type="submit" disabled={saving} className="w-full bg-gabriola-green text-white py-5 rounded-xl font-bold text-lg hover:bg-gabriola-green-dark shadow-lg hover:shadow-xl transition-all disabled:opacity-60">
+              {saving ? 'Saving...' : editing ? 'Save Changes' : 'Submit Business Listing'}
             </button>
+            {editing && (
+              <button type="button" onClick={closeForm} className="w-full py-4 rounded-xl font-semibold border border-[#CFC6B4] bg-white">
+                Cancel
+              </button>
+            )}
           </form>
         </div>
       )}
@@ -866,6 +940,17 @@ export default function Directory() {
                           )}
                         </span>
                       </button>
+                      {canEdit(listing) && (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(listing)}
+                          aria-label={`Edit ${listing.name}`}
+                          title="Edit"
+                          className="flex-shrink-0 w-14 flex items-center justify-center text-blue-700 hover:bg-blue-50 border-l border-[#EEE8DD]"
+                        >
+                          <Pencil className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                      )}
                       {listing.phone && (
                         <a
                           href={`tel:${listing.phone}`}
