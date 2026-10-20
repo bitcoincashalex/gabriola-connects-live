@@ -1,5 +1,7 @@
 // components/Directory.tsx
-// Version: 5.3.0 - Owners can edit their own listing: an Edit button shows on businesses you added
+// Version: 5.3.1 - No more full-screen "Loading 53+ businesses..." flash: the page shows straight
+//                  away with a small "Loading businesses..." where the list goes
+// Previous: 5.3.0 - Owners can edit their own listing: an Edit button shows on businesses you added
 //                  (and on every business for directory admins), opening the same form filled in.
 //                  New businesses now record who added them (they never did, so nobody owned one).
 // Previous: 5.2.0 - Search matches the start of words as you type: "b" finds Brent and Bruno's,
@@ -483,7 +485,6 @@ export default function Directory() {
     }
   };
 
-  if (loading) return <div className="text-center py-32 text-2xl">Loading 53+ businesses...</div>;
 
   return (
     <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
