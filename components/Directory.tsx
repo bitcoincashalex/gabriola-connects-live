@@ -1,7 +1,12 @@
 // components/Directory.tsx
-// Version: 5.1.0 - New businesses get a pin on the Island Map from their street address (exact
+// Version: 5.2.0 - Search matches the start of words as you type: "b" finds Brent and Bruno's,
+//                  not every business with a b somewhere in it (nearly all have "Gabriola").
+//                  Several words narrow it down ("hair st"). Searches the name and category.
+//                  While searching, results are one list with names starting with it first.
+// Date: 2026-10-20
+// Previous: 5.1.0 - New businesses get a pin on the Island Map from their street address (exact
 //                  matches only), with a "Show on the Island Map" choice in the Add form
-// Previous: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
+// Earlier: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
 // Earlier: 5.0.1 - Add Your Business note: "Your business will appear in the directory right away."
 //                  (dropped "For demo purposes")
 // Earlier: 5.0.0 - Directory redesign for phones: slim Chamber thank-you strip (was the whole first
@@ -190,13 +195,20 @@ export default function Directory() {
     return names;
   }, [mainCategories, subcategories]);
 
+  // Every word typed has to match the start of a word in the name or category
+  const searchWords = useMemo(
+    () => searchQuery.toLowerCase().split(/\s+/).map(w => w.replace(/[^0-9a-z&À-ɏ]/g, '')).filter(Boolean),
+    [searchQuery]
+  );
+  const matchesSearch = (l: DirectoryListing) => {
+    if (searchWords.length === 0) return true;
+    const words = `${l.name} ${l.category}`.toLowerCase().split(/[^0-9a-z&À-ɏ]+/).filter(Boolean);
+    return searchWords.every(q => words.some(w => w.startsWith(q)));
+  };
+
   const filteredListings = useMemo(() => {
     return listings
-      .filter(l =>
-        searchQuery === '' ||
-        l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        l.category.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      .filter(matchesSearch)
       .filter(l => {
         if (selectedCategory === 'All') return true;
         if (l.category === selectedCategory) return true;
@@ -211,7 +223,7 @@ export default function Directory() {
         }
         return a.name.localeCompare(b.name);
       });
-  }, [listings, searchQuery, selectedCategory, mainCategories, subcategories]);
+  }, [listings, searchWords, selectedCategory, mainCategories, subcategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only offer categories that have businesses (a main group counts its sub-categories)
   const usedCategories = useMemo(() => new Set(listings.map(l => l.category)), [listings]);
@@ -235,6 +247,16 @@ export default function Directory() {
 
   // Group the shown businesses under category headings
   const groupedListings = useMemo(() => {
+    // While searching: one list, businesses whose name starts with what was typed first
+    if (searchWords.length > 0) {
+      const first = searchWords.join(' ');
+      const items = [...filteredListings].sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(first) ? 0 : 1;
+        const bStarts = b.name.toLowerCase().startsWith(first) ? 0 : 1;
+        return aStarts - bStarts || a.name.localeCompare(b.name);
+      });
+      return items.length ? [{ category: `${items.length} found`, items }] : [];
+    }
     const groups: { category: string; items: DirectoryListing[] }[] = [];
     for (const l of filteredListings) {
       const last = groups[groups.length - 1];
@@ -242,7 +264,7 @@ export default function Directory() {
       else groups.push({ category: l.category, items: [l] });
     }
     return groups;
-  }, [filteredListings]);
+  }, [filteredListings, searchWords]);
 
   const chip = (selected: boolean) =>
     `flex-shrink-0 flex items-center gap-1 px-4 min-h-[40px] rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
