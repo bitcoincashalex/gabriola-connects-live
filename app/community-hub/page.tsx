@@ -1,9 +1,10 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.2.0 - Island Map is live (links to /map)
-// Previous: 1.1.0 - Activated Volunteer Opportunities module
-// Date: 2026-10-13
+// Version: 1.3.0 - Buy, Sell & Free card (links to /marketplace); Island News card spans the row
+// Previous: 1.2.0 - Island Map is live (links to /map)
+// Earlier: 1.1.0 - Activated Volunteer Opportunities module
+// Date: 2026-10-20
 
-import { MessageSquare, AlertCircle, Map, Newspaper, Heart } from 'lucide-react';
+import { MessageSquare, AlertCircle, Map, Newspaper, Heart, Tag } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -114,8 +115,33 @@ export default function CommunityHubPage() {
               </div>
             </Link>
 
+            {/* Buy, Sell & Free */}
+            <Link
+              href="/marketplace"
+              className="block bg-white border-2 border-[#002774]/50 rounded-2xl p-8 hover:shadow-xl transition-all group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-4 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition">
+                  <Tag className="w-10 h-10 text-[#002774]" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Buy, Sell &amp; Free
+                    </h3>
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                      NEW!
+                    </span>
+                  </div>
+                  <p className="text-gray-600">
+                    Things for sale, things wanted, and things free to a good home
+                  </p>
+                </div>
+              </div>
+            </Link>
+
             {/* Island News - Coming Soon */}
-            <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed">
+            <div className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-8 opacity-60 cursor-not-allowed md:col-span-2">
               <div className="flex items-start gap-4">
                 <div className="p-4 bg-gray-200 rounded-xl">
                   <Newspaper className="w-10 h-10 text-gray-500" />

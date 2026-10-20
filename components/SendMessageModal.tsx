@@ -1,6 +1,7 @@
 // Path: components/SendMessageModal.tsx
-// Version: 1.0.0 - Quick message modal from threads
-// Date: 2024-12-09
+// Version: 1.1.0 - Optional starting text (used by Buy, Sell & Free so the seller knows which listing)
+// Previous: 1.0.0 - Quick message modal from threads (2024-12-09)
+// Date: 2026-10-20
 
 'use client';
 
@@ -13,10 +14,11 @@ interface Props {
   recipientName: string;
   currentUserId: string;
   onClose: () => void;
+  initialMessage?: string;
 }
 
-export default function SendMessageModal({ recipientId, recipientName, currentUserId, onClose }: Props) {
-  const [message, setMessage] = useState('');
+export default function SendMessageModal({ recipientId, recipientName, currentUserId, onClose, initialMessage = '' }: Props) {
+  const [message, setMessage] = useState(initialMessage);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);

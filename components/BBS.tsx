@@ -1,13 +1,14 @@
 // Path: components/BBS.tsx
-// Version: 6.1.1 - On computers the topic rows wrap onto more lines instead of being cut off
-// Previous: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
+// Version: 6.2.0 - "Buy, Sell & Free" at the end of the topic row opens the marketplace
+// Previous: 6.1.1 - On computers the topic rows wrap onto more lines instead of being cut off
+// Earlier: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
 // Earlier: 6.0.1 - Topic rows no longer show a scrollbar on computers
 // Earlier: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
 //                  row that scrolls sideways (sub-topics open in a second row), compact post list.
 //                  Signed-in member line kept, without the large text. No emoji.
 // Earlier: 5.1.1 - New post (+) button moved up so it sits above the fixed bottom menu
 // Earlier: 5.1.0 - Added auto-scroll to thread list on category/search selection
-// Date: 2026-10-10
+// Date: 2026-10-20
 
 'use client';
 
@@ -262,6 +263,9 @@ export default function BBS() {
                 </button>
               );
             })}
+            <Link href="/marketplace" className={`${chip(false)} inline-flex items-center gap-1`}>
+              Buy, Sell & Free <ChevronRight className="w-4 h-4" aria-hidden="true" />
+            </Link>
           </div>
 
           {/* Sub-topics of the open topic */}
