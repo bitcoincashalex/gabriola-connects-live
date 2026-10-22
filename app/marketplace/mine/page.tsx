@@ -1,6 +1,7 @@
 // app/marketplace/mine/page.tsx
 // My Buy, Sell & Free listings: live, sold and expired, with days left
-// Version: 1.0.1 - Says rentals stay up for 60 days
+// Version: 1.1.0 - Includes listings posted without a name (marked "Name not shown")
+// Previous: 1.0.1 - Says rentals stay up for 60 days
 // Previous: 1.0.0 (2026-10-20)
 // Date: 2026-10-22
 'use client';
@@ -24,10 +25,14 @@ export default function MyListingsPage() {
       return;
     }
     (async () => {
+      // Listings posted without a name have no account on them: the database lists those for us
+      const { data: anon } = await supabase.rpc('my_anonymous_listings');
+      const anonIds: string[] = Array.isArray(anon) ? anon.map((r: any) => (typeof r === 'string' ? r : r.my_anonymous_listings)).filter(Boolean) : [];
+      const mine = anonIds.length ? `user_id.eq.${user.id},id.in.(${anonIds.join(',')})` : `user_id.eq.${user.id}`;
       const { data } = await supabase
         .from('marketplace_listings')
         .select(LISTING_COLUMNS)
-        .eq('user_id', user.id)
+        .or(mine)
         .order('created_at', { ascending: false });
       setListings((data as Listing[]) || []);
       setLoading(false);
@@ -77,7 +82,7 @@ export default function MyListingsPage() {
                       ) : <ImageOff className="w-6 h-6" aria-hidden="true" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gabriola-green">{kindLabel(l.kind)}{priceLabel(l) && l.kind !== 'free' ? ` · ${priceLabel(l)}` : ''}</p>
+                      <p className="text-xs font-semibold text-gabriola-green">{kindLabel(l.kind)}{priceLabel(l) && l.kind !== 'free' ? ` · ${priceLabel(l)}` : ''}{l.is_anonymous ? ' · Name not shown' : ''}</p>
                       <h2 className="font-semibold leading-snug truncate">{l.title}</h2>
                       <p className={`text-sm mt-0.5 ${isLive(l) ? 'text-[#5B6660]' : 'font-semibold text-[#9A4A00]'}`}>
                         {isLive(l) ? `Live · ${daysLeft(l)}` : state}

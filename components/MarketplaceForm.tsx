@@ -1,7 +1,8 @@
 // components/MarketplaceForm.tsx
 // The form for posting or editing a Buy, Sell & Free listing
-// Version: 1.2.0 - "Allow public questions & comments" tick box (on by default)
-// Previous: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
+// Version: 1.3.0 - "Post without my name" tick box
+// Previous: 1.2.0 - "Allow public questions & comments" tick box (on by default)
+// Earlier: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
 //                  utilities) and "Looking for a rental" under Wanted (Housing & rentals)
 // Previous: 1.0.0 (2026-10-20)
 // Date: 2026-10-22
@@ -28,6 +29,7 @@ export interface MarketplaceFormValues {
   pets_ok: boolean;
   utilities_included: boolean;
   comments_enabled: boolean;
+  is_anonymous: boolean;
 }
 
 export function emptyMarketplaceForm(): MarketplaceFormValues {
@@ -35,6 +37,7 @@ export function emptyMarketplaceForm(): MarketplaceFormValues {
     kind: 'sale', title: '', description: '', price: '', category: 'other', photos: [],
     rental_type: 'room', available_from: '', furnished: false, pets_ok: false, utilities_included: false,
     comments_enabled: true,
+    is_anonymous: false,
   };
 }
 
@@ -52,6 +55,7 @@ export function marketplaceFormFromListing(l: any): MarketplaceFormValues {
     pets_ok: !!l.pets_ok,
     utilities_included: !!l.utilities_included,
     comments_enabled: l.comments_enabled !== false,
+    is_anonymous: !!l.is_anonymous,
   };
 }
 
@@ -72,6 +76,7 @@ export function marketplaceFormToRow(v: MarketplaceFormValues) {
     pets_ok: v.kind === 'rent' ? v.pets_ok : null,
     utilities_included: v.kind === 'rent' ? v.utilities_included : null,
     comments_enabled: v.comments_enabled,
+    is_anonymous: v.is_anonymous,
   };
 }
 
@@ -108,7 +113,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
   const photoCount = kept.length + added.length;
   const renting = v.kind === 'rent';
   const lookingToRent = v.kind === 'wanted' && v.category === HOUSING_CATEGORY;
-  const check = (field: 'furnished' | 'pets_ok' | 'utilities_included' | 'comments_enabled') =>
+  const check = (field: 'furnished' | 'pets_ok' | 'utilities_included' | 'comments_enabled' | 'is_anonymous') =>
     (e: React.ChangeEvent<HTMLInputElement>) => setV(prev => ({ ...prev, [field]: e.target.checked }));
 
   const pickPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,6 +312,13 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
           <span>
             <span className="font-semibold">Allow public questions &amp; comments</span>
             <span className="block text-xs text-[#5B6660]">Turn this off and people can still message you privately. You can change it any time on the listing.</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 min-h-[44px] text-sm mt-1">
+          <input type="checkbox" checked={v.is_anonymous} onChange={check('is_anonymous')} className="w-5 h-5 mt-0.5" />
+          <span>
+            <span className="font-semibold">Post without my name</span>
+            <span className="block text-xs text-[#5B6660]">Shows &quot;Posted by a neighbour&quot;. People can still message you, and they only find out who you are if you reply.</span>
           </span>
         </label>
       </div>

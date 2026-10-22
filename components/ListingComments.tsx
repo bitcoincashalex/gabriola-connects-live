@@ -1,6 +1,8 @@
 // components/ListingComments.tsx
 // Public questions and comments under a Buy, Sell & Free listing
-// Version: 1.1.0 - The poster (or an admin) can turn comments off and on; when off, existing
+// Version: 1.2.0 - viewerIsSeller: the page says whether you posted the listing (needed when it was
+//                  posted without a name)
+// Previous: 1.1.0 - The poster (or an admin) can turn comments off and on; when off, existing
 //                  comments stay visible and nobody can add new ones
 // Previous: 1.0.0
 // Date: 2026-10-22
@@ -19,7 +21,7 @@ import { timeAgo } from '@/lib/marketplace';
 interface ListingComment {
   id: string;
   listing_id: string;
-  user_id: string;
+  user_id: string | null;   // empty on the poster's replies when the listing has no name
   author_name: string | null;
   is_seller: boolean;
   body: string;
@@ -28,7 +30,7 @@ interface ListingComment {
 
 interface Props {
   listingId: string;
-  sellerId: string;
+  sellerId: string | null;
   isOpen: boolean;          // live listing: taking comments
   closedReason?: string;    // shown when not open, e.g. "This item has sold"
   userId?: string | null;
@@ -36,10 +38,11 @@ interface Props {
   commentsEnabled?: boolean;          // the poster's setting
   onToggleComments?: () => void;      // shown to the poster (and admins) while the listing is live
   toggling?: boolean;
+  viewerIsSeller?: boolean;           // set by the page; works for listings posted without a name
 }
 
 export default function ListingComments({
-  listingId, sellerId, isOpen, closedReason, userId, isAdmin, commentsEnabled = true, onToggleComments, toggling,
+  listingId, sellerId, isOpen, closedReason, userId, isAdmin, commentsEnabled = true, onToggleComments, toggling, viewerIsSeller,
 }: Props) {
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +52,7 @@ export default function ListingComments({
   const [highlight, setHighlight] = useState<string | null>(null);
   const scrolled = useRef(false);
 
-  const isSeller = !!userId && userId === sellerId;
+  const isSeller = viewerIsSeller ?? (!!userId && !!sellerId && userId === sellerId);
 
   const load = async () => {
     const { data, error } = await supabase
@@ -107,7 +110,7 @@ export default function ListingComments({
     setComments(prev => prev.filter(x => x.id !== c.id));
   };
 
-  const canDelete = (c: ListingComment) => !!userId && (c.user_id === userId || isSeller || !!isAdmin);
+  const canDelete = (c: ListingComment) => !!userId && ((!!c.user_id && c.user_id === userId) || isSeller || !!isAdmin);
 
   return (
     <section className="bg-white border border-[#E3DCCF] rounded-2xl p-4 md:p-6" aria-labelledby="listing-comments-heading">

@@ -1,7 +1,8 @@
 // app/marketplace/[id]/edit/page.tsx
 // Edit a Buy, Sell & Free listing (the seller, or an admin)
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.1.0 - The poster of a listing posted without a name can edit it
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -21,6 +22,7 @@ export default function EditListingPage() {
   const id = params.id as string;
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mineAnonymous, setMineAnonymous] = useState(false);
 
   const isAdmin = !!(user?.is_super_admin || (user as any)?.role === 'admin');
 
@@ -28,6 +30,10 @@ export default function EditListingPage() {
     (async () => {
       const { data } = await supabase.from('marketplace_listings').select(LISTING_COLUMNS).eq('id', id).maybeSingle();
       setListing((data as Listing) || null);
+      if (user && data && (data as Listing).is_anonymous) {
+        const { data: mine } = await supabase.rpc('marketplace_is_my_listing', { p_listing: id });
+        setMineAnonymous(mine === true);
+      }
       setLoading(false);
     })();
   }, [id, user?.id]);
@@ -46,7 +52,7 @@ export default function EditListingPage() {
     return null;
   };
 
-  const canEdit = !!user && !!listing && (listing.user_id === user.id || isAdmin);
+  const canEdit = !!user && !!listing && (listing.user_id === user.id || mineAnonymous || isAdmin);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F6F2EA] text-[#1F2A24]">

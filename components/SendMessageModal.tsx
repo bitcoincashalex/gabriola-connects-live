@@ -1,5 +1,7 @@
 // Path: components/SendMessageModal.tsx
-// Version: 1.1.0 - Optional starting text (used by Buy, Sell & Free so the seller knows which listing)
+// Version: 1.2.0 - Optional sendOverride: deliver the message another way (Buy, Sell, Rent & Free
+//                  sends to anonymous posters through the database without revealing them)
+// Previous: 1.1.0 - Optional starting text (used by Buy, Sell & Free so the seller knows which listing)
 // Previous: 1.0.0 - Quick message modal from threads (2024-12-09)
 // Date: 2026-10-20
 
@@ -15,9 +17,11 @@ interface Props {
   currentUserId: string;
   onClose: () => void;
   initialMessage?: string;
+  // Returns an error message, or null when sent
+  sendOverride?: (text: string) => Promise<string | null>;
 }
 
-export default function SendMessageModal({ recipientId, recipientName, currentUserId, onClose, initialMessage = '' }: Props) {
+export default function SendMessageModal({ recipientId, recipientName, currentUserId, onClose, initialMessage = '', sendOverride }: Props) {
   const [message, setMessage] = useState(initialMessage);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -31,6 +35,20 @@ export default function SendMessageModal({ recipientId, recipientName, currentUs
 
     setSending(true);
     setError('');
+
+    if (sendOverride) {
+      const problem = await sendOverride(message.trim());
+      if (problem) {
+        setError(problem);
+        setSending(false);
+        return;
+      }
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      return;
+    }
 
     try {
       // Step 1: Find or create conversation

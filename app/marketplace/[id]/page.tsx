@@ -1,8 +1,10 @@
 // app/marketplace/[id]/page.tsx
 // One Buy, Sell & Free listing: photos, details, Message the seller, Share.
 // The seller can edit, mark sold, renew or delete; admins can hide or show it.
-// Version: 1.3.0 - The poster can turn public comments off and on (Turn off comments)
-// Previous: 1.2.0 - Rentals: kind of place, rent per month, available from, furnished / pets /
+// Version: 1.4.0 - Listings posted without a name: "Posted by a neighbour", the poster still gets
+//                  their controls, and Message goes through the database without revealing them
+// Previous: 1.3.0 - The poster can turn public comments off and on (Turn off comments)
+// Earlier: 1.2.0 - Rentals: kind of place, rent per month, available from, furnished / pets /
 //                  utilities, "Mark rented", renew for 60 days, the local-rules line
 // Earlier: 1.1.0 - Public questions and comments under the listing (ListingComments)
 // Previous: 1.0.1 - Took out the meet-somewhere-public note
@@ -41,7 +43,26 @@ export default function ListingPage() {
   const [error, setError] = useState('');
 
   const isAdmin = !!(user?.is_super_admin || (user as any)?.role === 'admin');
-  const isSeller = !!user && listing?.user_id === user.id;
+  // Listings posted without a name have no account on them: ask the database whether it's ours
+  const [mineAnonymous, setMineAnonymous] = useState(false);
+  const isSeller = !!user && !!listing && (listing.user_id === user.id || (listing.is_anonymous && mineAnonymous));
+
+  useEffect(() => {
+    if (!user || !listing || !listing.is_anonymous) {
+      setMineAnonymous(false);
+      return;
+    }
+    supabase.rpc('marketplace_is_my_listing', { p_listing: listing.id }).then(({ data }) => setMineAnonymous(data === true));
+  }, [user?.id, listing?.id, listing?.is_anonymous]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const messageAnonymousSeller = async (text: string) => {
+    const { error } = await supabase.rpc('marketplace_message_seller', { p_listing: id, p_message: text });
+    if (error) {
+      console.error('Message to anonymous poster failed:', error);
+      return error.message || 'Sorry, your message couldn\'t be sent.';
+    }
+    return null;
+  };
 
   useEffect(() => {
     load();
@@ -178,7 +199,8 @@ export default function ListingPage() {
               </div>
             )}
             <p className="text-sm text-[#5B6660] mt-2">
-              Posted by {listing.seller_name || 'a neighbour'} · {timeAgo(listing.created_at)}
+              Posted by {listing.is_anonymous ? 'a neighbour' : (listing.seller_name || 'a neighbour')} · {timeAgo(listing.created_at)}
+              {isSeller && listing.is_anonymous && <> · your name isn&apos;t shown</>}
               {isSeller && live && <> · {daysLeft(listing)}</>}
             </p>
 
@@ -196,7 +218,7 @@ export default function ListingPage() {
                 user ? (
                   <button type="button" onClick={() => setMessaging(true)}
                     className={`${btn} bg-gabriola-green text-white hover:bg-gabriola-green-dark min-h-[44px] px-4`}>
-                    <Mail className="w-4 h-4" aria-hidden="true" /> Message {listing.seller_name || 'the seller'}
+                    <Mail className="w-4 h-4" aria-hidden="true" /> Message {listing.is_anonymous ? 'the poster' : (listing.seller_name || 'the seller')}
                   </button>
                 ) : (
                   <Link href="/signin" className={`${btn} bg-gabriola-green text-white min-h-[44px] px-4`}>
@@ -247,6 +269,7 @@ export default function ListingPage() {
           isOpen={live && listing.comments_enabled !== false}
           commentsEnabled={listing.comments_enabled !== false}
           onToggleComments={live && (isSeller || isAdmin) ? toggleComments : undefined}
+          viewerIsSeller={isSeller}
           toggling={busy}
           closedReason={
             live ? 'The poster has turned off comments. Use Message to contact them.'
@@ -261,8 +284,9 @@ export default function ListingPage() {
 
       {messaging && user && (
         <SendMessageModal
-          recipientId={listing.user_id}
-          recipientName={listing.seller_name || 'the seller'}
+          recipientId={listing.user_id || ''}
+          recipientName={listing.is_anonymous ? 'the poster' : (listing.seller_name || 'the seller')}
+          sendOverride={listing.is_anonymous ? messageAnonymousSeller : undefined}
           currentUserId={user.id}
           initialMessage={`About your listing "${listing.title}" (${url}):\n\n`}
           onClose={() => setMessaging(false)}
