@@ -1,8 +1,9 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.3.0 - Buy, Sell & Free card (links to /marketplace); Island News card spans the row
+// Version: 1.3.1 - Card renamed Buy, Sell, Rent & Free; description mentions places for rent
+// Previous: 1.3.0 - Buy, Sell & Free card (links to /marketplace); Island News card spans the row
 // Previous: 1.2.0 - Island Map is live (links to /map)
 // Earlier: 1.1.0 - Activated Volunteer Opportunities module
-// Date: 2026-10-20
+// Date: 2026-10-22
 
 import { MessageSquare, AlertCircle, Map, Newspaper, Heart, Tag } from 'lucide-react';
 import Link from 'next/link';
@@ -115,7 +116,7 @@ export default function CommunityHubPage() {
               </div>
             </Link>
 
-            {/* Buy, Sell & Free */}
+            {/* Buy, Sell, Rent & Free */}
             <Link
               href="/marketplace"
               className="block bg-white border-2 border-[#002774]/50 rounded-2xl p-8 hover:shadow-xl transition-all group"
@@ -127,14 +128,14 @@ export default function CommunityHubPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-2xl font-bold text-gray-900">
-                      Buy, Sell &amp; Free
+                      Buy, Sell, Rent &amp; Free
                     </h3>
                     <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
                       NEW!
                     </span>
                   </div>
                   <p className="text-gray-600">
-                    Things for sale, things wanted, and things free to a good home
+                    Things for sale, places for rent, things wanted, and things free to a good home
                   </p>
                 </div>
               </div>
