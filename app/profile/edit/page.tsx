@@ -1,6 +1,10 @@
 // app/profile/edit/page.tsx
-// Version: 3.0.1 - Added visual feedback for required fields (first/last name)
-// Date: 2025-12-22
+// Version: 3.1.0 - Alert notifications work: email and site inbox, by alert level. Email starts
+//                  unchecked until the member saves this page (nobody gets alert emails they
+//                  never chose). Text message and browser notifications marked "coming soon".
+//                  Needs sql/2026-10-22-alert-notifications.sql
+// Previous: 3.0.1 - Added visual feedback for required fields (first/last name)
+// Date: 2026-10-22
 
 'use client';
 
@@ -38,7 +42,8 @@ export default function ProfileEditPage() {
   const [residentSince, setResidentSince] = useState('');
   
   // Notification preferences
-  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifyEmail, setNotifyEmail] = useState(false);
+  const [notifyInbox, setNotifyInbox] = useState(false);
   const [notifySms, setNotifySms] = useState(false);
   const [notifyPush, setNotifyPush] = useState(true);
   const [alertSubscriptions, setAlertSubscriptions] = useState<string[]>(['warning', 'emergency']);
@@ -87,7 +92,9 @@ export default function ProfileEditPage() {
       setResidentSince(data.resident_since || '');
       
       // Load notification preferences
-      setNotifyEmail(data.notify_email !== false);
+      // Email alerts only count once the member has saved this page themselves
+      setNotifyEmail(!!data.notify_prefs_saved_at && data.notify_email !== false);
+      setNotifyInbox(data.notify_inbox === true);
       setNotifySms(data.notify_sms || false);
       setNotifyPush(data.notify_push !== false);
       setAlertSubscriptions(data.alert_subscriptions || ['warning', 'emergency']);
@@ -169,6 +176,8 @@ export default function ProfileEditPage() {
         resident_since: residentSince || null,
         // Notification preferences
         notify_email: notifyEmail,
+        notify_inbox: notifyInbox,
+        notify_prefs_saved_at: new Date().toISOString(),
         notify_sms: notifySms,
         notify_push: notifyPush,
         alert_subscriptions: alertSubscriptions,
@@ -615,42 +624,62 @@ export default function ProfileEditPage() {
                 <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
                     type="checkbox"
-                    checked={notifySms}
-                    onChange={e => setNotifySms(e.target.checked)}
-                    disabled={!phoneNumber.trim()}
+                    checked={notifyInbox}
+                    onChange={e => setNotifyInbox(e.target.checked)}
                     className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 font-bold text-gray-900">
+                      <Bell className="w-5 h-5 text-gabriola-green" />
+                      Site Inbox Messages
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Get a message in your Gabriola Connects inbox for each alert
+                    </div>
+                  </div>
+                </label>
+
+                <div className="flex items-start gap-3 p-4 border-2 rounded-lg bg-gray-50 opacity-70" aria-disabled="true">
+                  <input
+                    type="checkbox"
+                    checked={false}
+                    disabled
+                    readOnly
+                    className="mt-1"
+                    aria-label="SMS notifications, coming soon"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 font-bold text-gray-900">
                       <MessageSquare className="w-5 h-5 text-green-600" />
                       SMS Notifications
-                      {!phoneNumber.trim() && (
-                        <span className="text-xs text-orange-600 font-normal">(Add phone number above)</span>
-                      )}
+                      <span className="text-xs text-gray-600 font-normal">(coming soon)</span>
                     </div>
                     <div className="text-sm text-gray-600 mt-1">
                       Receive urgent alerts via text message
                     </div>
                   </div>
-                </label>
+                </div>
 
-                <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
+                <div className="flex items-start gap-3 p-4 border-2 rounded-lg bg-gray-50 opacity-70" aria-disabled="true">
                   <input
                     type="checkbox"
-                    checked={notifyPush}
-                    onChange={e => setNotifyPush(e.target.checked)}
+                    checked={false}
+                    disabled
+                    readOnly
                     className="mt-1"
+                    aria-label="Browser notifications, coming soon"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 font-bold text-gray-900">
                       <Smartphone className="w-5 h-5 text-purple-600" />
                       Browser Notifications
+                      <span className="text-xs text-gray-600 font-normal">(coming soon)</span>
                     </div>
                     <div className="text-sm text-gray-600 mt-1">
                       Show notifications in your browser
                     </div>
                   </div>
-                </label>
+                </div>
               </div>
 
               {/* Alert Level Subscriptions */}
