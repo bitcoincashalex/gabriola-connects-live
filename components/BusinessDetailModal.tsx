@@ -1,10 +1,13 @@
 // components/BusinessDetailModal.tsx
 // Reusable business detail modal for directory listings
-// Version: 1.0.0
-// Date: 2025-12-20
+// Version: 1.1.0 - "Is this your business?": members can ask to be connected to a business with
+//                  no owner (components/ClaimBusiness.tsx)
+// Previous: 1.0.0 (2025-12-20)
+// Date: 2026-10-22
 
 'use client';
 
+import ClaimBusiness from '@/components/ClaimBusiness';
 import { X, MapPin, Phone, Mail, Globe, Clock, DollarSign, Facebook, Instagram } from 'lucide-react';
 
 interface DirectoryBusiness {
@@ -391,6 +394,8 @@ export default function BusinessDetailModal({ business, onClose }: BusinessDetai
               <span>Owner: {business.owner_name}</span>
             )}
           </div>
+
+          <ClaimBusiness businessId={business.id} businessName={business.name} />
         </div>
       </div>
     </div>

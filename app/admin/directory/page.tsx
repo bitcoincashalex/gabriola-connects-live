@@ -1,8 +1,9 @@
 // Path: app/admin/directory/page.tsx
-// Version: 4.1.0 - Map position: "Show on the Island Map", find the pin from the address,
+// Version: 4.2.0 - Link to Ownership requests (/admin/directory/claims)
+// Previous: 4.1.0 - Map position: "Show on the Island Map", find the pin from the address,
 //                  drag it to fix it, or remove it (saved as lat, lng, show_on_map)
 // Previous: 4.0.0-UPLOAD - IMAGE UPLOAD from computer with Supabase Storage
-// Date: 2026-10-13
+// Date: 2026-10-22
 
 'use client';
 
@@ -499,12 +500,20 @@ export default function DirectoryAdminPage() {
             Manage business listings and Chamber of Commerce directory
           </p>
         </div>
-        <Link
-          href="/directory/business"
-          className="text-blue-600 hover:underline"
-        >
-          ← Back to Directory
-        </Link>
+        <div className="flex flex-col items-end gap-2">
+          <Link
+            href="/admin/directory/claims"
+            className="text-blue-600 font-semibold hover:underline"
+          >
+            Ownership requests
+          </Link>
+          <Link
+            href="/directory/business"
+            className="text-blue-600 hover:underline"
+          >
+            ← Back to Directory
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
