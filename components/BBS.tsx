@@ -1,6 +1,7 @@
 // Path: components/BBS.tsx
-// Version: 6.2.0 - "Buy, Sell & Free" at the end of the topic row opens the marketplace
-// Previous: 6.1.1 - On computers the topic rows wrap onto more lines instead of being cut off
+// Version: 6.2.1 - Marketplace button now says "Buy, Sell, Rent & Free"
+// Previous: 6.2.0 - "Buy, Sell & Free" at the end of the topic row opens the marketplace
+// Earlier: 6.1.1 - On computers the topic rows wrap onto more lines instead of being cut off
 // Earlier: 6.1.0 - "Island News" and "Discussions" buttons at the start of the topic row
 // Earlier: 6.0.1 - Topic rows no longer show a scrollbar on computers
 // Earlier: 6.0.0 - Forum redesign for phones: smaller title, one-line guest notice, topics in one
@@ -264,7 +265,7 @@ export default function BBS() {
               );
             })}
             <Link href="/marketplace" className={`${chip(false)} inline-flex items-center gap-1`}>
-              Buy, Sell & Free <ChevronRight className="w-4 h-4" aria-hidden="true" />
+              Buy, Sell, Rent &amp; Free <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
 
