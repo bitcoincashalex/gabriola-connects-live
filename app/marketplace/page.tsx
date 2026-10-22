@@ -1,6 +1,7 @@
 // app/marketplace/page.tsx
 // Buy, Sell & Free: live listings as a photo grid, with For sale / Wanted / Free, category and search
-// Version: 1.1.0 - "For rent" filter; rental cards show the kind of place and when it's available
+// Version: 1.1.1 - Heading: Buy, Sell, Rent & Free
+// Previous: 1.1.0 - "For rent" filter; rental cards show the kind of place and when it's available
 // Previous: 1.0.0 (2026-10-20)
 // Date: 2026-10-22
 'use client';
@@ -72,7 +73,7 @@ export default function MarketplacePage() {
           <div className="max-w-5xl mx-auto px-4 pt-4 pb-3 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Buy, Sell & Free</h1>
+                <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Buy, Sell, Rent & Free</h1>
                 <p className="text-sm md:text-base text-[#5B6660]">Things for sale, places for rent, things wanted and things free to a good home, on Gabriola.</p>
               </div>
               <Link href={postHref}
