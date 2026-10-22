@@ -1,9 +1,10 @@
 // app/marketplace/[id]/page.tsx
 // One Buy, Sell & Free listing: photos, details, Message the seller, Share.
 // The seller can edit, mark sold, renew or delete; admins can hide or show it.
-// Version: 1.0.1 - Took out the meet-somewhere-public note
-// Previous: 1.0.0
-// Date: 2026-10-20
+// Version: 1.1.0 - Public questions and comments under the listing (ListingComments)
+// Previous: 1.0.1 - Took out the meet-somewhere-public note
+// Earlier: 1.0.0
+// Date: 2026-10-22
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -16,6 +17,7 @@ import Footer from '@/components/Footer';
 import ShareButton from '@/components/ShareButton';
 import PostBody from '@/components/PostBody';
 import SendMessageModal from '@/components/SendMessageModal';
+import ListingComments from '@/components/ListingComments';
 import {
   LISTING_COLUMNS, Listing, categoryLabel, kindLabel, priceLabel, timeAgo,
   isLive, listingState, daysLeft, removeListingPhotos,
@@ -217,6 +219,19 @@ export default function ListingPage() {
 
           </div>
         </article>
+
+        <ListingComments
+          listingId={listing.id}
+          sellerId={listing.user_id}
+          isOpen={live}
+          closedReason={
+            listing.status === 'sold' ? (listing.kind === 'wanted' ? 'The seller found what they were looking for, so comments are closed.' : 'This item has sold, so comments are closed.')
+              : listing.status === 'hidden' ? 'This listing is hidden, so comments are closed.'
+              : 'This listing has expired, so comments are closed.'
+          }
+          userId={user?.id}
+          isAdmin={isAdmin}
+        />
       </div>
 
       {messaging && user && (
