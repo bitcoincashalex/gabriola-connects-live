@@ -1,7 +1,8 @@
 // app/marketplace/new/page.tsx
 // Post a Buy, Sell & Free listing (signed-in members; goes live straight away for 30 days)
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.0.1 - Says rentals stay up for 60 days
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 'use client';
 
 import Link from 'next/link';
@@ -40,7 +41,7 @@ export default function NewListingPage() {
         <div className="bg-white border border-[#E3DCCF] rounded-2xl p-4 md:p-6">
           <h1 className="font-display text-2xl font-bold text-gabriola-green-dark mb-1">Post a listing</h1>
           <p className="text-sm text-[#5B6660] mb-5">
-            It goes live right away and stays up for 30 days. You can renew it, mark it sold or take it down any time.
+            It goes live right away and stays up for 30 days (rentals 60). You can renew it, mark it sold or take it down any time.
           </p>
 
           {loading ? (

@@ -1,12 +1,14 @@
 // lib/marketplace.ts
 // Buy, Sell & Free: shared types, labels, photo upload and small helpers
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.1.0 - Rentals: "For rent" listings (home, suite or cabin, room, trailer / RV,
+//                  RV pad) by the month, "Looking for a rental" under Wanted, 60-day listings
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/imageCompression';
 
-export type ListingKind = 'sale' | 'wanted' | 'free';
+export type ListingKind = 'sale' | 'rent' | 'wanted' | 'free';
 export type ListingStatus = 'active' | 'sold' | 'hidden';
 
 export interface Listing {
@@ -23,16 +25,49 @@ export interface Listing {
   created_at: string;
   updated_at: string;
   expires_at: string;
+  // Rentals (kind 'rent', or 'wanted' in the housing category)
+  rental_type: string | null;
+  available_from: string | null;   // YYYY-MM-DD, empty = now
+  furnished: boolean | null;
+  pets_ok: boolean | null;
+  utilities_included: boolean | null;
 }
 
 export const LISTING_COLUMNS =
-  'id, user_id, seller_name, kind, title, description, price, category, photos, status, created_at, updated_at, expires_at';
+  'id, user_id, seller_name, kind, title, description, price, category, photos, status, created_at, updated_at, expires_at, rental_type, available_from, furnished, pets_ok, utilities_included';
+
+// Rentals: monthly and up only (nightly and weekly stays belong on Airbnb)
+export const HOUSING_CATEGORY = 'housing';
+export const RENTAL_TYPES: { id: string; label: string }[] = [
+  { id: 'home', label: 'Home' },
+  { id: 'suite', label: 'Suite or cabin' },
+  { id: 'room', label: 'Room' },
+  { id: 'trailer', label: 'Trailer / RV' },
+  { id: 'rv_pad', label: 'RV pad / space' },
+];
+export const rentalTypeLabel = (id?: string | null) => RENTAL_TYPES.find(t => t.id === id)?.label || 'Rental';
+
+// A rental listing, or someone looking for one
+export const isRental = (l: Pick<Listing, 'kind' | 'category'>) =>
+  l.kind === 'rent' || (l.kind === 'wanted' && l.category === HOUSING_CATEGORY);
+
+// How long a listing stays up (and what Renew gives): rentals 60 days, everything else 30
+export const listingDays = (l: Pick<Listing, 'kind' | 'category'>) => (isRental(l) ? 60 : 30);
+
+// "Available now" / "Available Nov 1"
+export function availableLabel(date?: string | null): string {
+  if (!date) return 'Available now';
+  const d = new Date(`${date.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime()) || d.getTime() <= Date.now()) return 'Available now';
+  return 'Available ' + d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
 
 export const MAX_PHOTOS = 4;
 export const PHOTO_BUCKET = 'marketplace';
 
 export const LISTING_KINDS: { id: ListingKind; label: string; short: string }[] = [
   { id: 'sale', label: 'For sale', short: 'For sale' },
+  { id: 'rent', label: 'For rent', short: 'For rent' },
   { id: 'wanted', label: 'Wanted', short: 'Wanted' },
   { id: 'free', label: 'Free', short: 'Free' },
 ];
@@ -46,6 +81,7 @@ export const LISTING_CATEGORIES: { id: string; label: string }[] = [
   { id: 'electronics', label: 'Electronics' },
   { id: 'clothing', label: 'Clothing' },
   { id: 'kids', label: 'Kids & Toys' },
+  { id: HOUSING_CATEGORY, label: 'Housing & rentals' },
   { id: 'other', label: 'Other' },
 ];
 
@@ -55,23 +91,24 @@ export const categoryLabel = (id: string) =>
 export const kindLabel = (kind: ListingKind) =>
   LISTING_KINDS.find(k => k.id === kind)?.label || 'For sale';
 
-// "$45", "$1,200", "$12.50", "Free", or "" when no price was given
-export function priceLabel(l: Pick<Listing, 'kind' | 'price'>): string {
+// "$45", "$1,200", "$12.50", "$750/mo" for rentals, "Free", or "" when no price was given
+export function priceLabel(l: Pick<Listing, 'kind' | 'price'> & { category?: string }): string {
   if (l.kind === 'free') return 'Free';
   if (l.price === null || l.price === undefined) return '';
   const n = Number(l.price);
-  return '$' + n.toLocaleString('en-CA', {
+  const amount = '$' + n.toLocaleString('en-CA', {
     minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
     maximumFractionDigits: 2,
   });
+  return isRental({ kind: l.kind, category: l.category || '' }) ? `${amount}/mo` : amount;
 }
 
 export const isExpired = (l: Pick<Listing, 'expires_at'>) => new Date(l.expires_at).getTime() <= Date.now();
 export const isLive = (l: Pick<Listing, 'status' | 'expires_at'>) => l.status === 'active' && !isExpired(l);
 
 // What the seller sees on their own listing
-export function listingState(l: Pick<Listing, 'status' | 'expires_at'>): string {
-  if (l.status === 'sold') return 'Sold';
+export function listingState(l: Pick<Listing, 'status' | 'expires_at'> & { kind?: ListingKind }): string {
+  if (l.status === 'sold') return l.kind === 'rent' ? 'Rented' : l.kind === 'wanted' ? 'Found' : 'Sold';
   if (l.status === 'hidden') return 'Hidden by an admin';
   if (isExpired(l)) return 'Expired';
   return 'Live';

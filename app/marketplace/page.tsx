@@ -1,7 +1,8 @@
 // app/marketplace/page.tsx
 // Buy, Sell & Free: live listings as a photo grid, with For sale / Wanted / Free, category and search
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.1.0 - "For rent" filter; rental cards show the kind of place and when it's available
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -12,7 +13,7 @@ import { useUser } from '@/components/AuthProvider';
 import Footer from '@/components/Footer';
 import {
   LISTING_COLUMNS, LISTING_CATEGORIES, LISTING_KINDS, Listing, ListingKind,
-  categoryLabel, kindLabel, priceLabel, timeAgo,
+  categoryLabel, kindLabel, priceLabel, timeAgo, isRental, rentalTypeLabel, availableLabel,
 } from '@/lib/marketplace';
 
 export default function MarketplacePage() {
@@ -72,7 +73,7 @@ export default function MarketplacePage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight">Buy, Sell & Free</h1>
-                <p className="text-sm md:text-base text-[#5B6660]">Things for sale, things wanted and things free to a good home, on Gabriola.</p>
+                <p className="text-sm md:text-base text-[#5B6660]">Things for sale, places for rent, things wanted and things free to a good home, on Gabriola.</p>
               </div>
               <Link href={postHref}
                 className="flex-shrink-0 flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg bg-gabriola-green text-white text-sm font-semibold hover:bg-gabriola-green-dark transition-colors">
@@ -161,16 +162,22 @@ export default function MarketplacePage() {
                         )}
                         {l.kind !== 'sale' && (
                           <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                            l.kind === 'free' ? 'bg-gabriola-green text-white' : 'bg-[#002774] text-white'
+                            l.kind === 'free' ? 'bg-gabriola-green text-white' : l.kind === 'rent' ? 'bg-[#9A4A00] text-white' : 'bg-[#002774] text-white'
                           }`}>
-                            {kindLabel(l.kind)}
+                            {l.kind === 'wanted' && isRental(l) ? 'Looking to rent' : kindLabel(l.kind)}
                           </span>
                         )}
                       </div>
                       <div className="p-3">
                         {price && l.kind !== 'free' && <p className="font-bold text-[#1F2A24]">{l.kind === 'wanted' ? `Budget ${price}` : price}</p>}
                         <h2 className="text-sm font-semibold text-[#1F2A24] leading-snug line-clamp-2">{l.title}</h2>
-                        <p className="text-xs text-[#5B6660] mt-1">{categoryLabel(l.category)} · {timeAgo(l.created_at)}</p>
+                        <p className="text-xs text-[#5B6660] mt-1">
+                          {l.kind === 'rent'
+                            ? `${rentalTypeLabel(l.rental_type)} · ${availableLabel(l.available_from)}`
+                            : isRental(l)
+                              ? `${rentalTypeLabel(l.rental_type)} · ${timeAgo(l.created_at)}`
+                              : `${categoryLabel(l.category)} · ${timeAgo(l.created_at)}`}
+                        </p>
                       </div>
                     </Link>
                   </li>

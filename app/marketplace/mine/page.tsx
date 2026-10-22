@@ -1,7 +1,8 @@
 // app/marketplace/mine/page.tsx
 // My Buy, Sell & Free listings: live, sold and expired, with days left
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.0.1 - Says rentals stay up for 60 days
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -59,7 +60,7 @@ export default function MyListingsPage() {
         ) : listings.length === 0 ? (
           <div className="bg-white border border-[#E3DCCF] rounded-2xl p-6 text-center">
             <p className="font-semibold text-gabriola-green-dark mb-1">You haven't posted anything yet</p>
-            <p className="text-sm text-[#5B6660]">Listings stay up for 30 days, and you can renew them from here.</p>
+            <p className="text-sm text-[#5B6660]">Listings stay up for 30 days (rentals 60), and you can renew them from here.</p>
           </div>
         ) : (
           <ul className="space-y-2.5">

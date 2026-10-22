@@ -1,13 +1,16 @@
 // components/MarketplaceForm.tsx
 // The form for posting or editing a Buy, Sell & Free listing
-// Version: 1.0.0
-// Date: 2026-10-20
+// Version: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
+//                  utilities) and "Looking for a rental" under Wanted (Housing & rentals)
+// Previous: 1.0.0 (2026-10-20)
+// Date: 2026-10-22
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { Camera, X } from 'lucide-react';
 import {
   LISTING_CATEGORIES, LISTING_KINDS, ListingKind, MAX_PHOTOS, uploadListingPhoto,
+  HOUSING_CATEGORY, RENTAL_TYPES, isRental,
 } from '@/lib/marketplace';
 
 export interface MarketplaceFormValues {
@@ -17,10 +20,19 @@ export interface MarketplaceFormValues {
   price: string;          // kept as text while typing
   category: string;
   photos: string[];       // photos already uploaded (when editing)
+  // Rentals
+  rental_type: string;
+  available_from: string; // YYYY-MM-DD, '' = now
+  furnished: boolean;
+  pets_ok: boolean;
+  utilities_included: boolean;
 }
 
 export function emptyMarketplaceForm(): MarketplaceFormValues {
-  return { kind: 'sale', title: '', description: '', price: '', category: 'other', photos: [] };
+  return {
+    kind: 'sale', title: '', description: '', price: '', category: 'other', photos: [],
+    rental_type: 'room', available_from: '', furnished: false, pets_ok: false, utilities_included: false,
+  };
 }
 
 export function marketplaceFormFromListing(l: any): MarketplaceFormValues {
@@ -31,18 +43,30 @@ export function marketplaceFormFromListing(l: any): MarketplaceFormValues {
     price: l.price === null || l.price === undefined ? '' : String(Number(l.price)),
     category: l.category || 'other',
     photos: l.photos || [],
+    rental_type: l.rental_type || 'room',
+    available_from: l.available_from ? String(l.available_from).slice(0, 10) : '',
+    furnished: !!l.furnished,
+    pets_ok: !!l.pets_ok,
+    utilities_included: !!l.utilities_included,
   };
 }
 
 // What gets saved (photos are added by the caller after uploading)
 export function marketplaceFormToRow(v: MarketplaceFormValues) {
   const price = parseFloat(v.price.replace(/[$,\s]/g, ''));
+  const category = v.kind === 'rent' ? HOUSING_CATEGORY : v.category;
+  const rental = isRental({ kind: v.kind, category });
   return {
     kind: v.kind,
     title: v.title.trim(),
     description: v.description.trim() || null,
     price: v.kind === 'free' || !Number.isFinite(price) ? null : Math.round(price * 100) / 100,
-    category: v.category,
+    category,
+    rental_type: rental ? v.rental_type : null,
+    available_from: v.kind === 'rent' && v.available_from ? v.available_from : null,
+    furnished: v.kind === 'rent' ? v.furnished : null,
+    pets_ok: v.kind === 'rent' ? v.pets_ok : null,
+    utilities_included: v.kind === 'rent' ? v.utilities_included : null,
   };
 }
 
@@ -77,6 +101,10 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       setV(prev => ({ ...prev, [field]: e.target.value }));
 
   const photoCount = kept.length + added.length;
+  const renting = v.kind === 'rent';
+  const lookingToRent = v.kind === 'wanted' && v.category === HOUSING_CATEGORY;
+  const check = (field: 'furnished' | 'pets_ok' | 'utilities_included') =>
+    (e: React.ChangeEvent<HTMLInputElement>) => setV(prev => ({ ...prev, [field]: e.target.checked }));
 
   const pickPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
@@ -104,8 +132,12 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       setError('Please give it a title (at least 3 letters).');
       return;
     }
-    if (v.kind === 'sale' && v.price.trim() !== '' && !Number.isFinite(parseFloat(v.price.replace(/[$,\s]/g, '')))) {
+    if (v.kind !== 'free' && v.price.trim() !== '' && !Number.isFinite(parseFloat(v.price.replace(/[$,\s]/g, '')))) {
       setError('The price should be a number, like 40 or 12.50.');
+      return;
+    }
+    if (renting && v.price.trim() === '') {
+      setError('Please put the rent per month.');
       return;
     }
     setSaving(true);
@@ -133,7 +165,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       {/* Kind */}
       <fieldset>
         <legend className={label}>What kind of listing?</legend>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {LISTING_KINDS.map(k => (
             <button
               key={k.id}
@@ -153,31 +185,78 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       <div>
         <label htmlFor="mk-title" className={label}>Title</label>
         <input id="mk-title" className={input} value={v.title} onChange={set('title')} maxLength={100}
-          placeholder={v.kind === 'wanted' ? 'e.g. Looking for a small chest freezer' : 'e.g. Cedar picnic table'} required />
+          placeholder={renting ? 'e.g. Bright one-bedroom suite near the Village' : lookingToRent ? 'e.g. Looking for a room or small cabin' : v.kind === 'wanted' ? 'e.g. Looking for a small chest freezer' : 'e.g. Cedar picnic table'} required />
       </div>
+
+      {(renting || lookingToRent) && (
+        <div>
+          <label htmlFor="mk-rental-type" className={label}>{renting ? 'What are you renting out?' : 'What are you looking for?'}</label>
+          <select id="mk-rental-type" className={input} value={v.rental_type} onChange={set('rental_type')}>
+            {RENTAL_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <p className={hint}>Monthly rentals and up. For nightly or weekly stays, use Airbnb or similar.</p>
+        </div>
+      )}
 
       {v.kind !== 'free' && (
         <div>
-          <label htmlFor="mk-price" className={label}>{v.kind === 'wanted' ? 'Budget (optional)' : 'Price (optional)'}</label>
+          <label htmlFor="mk-price" className={label}>
+            {renting ? 'Rent per month' : lookingToRent ? 'Budget per month (optional)' : v.kind === 'wanted' ? 'Budget (optional)' : 'Price (optional)'}
+          </label>
           <div className="relative max-w-[200px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5B6660]" aria-hidden="true">$</span>
             <input id="mk-price" className={`${input} pl-7`} value={v.price} onChange={set('price')} inputMode="decimal" placeholder="0" />
           </div>
-          <p className={hint}>Leave it empty for "make an offer".</p>
+          {!renting && !lookingToRent && <p className={hint}>Leave it empty for "make an offer".</p>}
+        </div>
+      )}
+
+      {renting && (
+        <>
+          <div>
+            <label htmlFor="mk-available" className={label}>Available from</label>
+            <input id="mk-available" type="date" className={`${input} max-w-[220px]`} value={v.available_from} onChange={set('available_from')} />
+            <p className={hint}>Leave it empty if it's available now.</p>
+          </div>
+          <fieldset>
+            <legend className={label}>Details</legend>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <label className="flex items-center gap-2 min-h-[44px] text-sm">
+                <input type="checkbox" checked={v.furnished} onChange={check('furnished')} className="w-5 h-5" /> Furnished
+              </label>
+              <label className="flex items-center gap-2 min-h-[44px] text-sm">
+                <input type="checkbox" checked={v.pets_ok} onChange={check('pets_ok')} className="w-5 h-5" /> Pets OK
+              </label>
+              <label className="flex items-center gap-2 min-h-[44px] text-sm">
+                <input type="checkbox" checked={v.utilities_included} onChange={check('utilities_included')} className="w-5 h-5" /> Utilities included
+              </label>
+            </div>
+          </fieldset>
+          <p className="text-xs text-[#5B6660] bg-[#F6F2EA] rounded-lg px-3 py-2">
+            Please don't write who you won't rent to. Under BC's Human Rights Code a rental ad can't turn people away
+            because of things like children, age, disability or where their income comes from, unless they'd share a
+            kitchen or bathroom with you. You're also responsible for following local zoning and rental rules.
+          </p>
+        </>
+      )}
+
+      {!renting && (
+        <div>
+          <label htmlFor="mk-category" className={label}>Category</label>
+          <select id="mk-category" className={input} value={v.category} onChange={set('category')}>
+            {LISTING_CATEGORIES.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.id === HOUSING_CATEGORY && v.kind === 'wanted' ? 'Housing (looking for a rental)' : c.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
       <div>
-        <label htmlFor="mk-category" className={label}>Category</label>
-        <select id="mk-category" className={input} value={v.category} onChange={set('category')}>
-          {LISTING_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
-      </div>
-
-      <div>
         <label htmlFor="mk-description" className={label}>Description</label>
         <textarea id="mk-description" className={`${input} min-h-[120px]`} value={v.description} onChange={set('description')} maxLength={3000}
-          placeholder="Size, condition, where to pick it up, when you're around..." />
+          placeholder={renting || lookingToRent ? 'Where on the island, size, what\'s included, how long, who you are...' : 'Size, condition, where to pick it up, when you\'re around...'} />
         <p className={hint}>Please don't put your phone number or email here. People can message you on Gabriola Connects.</p>
       </div>
 
