@@ -1,6 +1,7 @@
 // lib/marketplace.ts
 // Buy, Sell & Free: shared types, labels, photo upload and small helpers
-// Version: 1.1.0 - Rentals: "For rent" listings (home, suite or cabin, room, trailer / RV,
+// Version: 1.2.0 - comments_enabled: the poster can turn public comments off
+// Previous: 1.1.0 - Rentals: "For rent" listings (home, suite or cabin, room, trailer / RV,
 //                  RV pad) by the month, "Looking for a rental" under Wanted, 60-day listings
 // Previous: 1.0.0 (2026-10-20)
 // Date: 2026-10-22
@@ -31,10 +32,11 @@ export interface Listing {
   furnished: boolean | null;
   pets_ok: boolean | null;
   utilities_included: boolean | null;
+  comments_enabled: boolean;       // false = the poster turned public comments off
 }
 
 export const LISTING_COLUMNS =
-  'id, user_id, seller_name, kind, title, description, price, category, photos, status, created_at, updated_at, expires_at, rental_type, available_from, furnished, pets_ok, utilities_included';
+  'id, user_id, seller_name, kind, title, description, price, category, photos, status, created_at, updated_at, expires_at, rental_type, available_from, furnished, pets_ok, utilities_included, comments_enabled';
 
 // Rentals: monthly and up only (nightly and weekly stays belong on Airbnb)
 export const HOUSING_CATEGORY = 'housing';

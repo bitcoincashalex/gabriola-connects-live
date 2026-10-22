@@ -1,6 +1,8 @@
 // components/ListingComments.tsx
 // Public questions and comments under a Buy, Sell & Free listing
-// Version: 1.0.0
+// Version: 1.1.0 - The poster (or an admin) can turn comments off and on; when off, existing
+//                  comments stay visible and nobody can add new ones
+// Previous: 1.0.0
 // Date: 2026-10-22
 //
 // Anyone can read them. Signed in members can comment while the listing is live; the seller's
@@ -31,9 +33,14 @@ interface Props {
   closedReason?: string;    // shown when not open, e.g. "This item has sold"
   userId?: string | null;
   isAdmin?: boolean;
+  commentsEnabled?: boolean;          // the poster's setting
+  onToggleComments?: () => void;      // shown to the poster (and admins) while the listing is live
+  toggling?: boolean;
 }
 
-export default function ListingComments({ listingId, sellerId, isOpen, closedReason, userId, isAdmin }: Props) {
+export default function ListingComments({
+  listingId, sellerId, isOpen, closedReason, userId, isAdmin, commentsEnabled = true, onToggleComments, toggling,
+}: Props) {
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -104,10 +111,22 @@ export default function ListingComments({ listingId, sellerId, isOpen, closedRea
 
   return (
     <section className="bg-white border border-[#E3DCCF] rounded-2xl p-4 md:p-6" aria-labelledby="listing-comments-heading">
-      <h2 id="listing-comments-heading" className="flex items-center gap-2 font-bold text-lg text-[#1F2A24] mb-3">
-        <MessageCircle className="w-5 h-5 text-gabriola-green" aria-hidden="true" />
-        Questions &amp; comments{comments.length > 0 ? ` (${comments.length})` : ''}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h2 id="listing-comments-heading" className="flex items-center gap-2 font-bold text-lg text-[#1F2A24]">
+          <MessageCircle className="w-5 h-5 text-gabriola-green" aria-hidden="true" />
+          Questions &amp; comments{comments.length > 0 ? ` (${comments.length})` : ''}
+        </h2>
+        {onToggleComments && (
+          <button
+            type="button"
+            onClick={onToggleComments}
+            disabled={toggling}
+            className="min-h-[40px] px-3 rounded-lg border border-[#CFC6B4] bg-white text-sm font-semibold hover:border-gabriola-green disabled:opacity-60"
+          >
+            {commentsEnabled ? 'Turn off comments' : 'Turn on comments'}
+          </button>
+        )}
+      </div>
 
       {loading ? (
         <p className="text-sm text-[#5B6660]" role="status">Loading...</p>

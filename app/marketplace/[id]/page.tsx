@@ -1,9 +1,10 @@
 // app/marketplace/[id]/page.tsx
 // One Buy, Sell & Free listing: photos, details, Message the seller, Share.
 // The seller can edit, mark sold, renew or delete; admins can hide or show it.
-// Version: 1.2.0 - Rentals: kind of place, rent per month, available from, furnished / pets /
+// Version: 1.3.0 - The poster can turn public comments off and on (Turn off comments)
+// Previous: 1.2.0 - Rentals: kind of place, rent per month, available from, furnished / pets /
 //                  utilities, "Mark rented", renew for 60 days, the local-rules line
-// Previous: 1.1.0 - Public questions and comments under the listing (ListingComments)
+// Earlier: 1.1.0 - Public questions and comments under the listing (ListingComments)
 // Previous: 1.0.1 - Took out the meet-somewhere-public note
 // Earlier: 1.0.0
 // Date: 2026-10-22
@@ -71,6 +72,10 @@ export default function ListingPage() {
     'Couldn\'t put it back up. Please try again.'
   );
   const hide = () => update({ status: 'hidden' }, 'Couldn\'t hide it.');
+  const toggleComments = () => update(
+    { comments_enabled: !(listing?.comments_enabled !== false) },
+    'Couldn\'t change the comment setting. Please try again.'
+  );
   const unhide = () => update({ status: 'active' }, 'Couldn\'t show it again.');
 
   const remove = async () => {
@@ -239,9 +244,13 @@ export default function ListingPage() {
         <ListingComments
           listingId={listing.id}
           sellerId={listing.user_id}
-          isOpen={live}
+          isOpen={live && listing.comments_enabled !== false}
+          commentsEnabled={listing.comments_enabled !== false}
+          onToggleComments={live && (isSeller || isAdmin) ? toggleComments : undefined}
+          toggling={busy}
           closedReason={
-            listing.status === 'sold' ? (listing.kind === 'wanted' ? 'They found what they were looking for, so comments are closed.' : listing.kind === 'rent' ? 'This place has been rented, so comments are closed.' : 'This item has sold, so comments are closed.')
+            live ? 'The poster has turned off comments. Use Message to contact them.'
+              : listing.status === 'sold' ? (listing.kind === 'wanted' ? 'They found what they were looking for, so comments are closed.' : listing.kind === 'rent' ? 'This place has been rented, so comments are closed.' : 'This item has sold, so comments are closed.')
               : listing.status === 'hidden' ? 'This listing is hidden, so comments are closed.'
               : 'This listing has expired, so comments are closed.'
           }

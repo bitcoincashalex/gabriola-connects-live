@@ -1,6 +1,7 @@
 // components/MarketplaceForm.tsx
 // The form for posting or editing a Buy, Sell & Free listing
-// Version: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
+// Version: 1.2.0 - "Allow public questions & comments" tick box (on by default)
+// Previous: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
 //                  utilities) and "Looking for a rental" under Wanted (Housing & rentals)
 // Previous: 1.0.0 (2026-10-20)
 // Date: 2026-10-22
@@ -26,12 +27,14 @@ export interface MarketplaceFormValues {
   furnished: boolean;
   pets_ok: boolean;
   utilities_included: boolean;
+  comments_enabled: boolean;
 }
 
 export function emptyMarketplaceForm(): MarketplaceFormValues {
   return {
     kind: 'sale', title: '', description: '', price: '', category: 'other', photos: [],
     rental_type: 'room', available_from: '', furnished: false, pets_ok: false, utilities_included: false,
+    comments_enabled: true,
   };
 }
 
@@ -48,6 +51,7 @@ export function marketplaceFormFromListing(l: any): MarketplaceFormValues {
     furnished: !!l.furnished,
     pets_ok: !!l.pets_ok,
     utilities_included: !!l.utilities_included,
+    comments_enabled: l.comments_enabled !== false,
   };
 }
 
@@ -67,6 +71,7 @@ export function marketplaceFormToRow(v: MarketplaceFormValues) {
     furnished: v.kind === 'rent' ? v.furnished : null,
     pets_ok: v.kind === 'rent' ? v.pets_ok : null,
     utilities_included: v.kind === 'rent' ? v.utilities_included : null,
+    comments_enabled: v.comments_enabled,
   };
 }
 
@@ -103,7 +108,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
   const photoCount = kept.length + added.length;
   const renting = v.kind === 'rent';
   const lookingToRent = v.kind === 'wanted' && v.category === HOUSING_CATEGORY;
-  const check = (field: 'furnished' | 'pets_ok' | 'utilities_included') =>
+  const check = (field: 'furnished' | 'pets_ok' | 'utilities_included' | 'comments_enabled') =>
     (e: React.ChangeEvent<HTMLInputElement>) => setV(prev => ({ ...prev, [field]: e.target.checked }));
 
   const pickPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,6 +299,16 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
         </div>
         <input ref={fileRef} type="file" accept="image/*" multiple onChange={pickPhotos} className="hidden" />
         <p className={hint}>The first photo is the one people see in the list.</p>
+      </div>
+
+      <div>
+        <label className="flex items-start gap-2 min-h-[44px] text-sm">
+          <input type="checkbox" checked={v.comments_enabled} onChange={check('comments_enabled')} className="w-5 h-5 mt-0.5" />
+          <span>
+            <span className="font-semibold">Allow public questions &amp; comments</span>
+            <span className="block text-xs text-[#5B6660]">Turn this off and people can still message you privately. You can change it any time on the listing.</span>
+          </span>
+        </label>
       </div>
 
       {error && <p className="text-sm font-semibold text-[#B42318]" role="alert">{error}</p>}
