@@ -2,17 +2,21 @@
 // Sends alerts to members by the ways and levels they chose on their profile.
 // Called every minute by Supabase pg_cron (timer 'alert-notifications',
 // see sql/2026-10-22-alert-notifications.sql).
-// Version: 1.0.0
-// Date: 2026-10-22
+// Version: 1.1.0 - Push notifications to members' phones and computers
+// Previous: 1.0.0 - Email (2026-10-22)
+// Date: 2026-10-23
 //
 // Each run:
 //   1. queue_alert_notifications() (database) finds alerts that are new or were raised to a
-//      higher level, sends the site inbox messages, and queues one email per member.
-//   2. This route emails up to MAX_PER_RUN of the queued ones through Hostinger
-//      (notices@gabriolaconnects.ca, same login as the welcome email). Replies go to connects@.
+//      higher level, sends the site inbox messages, and queues one email and/or push per member.
+//   2. Pushes go out first (up to MAX_PUSH_PER_RUN members), to every device the member turned
+//      them on for. A device the push service says is gone (404/410) is removed.
+//   3. Then up to MAX_PER_RUN emails through Hostinger (notices@gabriolaconnects.ca, same login
+//      as the welcome email). Replies go to connects@.
 //
-// Needs these Vercel environment variables (already set):
-//   CRON_SECRET, NOTICES_EMAIL_PASSWORD, SUPABASE_SERVICE_ROLE_KEY
+// Needs these Vercel environment variables:
+//   CRON_SECRET, NOTICES_EMAIL_PASSWORD, SUPABASE_SERVICE_ROLE_KEY (already set)
+//   NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (push keys; pushes are skipped without them)
 // Optional:
 //   WELCOME_EMAIL_USER / WELCOME_EMAIL_PASSWORD / WELCOME_EMAIL_REPLY_TO - same as welcome email
 //   ALERT_EMAILS=off - stop alert emails (inbox messages still go)
@@ -20,12 +24,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import webpush from 'web-push';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const MAX_PER_RUN = 40;
 const MAX_ATTEMPTS = 3;
+const MAX_PUSH_PER_RUN = 100;
 const SITE = 'https://www.gabriolaconnects.ca';
 
 const LEVEL: Record<string, string> = { emergency: 'Emergency', warning: 'Warning', advisory: 'Advisory', info: 'Info' };
@@ -78,6 +84,94 @@ ${a.link_url ? `<p style="margin:0 0 16px 0"><a href="${escapeHtml(a.link_url)}"
 </body></html>`;
 }
 
+// Push notifications. Returns how many devices got one.
+async function sendPushes(supabase: any): Promise<number> {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  const { data: pending, error } = await supabase
+    .from('alert_deliveries')
+    .select('id, attempts, severity, alert_id, user_id')
+    .eq('status', 'pending')
+    .eq('channel', 'push')
+    .order('created_at', { ascending: true })
+    .limit(MAX_PUSH_PER_RUN);
+  if (error) {
+    console.error('[alert-notifications] could not read push queue:', error.message);
+    return 0;
+  }
+  if (!pending || pending.length === 0) return 0;
+  if (!publicKey || !privateKey) {
+    console.error('[alert-notifications] push keys not set (NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY); pushes waiting');
+    return 0;
+  }
+  webpush.setVapidDetails('mailto:connects@gabriolaconnects.ca', publicKey, privateKey);
+
+  const alertIds = Array.from(new Set(pending.map((p: any) => p.alert_id)));
+  const userIds = Array.from(new Set(pending.map((p: any) => p.user_id)));
+  const [{ data: alerts }, { data: subs }] = await Promise.all([
+    supabase.from('alerts').select('id, title, message, severity, active, expires_at').in('id', alertIds),
+    supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth, failures').in('user_id', userIds),
+  ]);
+  const alertById = new Map((alerts || []).map((a: any) => [a.id, a]));
+
+  let devices = 0;
+  for (const d of pending) {
+    const a: any = alertById.get(d.alert_id);
+    const mine = (subs || []).filter((s: any) => s.user_id === d.user_id);
+    const stale = !a || !a.active || (a.expires_at && new Date(a.expires_at).getTime() <= Date.now());
+    if (stale || mine.length === 0) {
+      await supabase.from('alert_deliveries').update({ status: 'skipped' }).eq('id', d.id);
+      continue;
+    }
+
+    const level = LEVEL[d.severity] || 'Info';
+    const body = (a.message || '').replace(/\s+/g, ' ').trim();
+    const payload = JSON.stringify({
+      title: `${level}: ${a.title}`,
+      body: body.length > 180 ? body.slice(0, 177) + '...' : body,
+      url: `${SITE}/alerts`,
+      tag: `alert-${a.id}`,
+      urgent: d.severity === 'emergency' || d.severity === 'warning',
+    });
+
+    let delivered = 0;
+    for (const s of mine) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload,
+          { TTL: 6 * 60 * 60, urgency: d.severity === 'emergency' || d.severity === 'warning' ? 'high' : 'normal' }
+        );
+        delivered++;
+        await supabase.from('push_subscriptions').update({ last_success_at: new Date().toISOString(), failures: 0 }).eq('id', s.id);
+      } catch (e: any) {
+        const code = e?.statusCode;
+        if (code === 404 || code === 410) {
+          // The phone or browser no longer accepts them (uninstalled, turned off, signed out)
+          await supabase.from('push_subscriptions').delete().eq('id', s.id);
+        } else {
+          console.error('[alert-notifications] push failed', code, e?.body || e?.message || e);
+          if ((s.failures || 0) + 1 >= 10) {
+            await supabase.from('push_subscriptions').delete().eq('id', s.id);
+          } else {
+            await supabase.from('push_subscriptions').update({ failures: (s.failures || 0) + 1 }).eq('id', s.id);
+          }
+        }
+      }
+    }
+    devices += delivered;
+
+    const attempts = (d.attempts || 0) + 1;
+    if (delivered > 0) {
+      await supabase.from('alert_deliveries').update({ status: 'sent', attempts, sent_at: new Date().toISOString() }).eq('id', d.id);
+    } else {
+      await supabase.from('alert_deliveries').update({ status: attempts >= MAX_ATTEMPTS ? 'failed' : 'pending', attempts }).eq('id', d.id);
+    }
+  }
+  return devices;
+}
+
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
@@ -97,8 +191,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Queue failed' }, { status: 500 });
   }
 
+  const pushed = await sendPushes(supabase);
+
   if (process.env.ALERT_EMAILS === 'off') {
-    return NextResponse.json({ alerts: handled, emailed: 0, note: 'ALERT_EMAILS is off' });
+    return NextResponse.json({ alerts: handled, pushed, emailed: 0, note: 'ALERT_EMAILS is off' });
   }
 
   // 2. Queued emails
@@ -106,6 +202,7 @@ export async function GET(request: NextRequest) {
     .from('alert_deliveries')
     .select('id, attempts, severity, alert_id, user_id')
     .eq('status', 'pending')
+    .eq('channel', 'email')
     .order('created_at', { ascending: true })
     .limit(MAX_PER_RUN);
   if (error) {
@@ -113,7 +210,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Could not read queue' }, { status: 500 });
   }
   if (!pending || pending.length === 0) {
-    return NextResponse.json({ alerts: handled, emailed: 0 });
+    return NextResponse.json({ alerts: handled, pushed, emailed: 0 });
   }
 
   const pass = process.env.WELCOME_EMAIL_PASSWORD || process.env.NOTICES_EMAIL_PASSWORD;
@@ -183,5 +280,5 @@ export async function GET(request: NextRequest) {
   }
 
   transport.close();
-  return NextResponse.json({ alerts: handled, emailed });
+  return NextResponse.json({ alerts: handled, pushed, emailed });
 }

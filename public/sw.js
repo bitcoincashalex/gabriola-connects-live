@@ -1,6 +1,9 @@
 // public/sw.js
-// v2.0.0 - Fix black screen when opening from the home screen icon
-// Date: 2026-10-09
+// v2.1.0 - Alert push notifications: shows the notification, and tapping it opens the alerts
+//          page (or brings an open Gabriola Connects window forward). Nothing else changed:
+//          page loading and caching work exactly as in v2.0.0.
+// Date: 2026-10-23
+// Previous: v2.0.0 - Fix black screen when opening from the home screen icon (2026-10-09)
 //   - Page loads now give up on the network after 4 seconds and show the last
 //     saved copy (or the offline page). Before, a slow or half-dead phone
 //     connection left the app waiting forever on a black screen.
@@ -103,6 +106,42 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request).then((cached) => cached || new Response('Network error', {
         status: 408, headers: { 'Content-Type': 'text/plain' },
       })))
+  );
+});
+
+// Alert push notifications (sent by /api/cron/alert-notifications)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Gabriola Connects', body: event.data ? event.data.text() : '' };
+  }
+  const title = data.title || 'Gabriola Connects alert';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || '',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    tag: data.tag || 'gabriola-alert',
+    renotify: true,
+    requireInteraction: !!data.urgent,
+    data: { url: data.url || '/alerts' },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/alerts', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.startsWith(self.location.origin) && 'focus' in w) {
+          if ('navigate' in w) w.navigate(target).catch(() => {});
+          return w.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
   );
 });
 

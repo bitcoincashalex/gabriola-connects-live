@@ -1,10 +1,13 @@
 // app/profile/edit/page.tsx
-// Version: 3.1.0 - Alert notifications work: email and site inbox, by alert level. Email starts
+// Version: 3.2.0 - Phone & Browser Notifications work (components/PushToggle.tsx): turned on per
+//                  device, saved right away. The page no longer saves notify_push itself.
+//                  Needs sql/2026-10-23-push-notifications.sql
+// Previous: 3.1.0 - Alert notifications work: email and site inbox, by alert level. Email starts
 //                  unchecked until the member saves this page (nobody gets alert emails they
 //                  never chose). Text message and browser notifications marked "coming soon".
 //                  Needs sql/2026-10-22-alert-notifications.sql
 // Previous: 3.0.1 - Added visual feedback for required fields (first/last name)
-// Date: 2026-10-22
+// Date: 2026-10-23
 
 'use client';
 
@@ -13,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PushToggle from '@/components/PushToggle';
 import { ArrowLeft, Save, Camera, Image as ImageIcon, Loader2, X, Bell, Mail, MessageSquare, Smartphone, Globe, Facebook } from 'lucide-react';
 
 export default function ProfileEditPage() {
@@ -45,7 +49,6 @@ export default function ProfileEditPage() {
   const [notifyEmail, setNotifyEmail] = useState(false);
   const [notifyInbox, setNotifyInbox] = useState(false);
   const [notifySms, setNotifySms] = useState(false);
-  const [notifyPush, setNotifyPush] = useState(true);
   const [alertSubscriptions, setAlertSubscriptions] = useState<string[]>(['warning', 'emergency']);
   
   const [loading, setLoading] = useState(true);
@@ -96,7 +99,6 @@ export default function ProfileEditPage() {
       setNotifyEmail(!!data.notify_prefs_saved_at && data.notify_email !== false);
       setNotifyInbox(data.notify_inbox === true);
       setNotifySms(data.notify_sms || false);
-      setNotifyPush(data.notify_push !== false);
       setAlertSubscriptions(data.alert_subscriptions || ['warning', 'emergency']);
     }
     setLoading(false);
@@ -179,7 +181,6 @@ export default function ProfileEditPage() {
         notify_inbox: notifyInbox,
         notify_prefs_saved_at: new Date().toISOString(),
         notify_sms: notifySms,
-        notify_push: notifyPush,
         alert_subscriptions: alertSubscriptions,
       })
       .eq('id', user!.id);
@@ -639,6 +640,8 @@ export default function ProfileEditPage() {
                   </div>
                 </label>
 
+                <PushToggle />
+
                 <div className="flex items-start gap-3 p-4 border-2 rounded-lg bg-gray-50 opacity-70" aria-disabled="true">
                   <input
                     type="checkbox"
@@ -660,26 +663,6 @@ export default function ProfileEditPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 border-2 rounded-lg bg-gray-50 opacity-70" aria-disabled="true">
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    disabled
-                    readOnly
-                    className="mt-1"
-                    aria-label="Browser notifications, coming soon"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 font-bold text-gray-900">
-                      <Smartphone className="w-5 h-5 text-purple-600" />
-                      Browser Notifications
-                      <span className="text-xs text-gray-600 font-normal">(coming soon)</span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Show notifications in your browser
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Alert Level Subscriptions */}
