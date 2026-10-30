@@ -1,5 +1,10 @@
 // Path: components/Ferry.tsx
-// Version: 4.0.0 - Ferry page redesign: one "Next sailing" card for each direction with the live
+// Version: 4.1.0 - Running late: the next sailing shows the EXPECTED departure (big) with the
+//                  scheduled time under it, and stays "next" until it has actually gone (was:
+//                  it showed the scheduled time, and dropped off as soon as that time passed even
+//                  if the boat hadn't left). On time, it says "Scheduled departure". Expected
+//                  times come from lib/ferryEstimate.ts (the last Nanaimo departure's delay).
+// Previous: 4.0.0 - Ferry page redesign: one "Next sailing" card for each direction with the live
 //                  BC Ferries status built in (was shown three times: top card, live box and list);
 //                  "in 15 min" countdown; the next two sailings after it; past sailings folded away
 //                  behind "Show earlier sailings"; times worked out in Gabriola time (was the
@@ -9,7 +14,7 @@
 //                  show actual departure times, delays and cancellations. If the schedule fails to
 //                  load it now says so, instead of "No more sailings today".
 // Earlier: 2.3.0 - Added "Refresh Status" label to refresh button for clarity
-// Date: 2026-10-10
+// Date: 2026-10-30
 
 'use client';
 
@@ -17,10 +22,11 @@ import { useState, useEffect } from 'react';
 import { Anchor, RefreshCw, AlertTriangle, Radio, ChevronDown, ChevronUp, Video, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabaseWithTimeout';
 import { pacificNowMinutes, displayToMinutes, sqlTimeToMinutes, sqlTimeToDisplay, untilText } from '@/lib/ferryTime';
+import { currentDelay, upcomingSailings, minutesToDisplay, SailingView, SHOW_LATE_FROM } from '@/lib/ferryEstimate';
 
 // Live status older than this is treated as unavailable
 const LIVE_STALE_MINUTES = 20;
-// A late line shows when the last Nanaimo sailing left this many minutes late or more
+// A schedule row's "left late" line is highlighted from this many minutes late
 const LATE_MINUTES = 10;
 
 interface LiveSailing {
@@ -160,31 +166,55 @@ export default function Ferry() {
   const liveByMinutes = new Map(liveSailings.map(l => [sqlTimeToMinutes(l.scheduled_time), l]));
   const lastDeparted = [...liveSailings].reverse().find(l => l.status === 'departed');
   const cancelledToday = liveFresh ? liveSailings.filter(l => l.status === 'cancelled') : [];
-  const runningLate = liveFresh && lastDeparted && (lastDeparted.delay_minutes || 0) >= LATE_MINUTES ? lastDeparted : null;
 
-  const upcoming = (list: Sailing[]) => list.filter(s => mins(s) > nowMin);
-  const nextG = upcoming(schedule.fromGabriola);
-  const nextN = upcoming(schedule.fromNanaimo);
+  // How late the boats are running now (from the last Nanaimo departure), carried forward
+  const delay = currentDelay(liveSailings, liveFresh, nowMin);
+  const timesG = schedule.fromGabriola.map(s => s.time);
+  const timesN = schedule.fromNanaimo.map(s => s.time);
+  const viewsG = upcomingSailings(timesG, delay, nowMin, null, liveFresh);
+  const viewsN = upcomingSailings(timesN, delay, nowMin, liveByMinutes, liveFresh);
 
-  const NextCard = ({ from, to, list, live }: { from: string; to: string; list: Sailing[]; live: boolean }) => {
-    const next = list[0];
-    const then = list.slice(1, 3);
-    const nextLive = live && next ? liveByMinutes.get(mins(next)) : undefined;
-    const nextCancelled = liveFresh && nextLive?.status === 'cancelled';
+  const NextCard = ({ from, to, list, views, live }: { from: string; to: string; list: Sailing[]; views: SailingView[]; live: boolean }) => {
+    const v = views[0];
+    const next = v ? list[v.index] : undefined;
+    const then = views.slice(1, 3);
+    const nextCancelled = !!v?.cancelled;
+    const late = v && !v.cancelled && v.late >= SHOW_LATE_FROM ? v.late : 0;
+    const shownMin = v ? (late ? v.expectedMin : v.scheduledMin) : 0;
+    const arrSched = next ? displayToMinutes(next.arrivalTime) : null;
+    const arrival = next ? (late && arrSched !== null ? `about ${minutesToDisplay(arrSched + late)}` : next.arrivalTime) : '';
     return (
       <div className="bg-white border border-[#E3DCCF] rounded-2xl p-5">
         <div className="text-sm font-semibold text-[#5B6660]">Next from {from}</div>
-        {next ? (
+        {next && v ? (
           <>
+            {late > 0 && <div className="text-sm font-bold text-[#8A3E00] mt-1">Expected about</div>}
             <div className="flex items-baseline gap-3 flex-wrap mt-1">
-              <span className={`text-4xl font-bold leading-none ${nextCancelled ? 'text-[#B42318] line-through' : 'text-[#002774]'}`}>{next.time}</span>
+              <span className={`text-4xl font-bold leading-none ${nextCancelled ? 'text-[#B42318] line-through' : late ? 'text-[#8A3E00]' : 'text-[#002774]'}`}>
+                {late ? minutesToDisplay(shownMin) : next.time}
+              </span>
               <span className="text-base font-semibold text-[#1F2A24]">
-                {nextCancelled ? 'Cancelled' : untilText(mins(next), nowMin)}
+                {nextCancelled ? 'Cancelled' : untilText(shownMin, nowMin)}
               </span>
             </div>
-            <div className="text-sm text-[#5B6660] mt-1.5">Arrives {next.arrivalTime} in {to}</div>
+            {late > 0 ? (
+              <div className="text-sm font-semibold text-[#8A3E00] mt-1.5">
+                Scheduled {next.time} · running about {late} min late
+              </div>
+            ) : !nextCancelled && (
+              <div className="text-sm text-[#5B6660] mt-1.5">
+                Scheduled departure{liveFresh ? ' · on time' : ''}
+              </div>
+            )}
+            {late > 0 && !live && (
+              <div className="text-[13px] text-[#5B6660] mt-0.5">Estimated from how late the last sailing left Nanaimo.</div>
+            )}
+            <div className="text-sm text-[#5B6660] mt-1">Arrives {arrival} in {to}</div>
             {then.length > 0 && (
-              <div className="text-sm text-[#3A4640] mt-1">Then {then.map(s => s.time).join(' · ')}</div>
+              <div className="text-sm text-[#3A4640] mt-1">
+                Then {then.map(t => list[t.index].time).join(' · ')}
+                {then.some(t => t.late >= SHOW_LATE_FROM) && ', probably late too'}
+              </div>
             )}
           </>
         ) : (
@@ -196,10 +226,10 @@ export default function Ferry() {
         {live ? (
           liveFresh ? (
             <>
-              {runningLate && (
+              {delay && delay.minutes >= LATE_MINUTES && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 bg-[#FDF0E1] text-[#8A3E00] text-sm font-semibold">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-                  Running {runningLate.delay_minutes} min late
+                  Running about {delay.minutes} min late
                 </div>
               )}
               {lastDeparted && lastDeparted.actual_departure && (
@@ -227,7 +257,9 @@ export default function Ferry() {
   };
 
   const scheduleToUse = activeTab === 'from-gabriola' ? schedule.fromGabriola : schedule.fromNanaimo;
-  const nextIndex = scheduleToUse.findIndex(s => mins(s) > nowMin);
+  const tabViews = activeTab === 'from-gabriola' ? viewsG : viewsN;
+  const viewByIndex = new Map(tabViews.map(v => [v.index, v]));
+  const nextIndex = tabViews.length > 0 ? tabViews[0].index : -1;
   const pastCount = nextIndex === -1 ? scheduleToUse.length : nextIndex;
   const visible = scheduleToUse
     .map((s, i) => ({ s, i }))
@@ -251,8 +283,8 @@ export default function Ferry() {
 
         {/* Next sailing each way */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NextCard from="Gabriola" to="Nanaimo" list={nextG} live={false} />
-          <NextCard from="Nanaimo" to="Gabriola" list={nextN} live={true} />
+          <NextCard from="Gabriola" to="Nanaimo" list={schedule.fromGabriola} views={viewsG} live={false} />
+          <NextCard from="Nanaimo" to="Gabriola" list={schedule.fromNanaimo} views={viewsN} live={true} />
         </div>
 
         <p className="text-[13px] text-[#5B6660] px-1">
@@ -317,8 +349,14 @@ export default function Ferry() {
                   const isNext = i === nextIndex;
                   const isPast = i < pastCount;
                   const live = activeTab === 'from-nanaimo' && liveFresh ? liveByMinutes.get(mins(s)) : undefined;
+                  const view = viewByIndex.get(i);
                   let liveLine: { text: string; tone: string } | null = null;
-                  if (live?.status === 'cancelled') {
+                  if (view && !view.cancelled && view.late >= SHOW_LATE_FROM) {
+                    liveLine = {
+                      text: `Expected about ${minutesToDisplay(view.expectedMin)} (about ${view.late} min late)`,
+                      tone: 'text-[#8A3E00] font-semibold',
+                    };
+                  } else if (live?.status === 'cancelled') {
                     liveLine = { text: `Cancelled${live.reason ? `: ${live.reason}` : ''}`, tone: 'text-[#B42318] font-semibold' };
                   } else if (live?.status === 'departed' && live.actual_departure) {
                     const late = live.delay_minutes || 0;
@@ -339,7 +377,7 @@ export default function Ferry() {
                       </div>
                       {isNext && (
                         <span className="bg-[#002774] text-white px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
-                          Next · {untilText(mins(s), nowMin)}
+                          Next · {untilText(view && !view.cancelled ? view.expectedMin : mins(s), nowMin)}
                         </span>
                       )}
                       {isPast && !liveLine && <span className="text-xs text-[#5B6660]">Departed</span>}
