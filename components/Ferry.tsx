@@ -1,5 +1,7 @@
 // Path: components/Ferry.tsx
-// Version: 4.1.0 - Running late: the next sailing shows the EXPECTED departure (big) with the
+// Version: 4.1.1 - Overnight (before 4:45 AM) the Nanaimo card says live status starts at 4:45 AM,
+//                  instead of "isn't available right now" (the check pauses overnight on purpose)
+// Previous: 4.1.0 - Running late: the next sailing shows the EXPECTED departure (big) with the
 //                  scheduled time under it, and stays "next" until it has actually gone (was:
 //                  it showed the scheduled time, and dropped off as soon as that time passed even
 //                  if the boat hadn't left). On time, it says "Scheduled departure". Expected
@@ -242,12 +244,16 @@ export default function Ferry() {
               {lastDeparted?.reason && <div className="text-[13px] text-[#5B6660] mt-0.5">{lastDeparted.reason}</div>}
             </>
           ) : (
-            <div className="mt-3 text-[13px] text-[#5B6660]">
-              Live status isn&apos;t available right now.{' '}
-              <a href="https://www.bcferries.com/current-conditions/NAH-GAB" target="_blank" rel="noopener noreferrer" className="text-[#002774] font-semibold underline">
-                Check BC Ferries
-              </a>
-            </div>
+            nowMin < 4 * 60 + 45 ? (
+              <div className="mt-3 text-[13px] text-[#5B6660]">Live status from BC Ferries starts at 4:45 AM.</div>
+            ) : (
+              <div className="mt-3 text-[13px] text-[#5B6660]">
+                Live status isn&apos;t available right now.{' '}
+                <a href="https://www.bcferries.com/current-conditions/NAH-GAB" target="_blank" rel="noopener noreferrer" className="text-[#002774] font-semibold underline">
+                  Check BC Ferries
+                </a>
+              </div>
+            )
           )
         ) : (
           <div className="mt-3 text-[13px] text-[#5B6660]">BC Ferries doesn&apos;t publish live times for sailings leaving Gabriola.</div>
