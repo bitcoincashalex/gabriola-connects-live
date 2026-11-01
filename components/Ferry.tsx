@@ -1,5 +1,6 @@
 // Path: components/Ferry.tsx
-// Version: 4.1.1 - Overnight (before 4:45 AM) the Nanaimo card says live status starts at 4:45 AM,
+// Version: 4.1.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 4.1.1 - Overnight (before 4:45 AM) the Nanaimo card says live status starts at 4:45 AM,
 //                  instead of "isn't available right now" (the check pauses overnight on purpose)
 // Previous: 4.1.0 - Running late: the next sailing shows the EXPECTED departure (big) with the
 //                  scheduled time under it, and stays "next" until it has actually gone (was:
@@ -16,7 +17,7 @@
 //                  show actual departure times, delays and cancellations. If the schedule fails to
 //                  load it now says so, instead of "No more sailings today".
 // Earlier: 2.3.0 - Added "Refresh Status" label to refresh button for clarity
-// Date: 2026-10-30
+// Date: 2026-11-01
 
 'use client';
 
@@ -25,6 +26,7 @@ import { Anchor, RefreshCw, AlertTriangle, Radio, ChevronDown, ChevronUp, Video,
 import { supabase } from '@/lib/supabaseWithTimeout';
 import { pacificNowMinutes, displayToMinutes, sqlTimeToMinutes, sqlTimeToDisplay, untilText } from '@/lib/ferryTime';
 import { currentDelay, upcomingSailings, minutesToDisplay, SailingView, SHOW_LATE_FROM } from '@/lib/ferryEstimate';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 // Live status older than this is treated as unavailable
 const LIVE_STALE_MINUTES = 20;
@@ -61,7 +63,7 @@ interface FerrySchedule {
 }
 
 function gabriolaToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
 const mins = (s: Sailing) => displayToMinutes(s.time) ?? -1;

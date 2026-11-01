@@ -1,8 +1,9 @@
 // app/admin/notices/page.tsx
 // Notices inbox: every email sent to notices@gabriolaconnects.ca, what the AI decided,
 // and one-click Publish / Dismiss for emails held for review
-// Version: 1.0.0
-// Date: 2026-10-10
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
 
 'use client';
 
@@ -12,6 +13,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { Inbox, CheckCircle, XCircle, ShieldCheck, ShieldAlert, ArrowLeft, RefreshCw } from 'lucide-react';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 interface Notice {
   id: string;
@@ -175,7 +177,7 @@ export default function NoticesInboxPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-xs text-gray-500">
-                      {n.received_at ? new Date(n.received_at).toLocaleString('en-CA', { timeZone: 'America/Vancouver' }) : ''} · {n.from_address}
+                      {n.received_at ? new Date(n.received_at).toLocaleString('en-CA', { timeZone: GABRIOLA_TZ }) : ''} · {n.from_address}
                     </div>
                     <div className="font-semibold text-gray-900 truncate">{n.subject}</div>
                   </div>

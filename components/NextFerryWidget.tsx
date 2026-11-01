@@ -1,6 +1,7 @@
 // components/NextFerryWidget.tsx
 // Next ferry from both terminals (body of the front page Ferry card)
-// Version: 6.1.0 - Running late: shows the expected departure with the scheduled time under it,
+// Version: 6.1.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 6.1.0 - Running late: shows the expected departure with the scheduled time under it,
 //                  and keeps showing a sailing until it has actually gone (same rules as the
 //                  Ferry page, lib/ferryEstimate.ts). On time it says "Scheduled".
 // Previous: 6.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page.
@@ -13,7 +14,7 @@
 //                  Gabriola time instead of the visitor's clock, and shows a live delay or
 //                  cancellation line from BC Ferries when Nanaimo sailings are running late
 // Previous: 5.1.0 - Removed timeout (BC Ferries needs time) + removed sailing count (not useful)
-// Date: 2026-10-30
+// Date: 2026-11-01
 
 'use client';
 
@@ -21,6 +22,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseWithTimeout';
 import { AlertCircle } from 'lucide-react';
 import { currentDelay, upcomingSailings, minutesToDisplay, SHOW_LATE_FROM, LiveRow, SailingView } from '@/lib/ferryEstimate';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 interface Sailing {
   time: string;
@@ -29,7 +31,7 @@ interface Sailing {
 
 // Minutes since midnight, Gabriola time
 function pacificNowMinutes(): number {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
   return Number(parts.find(p => p.type === 'hour')?.value) * 60 + Number(parts.find(p => p.type === 'minute')?.value);
 }
 
@@ -54,7 +56,7 @@ export function NextFerryWidget() {
     const loadNextFerries = async () => {
       try {
         // No time passed: the database uses the current Gabriola time
-        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
         const [scheduleResult, liveResult, metaResult] = await Promise.all([
           supabase.rpc('get_ferry_schedule'),
           supabase

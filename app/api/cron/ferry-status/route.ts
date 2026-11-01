@@ -1,9 +1,10 @@
 // app/api/cron/ferry-status/route.ts
 // Reads BC Ferries live status every 5 minutes (called by Supabase pg_cron),
 // stores it, and posts automatic ferry alerts.
-// Version: 1.0.1 - Setting renamed to AUTO_ALERT_USER_ID (shared with the notices email reader)
+// Version: 1.0.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.1 - Setting renamed to AUTO_ALERT_USER_ID (shared with the notices email reader)
 // Previous: 1.0.0
-// Date: 2026-10-10
+// Date: 2026-11-01
 //
 // Needs these Vercel environment variables:
 //   CRON_SECRET               - long random string, same one used in the Supabase cron job
@@ -19,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { BCF_STATUS_URL, parseBcFerriesStatus, LiveSailing } from '@/lib/bcferriesStatus';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -30,7 +32,7 @@ const USER_AGENT = 'GabriolaConnects/1.0 (+https://www.gabriolaconnects.ca; comm
 
 function pacificNow() {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Vancouver',
+    timeZone: GABRIOLA_TZ,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date());
@@ -47,7 +49,7 @@ function pacificToIso(date: string, minutes: number): string {
   const asUtc = Date.UTC(y, m - 1, d, 0, minutes);
   // What does the Pacific clock read at that UTC instant? The difference is the offset.
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Vancouver', hourCycle: 'h23',
+    timeZone: GABRIOLA_TZ, hourCycle: 'h23',
     year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
   }).formatToParts(new Date(asUtc));
   const get = (t: string) => Number(parts.find(p => p.type === t)?.value);

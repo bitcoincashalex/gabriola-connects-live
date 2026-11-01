@@ -1,8 +1,9 @@
 // app/admin/directory/claims/page.tsx
 // Ownership requests: members asking to be connected to a business in the Directory.
 // Approve makes them the owner (they get the Edit button); they get a message either way.
-// Version: 1.0.0
-// Date: 2026-10-22
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
 // Needs sql/2026-10-22-directory-claims.sql
 'use client';
 
@@ -12,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 interface Claim {
   id: string;
@@ -29,7 +31,7 @@ interface Claim {
 }
 
 const fmt = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Vancouver' }) : '';
+  iso ? new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric', timeZone: GABRIOLA_TZ }) : '';
 
 export default function DirectoryClaimsPage() {
   const { user, loading: userLoading } = useUser();

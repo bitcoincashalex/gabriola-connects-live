@@ -1,11 +1,14 @@
 // lib/ferryTime.ts
 // Small time helpers for the Ferry page, always in Gabriola (Pacific) time
-// Version: 1.0.0
-// Date: 2026-10-10
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
+
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 // Minutes since midnight, Gabriola time (not the visitor's own clock)
 export function pacificNowMinutes(): number {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
   return Number(parts.find(p => p.type === 'hour')?.value) * 60 + Number(parts.find(p => p.type === 'minute')?.value);
 }
 

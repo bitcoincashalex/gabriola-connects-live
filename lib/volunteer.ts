@@ -1,7 +1,10 @@
 // lib/volunteer.ts
 // Volunteer listings: categories, the columns pages read, and date helpers
-// Version: 1.0.0
-// Date: 2026-10-13
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
+
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 export interface VolunteerCategory {
   id: string;
@@ -62,7 +65,7 @@ export const LISTING_COLUMNS =
 
 // Today's date on Gabriola (Pacific time), as YYYY-MM-DD
 export function pacificToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver' }).format(new Date());
+  return new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ }).format(new Date());
 }
 
 // The date part of a stored date, whether it was saved as a date or a timestamp

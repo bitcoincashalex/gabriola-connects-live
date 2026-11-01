@@ -1,7 +1,8 @@
 // lib/fetchEvents.ts
 // Loads approved, non-deleted events for the calendar and events pages
-// Version: 1.0.0
-// Date: 2026-10-10
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
 //
 // Supabase returns at most 1,000 rows per request. Loading every event in one
 // request silently dropped everything after the first 1,000 (oldest first), so
@@ -9,6 +10,7 @@
 // This loads events from 6 months ago onward, 1,000 at a time, until done.
 
 import { supabase } from '@/lib/supabase';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 const PAGE_SIZE = 1000;
 const MONTHS_BACK = 6;
@@ -17,7 +19,7 @@ export async function fetchApprovedEvents(): Promise<any[]> {
   const since = new Date();
   since.setMonth(since.getMonth() - MONTHS_BACK);
   const sinceDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: GABRIOLA_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(since);
 
   const all: any[] = [];

@@ -1,11 +1,12 @@
 // app/alerts/page.tsx
-// Version: 3.0.0 - Alerts redesign to match the rest of the site: each alert has a coloured band
+// Version: 3.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 3.0.0 - Alerts redesign to match the rest of the site: each alert has a coloured band
 //                  (red emergency/warning, amber advisory, navy info, same as the front page card)
 //                  over a white card; times shown in Gabriola time; Alerts highlighted in the bottom
 //                  menu; no longer asks the database for the name and email of whoever posted the
 //                  alert (this page never showed them, but they were being sent to every visitor).
 // Previous: 2.0.0 - PUBLIC alerts view with image/link support and click-to-expand lightbox
-// Date: 2026-10-10
+// Date: 2026-11-01
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,6 +15,7 @@ import { useUser } from '@/components/AuthProvider';
 import { AlertTriangle, Bell, AlertCircle, Info, Clock, Building2, MapPin, Phone, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 interface Alert {
   id: string;
@@ -50,7 +52,7 @@ const STYLE: Record<string, { band: string; label: string; icon: any }> = {
 
 function gabriolaTime(iso: string): string {
   return new Date(iso).toLocaleString('en-CA', {
-    timeZone: 'America/Vancouver',
+    timeZone: GABRIOLA_TZ,
     weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
 }

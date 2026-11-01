@@ -1,12 +1,14 @@
 // lib/newsDigest.ts
 // Reads the Gabriola Sounder's RSS feed and has the AI draft a short Island News summary of each
 // story. Drafts are only saved for Alex to review at /admin/news; nothing is posted from here.
-// Version: 1.0.0
-// Date: 2026-10-27
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
 //
 // Uses Claude Sonnet 5.5 through the Anthropic API (ANTHROPIC_API_KEY in Vercel, already set).
 
 import Anthropic from '@anthropic-ai/sdk';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 export const NEWS_MODEL = 'claude-sonnet-5-5';
 export const SOUNDER_FEED = 'https://soundernews.com/feed/';
@@ -148,7 +150,7 @@ export async function draftNewsPost(story: { title: string; url: string; date: D
 export function newsFooter(story: { title: string; url: string; date: Date | null }, reporter: string | null): string {
   let date = '';
   if (story.date) {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: 'numeric', day: 'numeric' })
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, year: 'numeric', month: 'numeric', day: 'numeric' })
       .formatToParts(story.date);
     const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
     const months = ['Jan.', 'Feb.', 'March', 'April', 'May', 'June', 'July', 'Aug.', 'Sept.', 'Oct.', 'Nov.', 'Dec.'];

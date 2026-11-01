@@ -1,8 +1,9 @@
 // components/IslandMap.tsx
 // The Island Map: businesses, event venues (with upcoming events), parks and beaches, trails,
 // the ferry terminal, and "You are here" from the phone's GPS. Map: OpenStreetMap via Leaflet.
-// Version: 1.0.0
-// Date: 2026-10-13
+// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Previous: 1.0.0
+// Date: 2026-11-01
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { GABRIOLA_BOUNDS, GABRIOLA_CENTER, directionsUrl, distanceKm, onGabriola } from '@/lib/geocode';
 import { displayToMinutes, pacificNowMinutes, untilText } from '@/lib/ferryTime';
 import { formatEventTime } from '@/components/CalendarList';
+import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 type LayerId = 'businesses' | 'venues' | 'parks' | 'trails' | 'ferry';
 
@@ -40,7 +42,7 @@ type Selected =
   | { layer: 'trails'; lat: number; lng: number; name: string | null };
 
 function todayPacific(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver' }).format(new Date());
+  return new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ }).format(new Date());
 }
 
 function shortDate(d: string): string {
