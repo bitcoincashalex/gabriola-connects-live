@@ -1,7 +1,13 @@
 // lib/weeklyDigest.ts
 // Builds the weekly email update: alerts in effect, Island News, events for the week ahead,
 // new Buy, Sell, Rent & Free listings, new forum discussions and open volunteer spots.
-// Version: 1.0.0
+// Version: 1.2.0 - "Active in the forum": discussions with a new post or new reply in the last 14
+//                  days (news posts too, once people reply), most recent activity first, with
+//                  reply counts. Left out when the forum's been quiet. Replies are read directly,
+//                  because bbs_posts.last_activity_at isn't updated when someone replies.
+// Previous: 1.1.0 - Buy, Sell, Rent & Free lists everything still up (newest first, up to 10),
+//                  with the ones posted this week marked New (was: only this week's)
+// Previous: 1.0.0
 // Date: 2026-11-02
 //
 // Used by /api/cron/weekly-digest (Friday mornings) and /api/digest/test ("send me one now").
@@ -12,7 +18,7 @@ import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 export const SITE = 'https://www.gabriolaconnects.ca';
 const NEWS_AUTHOR_ID = '713881fc-2506-490c-8d72-4c6205bd1093';
 const MAX_EVENT_LINES = 28;
-const MAX_LISTINGS = 8;
+const MAX_LISTINGS = 10;
 const MAX_DISCUSSIONS = 6;
 
 interface EventLine { day: string; time: string; title: string; venue: string; also: string[] }
@@ -22,8 +28,9 @@ export interface Digest {
   news: { title: string; url: string }[];
   events: { day: string; lines: EventLine[] }[];
   moreEvents: number;
-  listings: { title: string; tag: string; url: string }[];
-  discussions: { title: string; url: string }[];
+  listings: { title: string; tag: string; url: string; isNew: boolean }[];
+  moreListings: number;
+  discussions: { title: string; url: string; replies: number }[];
   volunteerCount: number;
 }
 
@@ -60,6 +67,7 @@ function escapeHtml(s: string): string {
 export async function buildDigest(supabase: any): Promise<Digest> {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString();
   const today = gabDate(now);
   const lastDay = gabDate(new Date(now.getTime() + 6 * 86400000));
   const [, tm, td] = today.split('-').map(Number);
@@ -72,13 +80,38 @@ export async function buildDigest(supabase: any): Promise<Digest> {
     supabase.from('events').select('title, start_date, start_time, is_all_day, venue_name, location, status')
       .eq('is_approved', true).is('deleted_at', null).gte('start_date', today).lte('start_date', lastDay)
       .order('start_date', { ascending: true }).order('start_time', { ascending: true }).limit(400),
-    supabase.from('marketplace_listings').select('id, title, kind, price, category').eq('status', 'active')
-      .gt('expires_at', now.toISOString()).gte('created_at', weekAgo).order('created_at', { ascending: false }).limit(MAX_LISTINGS),
-    supabase.from('bbs_posts').select('id, title, user_id').eq('is_active', true).is('deleted_at', null)
-      .gte('created_at', weekAgo).order('created_at', { ascending: false }).limit(30),
+    supabase.from('marketplace_listings').select('id, title, kind, price, category, created_at', { count: 'exact' }).eq('status', 'active')
+      .gt('expires_at', now.toISOString()).order('created_at', { ascending: false }).limit(MAX_LISTINGS),
+    supabase.from('bbs_posts').select('id, created_at').eq('is_active', true).is('deleted_at', null)
+      .neq('user_id', NEWS_AUTHOR_ID).gte('created_at', twoWeeksAgo).limit(100),
     supabase.from('volunteer_opportunities').select('*', { count: 'exact', head: true })
       .eq('status', 'active').eq('is_approved', true).is('deleted_at', null).or(`start_date.is.null,start_date.gte.${today}`),
   ]);
+
+  // Active discussions: new posts (not Island News; those have their own section) and any post
+  // with a new reply, in the last 14 days. Anonymous posts count too (their user_id is empty).
+  const latest = new Map<string, number>();
+  const bump = (id: string, at: string) => {
+    const t = new Date(at).getTime();
+    if (!latest.has(id) || latest.get(id)! < t) latest.set(id, t);
+  };
+  (postsRes.data || []).forEach((p: any) => bump(p.id, p.created_at));
+  const { data: anonPosts } = await supabase.from('bbs_posts').select('id, created_at').eq('is_active', true)
+    .is('deleted_at', null).is('user_id', null).gte('created_at', twoWeeksAgo).limit(100);
+  (anonPosts || []).forEach((p: any) => bump(p.id, p.created_at));
+  const { data: recentReplies } = await supabase.from('bbs_replies').select('post_id, created_at')
+    .gte('created_at', twoWeeksAgo).is('deleted_at', null).limit(1000);
+  (recentReplies || []).forEach((r: any) => r.post_id && bump(r.post_id, r.created_at));
+  let discussions: { title: string; url: string; replies: number }[] = [];
+  if (latest.size > 0) {
+    const ids = Array.from(latest.keys());
+    const { data: active } = await supabase.from('bbs_posts').select('id, title, reply_count')
+      .in('id', ids).eq('is_active', true).is('deleted_at', null);
+    discussions = (active || [])
+      .sort((a: any, b: any) => (latest.get(b.id) || 0) - (latest.get(a.id) || 0))
+      .slice(0, MAX_DISCUSSIONS)
+      .map((p: any) => ({ title: p.title, url: `${SITE}/community/thread/${p.id}`, replies: p.reply_count || 0 }));
+  }
 
   const levelName: Record<string, string> = { emergency: 'Emergency', warning: 'Warning', advisory: 'Advisory', info: 'Info' };
 
@@ -135,9 +168,11 @@ export async function buildDigest(supabase: any): Promise<Digest> {
     news: (newsRes.data || []).map((p: any) => ({ title: p.title, url: `${SITE}/community/thread/${p.id}` })),
     events: byDay,
     moreEvents: Math.max(0, order.length - shown.length),
-    listings: (listingsRes.data || []).map((l: any) => ({ title: l.title, tag: tagFor(l), url: `${SITE}/marketplace/${l.id}` })),
-    discussions: (postsRes.data || []).filter((p: any) => p.user_id !== NEWS_AUTHOR_ID).slice(0, MAX_DISCUSSIONS)
-      .map((p: any) => ({ title: p.title, url: `${SITE}/community/thread/${p.id}` })),
+    listings: (listingsRes.data || []).map((l: any) => ({
+      title: l.title, tag: tagFor(l), url: `${SITE}/marketplace/${l.id}`, isNew: new Date(l.created_at).getTime() >= Date.parse(weekAgo),
+    })),
+    moreListings: Math.max(0, (listingsRes.count || 0) - (listingsRes.data || []).length),
+    discussions,
     volunteerCount: volRes.count || 0,
   };
 }
@@ -168,13 +203,13 @@ export function digestText(d: Digest, stopUrl: string): string {
     out.push(d.moreEvents > 0 ? `Plus ${d.moreEvents} more on the calendar: ${SITE}/calendar` : `Full calendar: ${SITE}/calendar`, '');
   }
   if (d.listings.length) {
-    out.push('NEW IN BUY, SELL, RENT & FREE');
-    d.listings.forEach(l => out.push(`- ${l.title} (${l.tag})`, `  ${l.url}`));
-    out.push('');
+    out.push('BUY, SELL, RENT & FREE');
+    d.listings.forEach(l => out.push(`- ${l.isNew ? 'NEW: ' : ''}${l.title} (${l.tag})`, `  ${l.url}`));
+    out.push(d.moreListings > 0 ? `Plus ${d.moreListings} more: ${SITE}/marketplace` : `All listings: ${SITE}/marketplace`, '');
   }
   if (d.discussions.length) {
-    out.push('NEW IN THE FORUM');
-    d.discussions.forEach(p => out.push(`- ${p.title}`, `  ${p.url}`));
+    out.push('ACTIVE IN THE FORUM');
+    d.discussions.forEach(p => out.push(`- ${p.title}${p.replies ? ` (${p.replies} ${p.replies === 1 ? 'reply' : 'replies'})` : ''}`, `  ${p.url}`));
     out.push('');
   }
   if (d.volunteerCount > 0) {
@@ -209,10 +244,11 @@ export function digestHtml(d: Digest, stopUrl: string): string {
     parts.push(`<p style="margin:8px 0 0 0"><a href="${SITE}/calendar" style="color:#2D5F3F">${d.moreEvents > 0 ? `Plus ${d.moreEvents} more on the calendar` : 'Full calendar'}</a></p>`);
   }
   if (d.listings.length) {
-    parts.push(h2('New in Buy, Sell, Rent &amp; Free'), ul(d.listings.map(l => li(`${link(l.url, l.title)} <span style="color:#5B6660">(${escapeHtml(l.tag)})</span>`))));
+    parts.push(h2('Buy, Sell, Rent &amp; Free'), ul(d.listings.map(l => li(`${l.isNew ? '<span style="display:inline-block;background:#2D5F3F;color:#FFFFFF;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:9px;margin-right:4px">NEW</span>' : ''}${link(l.url, l.title)} <span style="color:#5B6660">(${escapeHtml(l.tag)})</span>`))),
+      `<p style="margin:8px 0 0 0"><a href="${SITE}/marketplace" style="color:#2D5F3F">${d.moreListings > 0 ? `Plus ${d.moreListings} more` : 'All listings'}</a></p>`);
   }
   if (d.discussions.length) {
-    parts.push(h2('New in the forum'), ul(d.discussions.map(p => li(link(p.url, p.title)))));
+    parts.push(h2('Active in the forum'), ul(d.discussions.map(p => li(`${link(p.url, p.title)}${p.replies ? ` <span style="color:#5B6660">(${p.replies} ${p.replies === 1 ? 'reply' : 'replies'})</span>` : ''}`))));
   }
   if (d.volunteerCount > 0) {
     parts.push(`<p style="margin:20px 0 0 0"><a href="${SITE}/volunteer" style="color:#2D5F3F;font-weight:bold">${d.volunteerCount} volunteer ${d.volunteerCount === 1 ? 'opportunity' : 'opportunities'} open</a></p>`);
