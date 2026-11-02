@@ -1,5 +1,6 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.4.0 - Island News is live: the card opens /news (the forum's news posts)
+// Version: 1.4.1 - Removed the NEW! badges
+// Previous: 1.4.0 - Island News is live: the card opens /news (the forum's news posts)
 // Previous: 1.3.1 - Card renamed Buy, Sell, Rent & Free; description mentions places for rent
 // Previous: 1.3.0 - Buy, Sell & Free card (links to /marketplace); Island News card spans the row
 // Previous: 1.2.0 - Island Map is live (links to /map)
@@ -81,9 +82,6 @@ export default function CommunityHubPage() {
                     <h3 className="text-2xl font-bold text-gray-900">
                       Volunteer Opportunities
                     </h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                      NEW!
-                    </span>
                   </div>
                   <p className="text-gray-600">
                     Help out in your community and make a difference
@@ -106,9 +104,6 @@ export default function CommunityHubPage() {
                     <h3 className="text-2xl font-bold text-gray-900">
                       Island Map
                     </h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                      NEW!
-                    </span>
                   </div>
                   <p className="text-gray-600">
                     Parks, beaches, trails, businesses, venues and the ferry, with you on the map
@@ -131,9 +126,6 @@ export default function CommunityHubPage() {
                     <h3 className="text-2xl font-bold text-gray-900">
                       Buy, Sell, Rent &amp; Free
                     </h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                      NEW!
-                    </span>
                   </div>
                   <p className="text-gray-600">
                     Things for sale, places for rent, things wanted, and things free to a good home
@@ -156,9 +148,6 @@ export default function CommunityHubPage() {
                     <h3 className="text-2xl font-bold text-gray-900">
                       Island News
                     </h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                      NEW!
-                    </span>
                   </div>
                   <p className="text-gray-600">
                     Stay updated with community announcements and local news
