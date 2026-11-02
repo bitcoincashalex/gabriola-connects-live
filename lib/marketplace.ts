@@ -1,16 +1,17 @@
 // lib/marketplace.ts
 // Buy, Sell & Free: shared types, labels, photo upload and small helpers
-// Version: 1.3.0 - is_anonymous: post without your name (user_id is empty on those listings)
+// Version: 1.4.0 - Lost and Found: two more kinds, no price, 14-day listings, Pets category
+// Previous: 1.3.0 - is_anonymous: post without your name (user_id is empty on those listings)
 // Previous: 1.2.0 - comments_enabled: the poster can turn public comments off
 // Earlier: 1.1.0 - Rentals: "For rent" listings (home, suite or cabin, room, trailer / RV,
 //                  RV pad) by the month, "Looking for a rental" under Wanted, 60-day listings
 // Previous: 1.0.0 (2026-10-20)
-// Date: 2026-10-22
+// Date: 2026-11-02
 
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/imageCompression';
 
-export type ListingKind = 'sale' | 'rent' | 'wanted' | 'free';
+export type ListingKind = 'sale' | 'rent' | 'wanted' | 'free' | 'lost' | 'found';
 export type ListingStatus = 'active' | 'sold' | 'hidden';
 
 export interface Listing {
@@ -55,8 +56,14 @@ export const rentalTypeLabel = (id?: string | null) => RENTAL_TYPES.find(t => t.
 export const isRental = (l: Pick<Listing, 'kind' | 'category'>) =>
   l.kind === 'rent' || (l.kind === 'wanted' && l.category === HOUSING_CATEGORY);
 
-// How long a listing stays up (and what Renew gives): rentals 60 days, everything else 30
-export const listingDays = (l: Pick<Listing, 'kind' | 'category'>) => (isRental(l) ? 60 : 30);
+// Lost or found something (pets, keys, wallets...)
+export const isLostFound = (kind: ListingKind) => kind === 'lost' || kind === 'found';
+
+// Kinds that never have a price
+export const hasNoPrice = (kind: ListingKind) => kind === 'free' || isLostFound(kind);
+
+// How long a listing stays up (and what Renew gives): rentals 60 days, lost & found 14, everything else 30
+export const listingDays = (l: Pick<Listing, 'kind' | 'category'>) => (isRental(l) ? 60 : isLostFound(l.kind) ? 14 : 30);
 
 // "Available now" / "Available Nov 1"
 export function availableLabel(date?: string | null): string {
@@ -74,6 +81,8 @@ export const LISTING_KINDS: { id: ListingKind; label: string; short: string }[] 
   { id: 'rent', label: 'For rent', short: 'For rent' },
   { id: 'wanted', label: 'Wanted', short: 'Wanted' },
   { id: 'free', label: 'Free', short: 'Free' },
+  { id: 'lost', label: 'Lost', short: 'Lost' },
+  { id: 'found', label: 'Found', short: 'Found' },
 ];
 
 export const LISTING_CATEGORIES: { id: string; label: string }[] = [
@@ -85,6 +94,7 @@ export const LISTING_CATEGORIES: { id: string; label: string }[] = [
   { id: 'electronics', label: 'Electronics' },
   { id: 'clothing', label: 'Clothing' },
   { id: 'kids', label: 'Kids & Toys' },
+  { id: 'pets', label: 'Pets & Animals' },
   { id: HOUSING_CATEGORY, label: 'Housing & rentals' },
   { id: 'other', label: 'Other' },
 ];
@@ -98,6 +108,7 @@ export const kindLabel = (kind: ListingKind) =>
 // "$45", "$1,200", "$12.50", "$750/mo" for rentals, "Free", or "" when no price was given
 export function priceLabel(l: Pick<Listing, 'kind' | 'price'> & { category?: string }): string {
   if (l.kind === 'free') return 'Free';
+  if (isLostFound(l.kind)) return '';
   if (l.price === null || l.price === undefined) return '';
   const n = Number(l.price);
   const amount = '$' + n.toLocaleString('en-CA', {
@@ -112,7 +123,12 @@ export const isLive = (l: Pick<Listing, 'status' | 'expires_at'>) => l.status ==
 
 // What the seller sees on their own listing
 export function listingState(l: Pick<Listing, 'status' | 'expires_at'> & { kind?: ListingKind }): string {
-  if (l.status === 'sold') return l.kind === 'rent' ? 'Rented' : l.kind === 'wanted' ? 'Found' : 'Sold';
+  if (l.status === 'sold') {
+    if (l.kind === 'rent') return 'Rented';
+    if (l.kind === 'wanted' || l.kind === 'lost') return 'Found';
+    if (l.kind === 'found') return 'Back with its owner';
+    return 'Sold';
+  }
   if (l.status === 'hidden') return 'Hidden by an admin';
   if (isExpired(l)) return 'Expired';
   return 'Live';

@@ -1,18 +1,19 @@
 // components/MarketplaceForm.tsx
 // The form for posting or editing a Buy, Sell & Free listing
-// Version: 1.3.0 - "Post without my name" tick box
+// Version: 1.4.0 - Lost and Found: no price field, title examples, 14-day note
+// Previous: 1.3.0 - "Post without my name" tick box
 // Previous: 1.2.0 - "Allow public questions & comments" tick box (on by default)
 // Earlier: 1.1.0 - Rentals: "For rent" (type, rent per month, available from, furnished / pets /
 //                  utilities) and "Looking for a rental" under Wanted (Housing & rentals)
 // Previous: 1.0.0 (2026-10-20)
-// Date: 2026-10-22
+// Date: 2026-11-02
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { Camera, X } from 'lucide-react';
 import {
   LISTING_CATEGORIES, LISTING_KINDS, ListingKind, MAX_PHOTOS, uploadListingPhoto,
-  HOUSING_CATEGORY, RENTAL_TYPES, isRental,
+  HOUSING_CATEGORY, RENTAL_TYPES, isRental, isLostFound, hasNoPrice,
 } from '@/lib/marketplace';
 
 export interface MarketplaceFormValues {
@@ -68,7 +69,7 @@ export function marketplaceFormToRow(v: MarketplaceFormValues) {
     kind: v.kind,
     title: v.title.trim(),
     description: v.description.trim() || null,
-    price: v.kind === 'free' || !Number.isFinite(price) ? null : Math.round(price * 100) / 100,
+    price: hasNoPrice(v.kind) || !Number.isFinite(price) ? null : Math.round(price * 100) / 100,
     category,
     rental_type: rental ? v.rental_type : null,
     available_from: v.kind === 'rent' && v.available_from ? v.available_from : null,
@@ -142,7 +143,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       setError('Please give it a title (at least 3 letters).');
       return;
     }
-    if (v.kind !== 'free' && v.price.trim() !== '' && !Number.isFinite(parseFloat(v.price.replace(/[$,\s]/g, '')))) {
+    if (!hasNoPrice(v.kind) && v.price.trim() !== '' && !Number.isFinite(parseFloat(v.price.replace(/[$,\s]/g, '')))) {
       setError('The price should be a number, like 40 or 12.50.');
       return;
     }
@@ -175,7 +176,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       {/* Kind */}
       <fieldset>
         <legend className={label}>What kind of listing?</legend>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {LISTING_KINDS.map(k => (
             <button
               key={k.id}
@@ -195,7 +196,10 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
       <div>
         <label htmlFor="mk-title" className={label}>Title</label>
         <input id="mk-title" className={input} value={v.title} onChange={set('title')} maxLength={100}
-          placeholder={renting ? 'e.g. Bright one-bedroom suite near the Village' : lookingToRent ? 'e.g. Looking for a room or small cabin' : v.kind === 'wanted' ? 'e.g. Looking for a small chest freezer' : 'e.g. Cedar picnic table'} required />
+          placeholder={renting ? 'e.g. Bright one-bedroom suite near the Village' : lookingToRent ? 'e.g. Looking for a room or small cabin' : v.kind === 'wanted' ? 'e.g. Looking for a small chest freezer' : v.kind === 'lost' ? 'e.g. Grey tabby cat, missing near Silva Bay' : v.kind === 'found' ? 'e.g. Set of keys found at the Village' : 'e.g. Cedar picnic table'} required />
+        {isLostFound(v.kind) && (
+          <p className={hint}>Say where and when in the description. Lost and found listings stay up 14 days, and you can renew them.</p>
+        )}
       </div>
 
       {(renting || lookingToRent) && (
@@ -208,7 +212,7 @@ export default function MarketplaceForm({ initial, userId, submitLabel, onSubmit
         </div>
       )}
 
-      {v.kind !== 'free' && (
+      {!hasNoPrice(v.kind) && (
         <div>
           <label htmlFor="mk-price" className={label}>
             {renting ? 'Rent per month' : lookingToRent ? 'Budget per month (optional)' : v.kind === 'wanted' ? 'Budget (optional)' : 'Price (optional)'}

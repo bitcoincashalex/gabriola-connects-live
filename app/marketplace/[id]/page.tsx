@@ -1,7 +1,9 @@
 // app/marketplace/[id]/page.tsx
 // One Buy, Sell & Free listing: photos, details, Message the seller, Share.
 // The seller can edit, mark sold, renew or delete; admins can hide or show it.
-// Version: 1.4.0 - Listings posted without a name: "Posted by a neighbour", the poster still gets
+// Version: 1.5.0 - Lost and Found: red / blue-green label, "Found it" / "Back with its owner",
+//                  the poster's comment tag says "Poster" instead of "Seller"
+// Previous: 1.4.0 - Listings posted without a name: "Posted by a neighbour", the poster still gets
 //                  their controls, and Message goes through the database without revealing them
 // Previous: 1.3.0 - The poster can turn public comments off and on (Turn off comments)
 // Earlier: 1.2.0 - Rentals: kind of place, rent per month, available from, furnished / pets /
@@ -9,7 +11,7 @@
 // Earlier: 1.1.0 - Public questions and comments under the listing (ListingComments)
 // Previous: 1.0.1 - Took out the meet-somewhere-public note
 // Earlier: 1.0.0
-// Date: 2026-10-22
+// Date: 2026-11-02
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -27,6 +29,7 @@ import {
   LISTING_COLUMNS, Listing, categoryLabel, kindLabel, priceLabel, timeAgo,
   isLive, listingState, daysLeft, removeListingPhotos,
   isRental, rentalTypeLabel, availableLabel, listingDays,
+  isLostFound,
 } from '@/lib/marketplace';
 
 export default function ListingPage() {
@@ -178,7 +181,7 @@ export default function ListingPage() {
 
           <div className="p-4 md:p-6">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold mb-2">
-              <span className={listing.kind === 'wanted' ? 'text-[#002774]' : listing.kind === 'rent' ? 'text-[#9A4A00]' : 'text-gabriola-green'}>
+              <span className={listing.kind === 'wanted' ? 'text-[#002774]' : listing.kind === 'rent' ? 'text-[#9A4A00]' : listing.kind === 'lost' ? 'text-[#B42318]' : listing.kind === 'found' ? 'text-[#0E7490]' : 'text-gabriola-green'}>
                 {listing.kind === 'wanted' && isRental(listing) ? 'Looking to rent' : kindLabel(listing.kind)}
               </span>
               <span className="text-[#5B6660]">· {isRental(listing) ? rentalTypeLabel(listing.rental_type) : categoryLabel(listing.category)}</span>
@@ -235,7 +238,7 @@ export default function ListingPage() {
               )}
               {isSeller && live && (
                 <button type="button" onClick={markSold} disabled={busy} className={`${btn} text-gabriola-green hover:bg-[#E6EFE8]`}>
-                  <Check className="w-4 h-4" aria-hidden="true" /> {listing.kind === 'wanted' ? 'Found it' : listing.kind === 'rent' ? 'Mark rented' : 'Mark sold'}
+                  <Check className="w-4 h-4" aria-hidden="true" /> {listing.kind === 'wanted' || listing.kind === 'lost' ? 'Found it' : listing.kind === 'found' ? 'Back with its owner' : listing.kind === 'rent' ? 'Mark rented' : 'Mark sold'}
                 </button>
               )}
               {isSeller && listing.status !== 'hidden' && (
@@ -270,10 +273,11 @@ export default function ListingPage() {
           commentsEnabled={listing.comments_enabled !== false}
           onToggleComments={live && (isSeller || isAdmin) ? toggleComments : undefined}
           viewerIsSeller={isSeller}
+          posterLabel={isLostFound(listing.kind) ? 'Poster' : 'Seller'}
           toggling={busy}
           closedReason={
             live ? 'The poster has turned off comments. Use Message to contact them.'
-              : listing.status === 'sold' ? (listing.kind === 'wanted' ? 'They found what they were looking for, so comments are closed.' : listing.kind === 'rent' ? 'This place has been rented, so comments are closed.' : 'This item has sold, so comments are closed.')
+              : listing.status === 'sold' ? (listing.kind === 'wanted' || listing.kind === 'lost' ? 'They found what they were looking for, so comments are closed.' : listing.kind === 'found' ? 'It\'s back with its owner, so comments are closed.' : listing.kind === 'rent' ? 'This place has been rented, so comments are closed.' : 'This item has sold, so comments are closed.')
               : listing.status === 'hidden' ? 'This listing is hidden, so comments are closed.'
               : 'This listing has expired, so comments are closed.'
           }

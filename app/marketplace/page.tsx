@@ -1,9 +1,10 @@
 // app/marketplace/page.tsx
 // Buy, Sell & Free: live listings as a photo grid, with For sale / Wanted / Free, category and search
-// Version: 1.1.1 - Heading: Buy, Sell, Rent & Free
+// Version: 1.2.0 - Lost and Found: filters and coloured badges (Lost red, Found blue-green)
+// Previous: 1.1.1 - Heading: Buy, Sell, Rent & Free
 // Previous: 1.1.0 - "For rent" filter; rental cards show the kind of place and when it's available
 // Previous: 1.0.0 (2026-10-20)
-// Date: 2026-10-22
+// Date: 2026-11-02
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -163,7 +164,11 @@ export default function MarketplacePage() {
                         )}
                         {l.kind !== 'sale' && (
                           <span className={`absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                            l.kind === 'free' ? 'bg-gabriola-green text-white' : l.kind === 'rent' ? 'bg-[#9A4A00] text-white' : 'bg-[#002774] text-white'
+                            l.kind === 'free' ? 'bg-gabriola-green text-white'
+                              : l.kind === 'rent' ? 'bg-[#9A4A00] text-white'
+                              : l.kind === 'lost' ? 'bg-[#B42318] text-white'
+                              : l.kind === 'found' ? 'bg-[#0E7490] text-white'
+                              : 'bg-[#002774] text-white'
                           }`}>
                             {l.kind === 'wanted' && isRental(l) ? 'Looking to rent' : kindLabel(l.kind)}
                           </span>

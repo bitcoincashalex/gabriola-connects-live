@@ -1,6 +1,7 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities (body of the front page Community card)
-// Version: 7.2.0 - Shows the 2 newest live Buy, Sell, Rent & Free listings under 3 latest discussions.
+// Version: 7.2.1 - Lost and Found listings show "Lost" / "Found"
+// Previous: 7.2.0 - Shows the 2 newest live Buy, Sell, Rent & Free listings under 3 latest discussions.
 //                  With no live listings it shows 5 discussions as before.
 // Previous: 7.1.0 - Volunteer count only counts current listings (not taken down, date not passed)
 // Previous: 7.0.0 - Front page redesign: no longer draws its own blue card inside the front page
@@ -9,7 +10,7 @@
 //                  /community-hub, and a link inside a link broke page hydration (React #418/#423).
 //                  Error state: removed nested Sign In link.
 // Previous: 6.3.0 - Removed background bubbles that were overlapping volunteer count on iOS
-// Date: 2026-10-22
+// Date: 2026-11-02
 
 'use client';
 
@@ -26,7 +27,7 @@ interface WidgetListing {
   category: string;
 }
 
-const kindWord: Record<ListingKind, string> = { sale: 'For sale', rent: 'For rent', wanted: 'Wanted', free: 'Free' };
+const kindWord: Record<ListingKind, string> = { sale: 'For sale', rent: 'For rent', wanted: 'Wanted', free: 'Free', lost: 'Lost', found: 'Found' };
 
 export function ForumWidget() {
   const [latestTopics, setLatestTopics] = useState<string[]>([]);

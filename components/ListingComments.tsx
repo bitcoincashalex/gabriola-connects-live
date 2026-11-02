@@ -1,6 +1,7 @@
 // components/ListingComments.tsx
 // Public questions and comments under a Buy, Sell & Free listing
-// Version: 1.3.0 - Reply button: replies sit indented under the comment they answer (one level
+// Version: 1.3.1 - posterLabel: the poster's tag can say "Poster" (lost & found) instead of "Seller"
+// Previous: 1.3.0 - Reply button: replies sit indented under the comment they answer (one level
 //                  deep; replying to a reply files it under the same question). Deleting a
 //                  comment also removes its replies. Needs sql/2026-10-22-marketplace-comment-replies.sql
 // Previous: 1.2.0 - viewerIsSeller: the page says whether you posted the listing (needed when it was
@@ -8,7 +9,7 @@
 // Previous: 1.1.0 - The poster (or an admin) can turn comments off and on; when off, existing
 //                  comments stay visible and nobody can add new ones
 // Previous: 1.0.0
-// Date: 2026-10-22
+// Date: 2026-11-02
 //
 // Anyone can read them. Signed in members can comment while the listing is live; the seller's
 // own comments are marked "Seller". People delete their own; the seller can delete any on their
@@ -43,10 +44,12 @@ interface Props {
   onToggleComments?: () => void;      // shown to the poster (and admins) while the listing is live
   toggling?: boolean;
   viewerIsSeller?: boolean;           // set by the page; works for listings posted without a name
+  posterLabel?: string;               // tag on the poster's comments (default "Seller")
 }
 
 export default function ListingComments({
   listingId, sellerId, isOpen, closedReason, userId, isAdmin, commentsEnabled = true, onToggleComments, toggling, viewerIsSeller,
+  posterLabel = 'Seller',
 }: Props) {
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +164,7 @@ export default function ListingComments({
       <div className="flex items-center gap-2 text-sm mb-0.5">
         <span className="font-semibold text-[#1F2A24]">{c.author_name || 'A neighbour'}</span>
         {c.is_seller && (
-          <span className="px-2 py-0.5 rounded-full bg-gabriola-green text-white text-xs font-semibold">Seller</span>
+          <span className="px-2 py-0.5 rounded-full bg-gabriola-green text-white text-xs font-semibold">{posterLabel}</span>
         )}
         <span className="text-[#5B6660]">· {timeAgo(c.created_at)}</span>
         {canDelete(c) && (
