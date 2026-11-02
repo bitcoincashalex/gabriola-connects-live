@@ -1,10 +1,11 @@
 // components/Header.tsx
-// Version: 2.9.0 - Added Island News Drafts link (super admin)
+// Version: 2.10.0 - Added Alert Audit Log link (super admin)
+// Previous: 2.9.0 - Added Island News Drafts link (super admin)
 // Previous: 2.8.2 - Computer width: the search box shrinks to make room, so "Sign In" no longer covers "Alerts"
 // Previous: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
 // Earlier: 2.8.0 - Added Notices Inbox link (super admin)
 // Earlier: 2.7.1 - Added Volunteer Admin access and mobile search
-// Date: 2026-10-27
+// Date: 2026-11-02
 'use client';
 
 import Link from 'next/link';
@@ -380,6 +381,18 @@ export default function Header() {
                           >
                             <AlertTriangle className="w-5 h-5" />
                             <span>Alert Administration</span>
+                          </Link>
+                        )}
+
+                        {/* Alert Audit Log - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/audit"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <AlertTriangle className="w-5 h-5" />
+                            <span>Alert Audit Log</span>
                           </Link>
                         )}
 

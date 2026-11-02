@@ -1,6 +1,8 @@
 // app/api/admin/alerts/[id]/route.ts
-// Version: 2.0.0 - MAJOR: Uses Authorization header instead of cookies (cookies not accessible in API routes)
-// Date: 2025-12-20
+// Version: 2.1.0 - Alert audit trail: edits pass the admin's id (changed_by) and deletes go through
+//                  delete_alert_logged(), so the audit log records who did it
+// Previous: 2.0.0 - MAJOR: Uses Authorization header instead of cookies (cookies not accessible in API routes)
+// Date: 2026-11-02
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -90,11 +92,11 @@ export async function PATCH(
 
     const body = await request.json();
 
-    // Update using service role
+    // Update using service role; changed_by tells the audit log who did it
     const supabaseAdmin = createAdminClient();
     const { error } = await supabaseAdmin
       .from('alerts')
-      .update(body)
+      .update({ ...body, changed_by: user.id })
       .eq('id', params.id);
 
     if (error) {
@@ -135,12 +137,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden - Super admin only' }, { status: 403 });
     }
 
-    // Delete using service role
+    // Delete using service role, recording who did it in the audit log
     const supabaseAdmin = createAdminClient();
-    const { error } = await supabaseAdmin
-      .from('alerts')
-      .delete()
-      .eq('id', params.id);
+    const { error } = await supabaseAdmin.rpc('delete_alert_logged', { p_alert: params.id, p_actor: user.id });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

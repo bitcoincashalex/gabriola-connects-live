@@ -1,6 +1,7 @@
 // app/api/admin/alerts/[id]/archive/route.ts
-// Version: 1.1.0 - Fixed auth (use header token) and added admin_alerts permission check
-// Date: 2025-01-11
+// Version: 1.2.0 - Passes the admin's id (changed_by) so the alert audit log records who took it down
+// Previous: 1.1.0 - Fixed auth (use header token) and added admin_alerts permission check
+// Date: 2026-11-02
 
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
@@ -81,7 +82,7 @@ export async function POST(
     // Archive the alert using service role (bypasses RLS)
     const { error } = await supabaseAdmin
       .from('alerts')
-      .update({ active: false })
+      .update({ active: false, changed_by: user.id })
       .eq('id', params.id);
 
     if (error) {

@@ -1,6 +1,7 @@
 // app/admin/alerts/page.tsx
-// Version: 1.3.0 - Added image upload and external link fields to Edit Alert modal
-// Date: 2025-01-11
+// Version: 1.4.0 - History button on each alert (opens its audit trail at /admin/audit?alert=...)
+// Previous: 1.3.0 - Added image upload and external link fields to Edit Alert modal
+// Date: 2026-11-02
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +11,7 @@ import { useUser } from '@/components/AuthProvider';
 import { 
   AlertTriangle, Search, Filter, Edit2, Trash2, Archive, 
   RotateCcw, Plus, X, Save, Building2, FileText, Users,
-  AlertCircle, Info, Bell, Clock, MapPin, Upload, Image, ExternalLink
+  AlertCircle, Info, Bell, Clock, MapPin, Upload, Image, ExternalLink, History
 } from 'lucide-react';
 
 interface Alert {
@@ -598,6 +599,14 @@ export default function AdminAlertsPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex gap-1 justify-end">
+                              <a
+                                href={`/admin/audit?alert=${alert.id}`}
+                                className="p-1 hover:bg-gray-200 rounded"
+                                title="History"
+                                aria-label="History"
+                              >
+                                <History className="w-4 h-4" />
+                              </a>
                               <button
                                 onClick={() => openEditAlert(alert)}
                                 className="p-1 hover:bg-gray-200 rounded"
