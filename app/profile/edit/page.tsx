@@ -1,5 +1,7 @@
 // app/profile/edit/page.tsx
-// Version: 3.2.0 - Phone & Browser Notifications work (components/PushToggle.tsx): turned on per
+// Version: 3.3.0 - "Weekly email update" (Friday mornings, opt-in, off unless ticked); super admins
+//                  can send themselves this week's to check it. Needs sql/2026-11-02-weekly-digest.sql
+// Previous: 3.2.0 - Phone & Browser Notifications work (components/PushToggle.tsx): turned on per
 //                  device, saved right away. The page no longer saves notify_push itself.
 //                  Needs sql/2026-10-23-push-notifications.sql
 // Previous: 3.1.0 - Alert notifications work: email and site inbox, by alert level. Email starts
@@ -7,7 +9,7 @@
 //                  never chose). Text message and browser notifications marked "coming soon".
 //                  Needs sql/2026-10-22-alert-notifications.sql
 // Previous: 3.0.1 - Added visual feedback for required fields (first/last name)
-// Date: 2026-10-23
+// Date: 2026-11-02
 
 'use client';
 
@@ -48,6 +50,8 @@ export default function ProfileEditPage() {
   // Notification preferences
   const [notifyEmail, setNotifyEmail] = useState(false);
   const [notifyInbox, setNotifyInbox] = useState(false);
+  const [digestEmail, setDigestEmail] = useState(false);
+  const [digestTest, setDigestTest] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
   const [notifySms, setNotifySms] = useState(false);
   const [alertSubscriptions, setAlertSubscriptions] = useState<string[]>(['warning', 'emergency']);
   
@@ -98,6 +102,7 @@ export default function ProfileEditPage() {
       // Email alerts only count once the member has saved this page themselves
       setNotifyEmail(!!data.notify_prefs_saved_at && data.notify_email !== false);
       setNotifyInbox(data.notify_inbox === true);
+      setDigestEmail(data.digest_email === true);
       setNotifySms(data.notify_sms || false);
       setAlertSubscriptions(data.alert_subscriptions || ['warning', 'emergency']);
     }
@@ -179,6 +184,7 @@ export default function ProfileEditPage() {
         // Notification preferences
         notify_email: notifyEmail,
         notify_inbox: notifyInbox,
+        digest_email: digestEmail,
         notify_prefs_saved_at: new Date().toISOString(),
         notify_sms: notifySms,
         alert_subscriptions: alertSubscriptions,
@@ -664,6 +670,49 @@ export default function ProfileEditPage() {
                 </div>
 
               </div>
+
+              {/* Weekly email update */}
+              <label className="flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 mb-6">
+                <input
+                  type="checkbox"
+                  checked={digestEmail}
+                  onChange={e => setDigestEmail(e.target.checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 font-bold text-gray-900">
+                    <Mail className="w-5 h-5 text-gabriola-green" />
+                    Weekly Email Update
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Every Friday morning: the week&apos;s events, Island News, new listings and forum topics, in one email
+                  </div>
+                  {user?.is_super_admin && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          setDigestTest('sending');
+                          try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const res = await fetch('/api/digest/test', { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
+                            setDigestTest(res.ok ? 'sent' : 'failed');
+                          } catch {
+                            setDigestTest('failed');
+                          }
+                        }}
+                        disabled={digestTest === 'sending'}
+                        className="text-sm font-semibold text-blue-700 hover:underline disabled:opacity-60"
+                      >
+                        {digestTest === 'sending' ? 'Sending...' : 'Send me this week\'s now (admins)'}
+                      </button>
+                      {digestTest === 'sent' && <span className="text-sm text-gray-700 ml-2">Sent to your email.</span>}
+                      {digestTest === 'failed' && <span className="text-sm text-red-700 ml-2">Couldn&apos;t send. Check the Vercel logs for digest/test.</span>}
+                    </div>
+                  )}
+                </div>
+              </label>
 
               {/* Alert Level Subscriptions */}
               <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">

@@ -1,7 +1,8 @@
 // app/api/alerts/unsubscribe/route.ts
-// "Stop alert emails" link at the bottom of every alert email.
-// Version: 1.0.0
-// Date: 2026-10-22
+// "Stop" link at the bottom of alert emails and the weekly email update.
+// Version: 1.1.0 - ?w=digest stops only the weekly email update (alert emails unchanged)
+// Previous: 1.0.0 (2026-10-22)
+// Date: 2026-11-02
 //
 // GET shows a page with a button (so email scanners that open links don't unsubscribe people).
 // POST turns alert emails off. Mail apps' one-click unsubscribe also POSTs here.
@@ -28,8 +29,15 @@ ${body}
 
 export async function GET(request: NextRequest) {
   const t = request.nextUrl.searchParams.get('t') || '';
+  const digest = request.nextUrl.searchParams.get('w') === 'digest';
   if (!TOKEN.test(t)) {
-    return page('Link not recognised', '<p style="margin:0">This link isn\'t complete. You can change your alert emails on your profile, under Notification Preferences.</p>');
+    return page('Link not recognised', '<p style="margin:0">This link isn\'t complete. You can change your emails on your profile, under Notification Preferences.</p>');
+  }
+  if (digest) {
+    return page('Stop the weekly email?', `<p style="margin:0 0 18px 0">You'll stop getting the weekly email update from Gabriola Connects. Everything is still on the site, and you can turn it back on in your profile any time.</p>
+<form method="post" action="/api/alerts/unsubscribe?w=digest&t=${t}">
+<button type="submit" style="min-height:48px;padding:0 22px;border:0;border-radius:8px;background:#2D5F3F;color:#FFFFFF;font-size:17px;font-weight:bold;cursor:pointer">Stop the weekly email</button>
+</form>`);
   }
   return page('Stop alert emails?', `<p style="margin:0 0 18px 0">You'll stop getting alert emails from Gabriola Connects. Alerts still show on the site, and you can turn emails back on in your profile any time.</p>
 <form method="post" action="/api/alerts/unsubscribe?t=${t}">
@@ -49,7 +57,15 @@ export async function POST(request: NextRequest) {
   );
   const { data: found } = await supabase.from('alert_email_tokens').select('user_id').eq('token', t).maybeSingle();
   if (!found) {
-    return page('Link not recognised', '<p style="margin:0">We couldn\'t find that link. You can change your alert emails on your profile, under Notification Preferences.</p>');
+    return page('Link not recognised', '<p style="margin:0">We couldn\'t find that link. You can change your emails on your profile, under Notification Preferences.</p>');
+  }
+  if (request.nextUrl.searchParams.get('w') === 'digest') {
+    const { error: dErr } = await supabase.from('users').update({ digest_email: false }).eq('id', found.user_id);
+    if (dErr) {
+      console.error('[alerts/unsubscribe digest]', dErr.message);
+      return page('Something went wrong', '<p style="margin:0">Sorry, that didn\'t work. Please try again, or untick "Weekly email update" on your profile under Notification Preferences.</p>');
+    }
+    return page('Weekly email stopped', '<p style="margin:0">You won\'t get the weekly email update any more. You can turn it back on in your profile under Notification Preferences.</p>');
   }
   const { data, error } = await supabase
     .from('users')
