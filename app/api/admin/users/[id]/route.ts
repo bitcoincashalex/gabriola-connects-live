@@ -1,7 +1,7 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.5 - Added admin_alert_organizations to allowed fields
-// Date: 2025-01-11
+// Version: 1.0.6 - Passes changed_by so the audit log knows which admin made the change
+// Date: 2026-11-02
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -97,7 +97,7 @@ export async function PATCH(
     // Update the user using service role (bypasses RLS)
     const { data, error } = await supabaseAdmin
       .from('users')
-      .update(updateData)
+      .update({ ...updateData, changed_by: user.id })   // audit log: who did it (cleared by the database)
       .eq('id', userId)
       .select()
       .single();

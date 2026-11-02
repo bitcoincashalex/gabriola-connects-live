@@ -1,5 +1,5 @@
 // components/Header.tsx
-// Version: 2.10.0 - Added Alert Audit Log link (super admin)
+// Version: 2.11.0 - Menu item renamed to Audit Log (alerts, admin powers, removals, anonymous lookups)
 // Previous: 2.9.0 - Added Island News Drafts link (super admin)
 // Previous: 2.8.2 - Computer width: the search box shrinks to make room, so "Sign In" no longer covers "Alerts"
 // Previous: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
@@ -384,7 +384,7 @@ export default function Header() {
                           </Link>
                         )}
 
-                        {/* Alert Audit Log - SUPER ADMIN ONLY */}
+                        {/* Audit Log - SUPER ADMIN ONLY */}
                         {isSuperAdmin && (
                           <Link
                             href="/admin/audit"
@@ -392,7 +392,7 @@ export default function Header() {
                             className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
                           >
                             <AlertTriangle className="w-5 h-5" />
-                            <span>Alert Audit Log</span>
+                            <span>Audit Log</span>
                           </Link>
                         )}
 
