@@ -1,7 +1,7 @@
 // lib/eventSeries.ts
 // Repeating events: works out the dates of a weekly, every-2-weeks or monthly event.
 // Each date is saved as its own event, linked by series_id (the id of the first one).
-// Version: 1.0.0
+// Version: 1.0.1 - ymd(): event dates arrive as Date objects on the Events page and as text elsewhere
 // Date: 2026-11-03
 
 export type Repeat = 'none' | 'weekly' | 'biweekly' | 'monthly';
@@ -33,6 +33,18 @@ export function addDays(date: string, days: number): string {
 
 export function daysBetween(from: string, to: string): number {
   return Math.round((toUTC(to).getTime() - toUTC(from).getTime()) / 86400000);
+}
+
+/** 'YYYY-MM-DD' from an event date, whether it's text ('2026-11-03') or a Date object.
+ *  The Events page turns dates into local Date objects; My Events and Admin keep the text. */
+export function ymd(v: any): string {
+  if (!v) return '';
+  if (v instanceof Date) {
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    return `${v.getFullYear()}-${m}-${d}`;
+  }
+  return String(v).slice(0, 10);
 }
 
 /** Last date a series may run to: MAX_MONTHS after the start. */

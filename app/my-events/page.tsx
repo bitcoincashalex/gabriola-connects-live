@@ -1,5 +1,6 @@
 // app/my-events/page.tsx
-// Version: 1.1.0 - Deleting a repeating event can also delete all its later dates
+// Version: 1.1.1 - Series delete uses ymd() for the date
+// Previous: 1.1.0 - Deleting a repeating event can also delete all its later dates
 // Previous: 1.0.3 - REFACTORED: Uses shared EventFormModal component
 // Date: 2026-11-03
 
@@ -12,6 +13,7 @@ import Link from 'next/link';
 import { Calendar, MapPin, Users, Edit, Trash2, Plus, Clock, Filter, ArrowUpDown } from 'lucide-react';
 import { format, isPast, isFuture, parseISO } from 'date-fns';
 import EventFormModal from '@/components/EventFormModal';
+import { ymd } from '@/lib/eventSeries';
 
 interface Event {
   id: string;
@@ -164,7 +166,7 @@ export default function MyEventsPage() {
     if (!eventToDelete) return;
 
     const seriesId = (eventToDelete as any).series_id as string | null;
-    const day = String(eventToDelete.start_date).slice(0, 10);
+    const day = ymd(eventToDelete.start_date);
 
     const { error } = seriesId && deleteLater
       ? await supabase.from('events').delete().eq('series_id', seriesId).gte('start_date', day)

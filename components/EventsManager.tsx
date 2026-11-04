@@ -1,5 +1,6 @@
 // Path: components/EventsManager.tsx
-// Version: 6.1.0 - Every signed-in member can add events and they go straight on the calendar (no
+// Version: 6.1.1 - Fixed: deleting "this and all later dates" read the date wrong (Date object)
+// Previous: 6.1.0 - Every signed-in member can add events and they go straight on the calendar (no
 //                  approval). Deleting a repeating event asks: just this date, or this and all later
 //                  dates. Signed-in members see who added the event and who last edited it.
 // Before: 6.0.0 - Events page redesign: compact day-by-day list (time, name, venue) two weeks at a
@@ -26,6 +27,7 @@ import { Plus, MapPin, Clock, DollarSign, Users, Mail, Phone, Calendar, Edit, Tr
 import { exportEventToCalendar, generateGoogleCalendarURL } from '@/lib/calendar';
 import EventDetailModal from '@/components/EventDetailModal';
 import EventFormModal from '@/components/EventFormModal';
+import { ymd } from '@/lib/eventSeries';
 import { formatEventTime, eventPlace, realDescription } from '@/components/CalendarList';
 
 interface Venue {
@@ -392,7 +394,7 @@ export default function EventsManager() {
 
   const handleDelete = async (event: Event) => {
     const seriesId = (event as any).series_id as string | null;
-    const day = String(event.start_date).slice(0, 10);
+    const day = ymd(event.start_date);
     if (seriesId) {
       // Repeating event: this and all later dates, or just this one
       if (confirm(`"${event.title}" repeats.\n\nDelete this date AND all later dates?\n\nOK = this and all later dates\nCancel = choose just this date instead`)) {

@@ -1,5 +1,7 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.1.0 - Events go on the calendar straight away for every member (no approval step).
+// Version: 3.1.1 - Fixed: editing from the Events page showed a blank date (dates there are Date
+//                  objects, not text). Adding an event now says it goes on the calendar straight away.
+// Previous: 3.1.0 - Events go on the calendar straight away for every member (no approval step).
 //                  Editing keeps the original owner (the database enforces it too) and records who
 //                  edited. Repeats: every week / every 2 weeks / monthly, up to 6 months, each date
 //                  saved as its own event linked by series_id; edits can apply to one date or this
@@ -18,7 +20,7 @@ import { X, Upload, AlertCircle } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompression';
 import ImageUploadManager from './ImageUploadManager';
 import FileUploader from './FileUploader';
-import { REPEAT_OPTIONS, Repeat, seriesDates, repeatLabel, latestUntil, prettyDate, addDays, daysBetween } from '@/lib/eventSeries';
+import { REPEAT_OPTIONS, Repeat, seriesDates, repeatLabel, latestUntil, prettyDate, addDays, daysBetween, ymd } from '@/lib/eventSeries';
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -134,8 +136,8 @@ export default function EventFormModal({
         // Date & Time
         // Dates are plain 'YYYY-MM-DD'. new Date() read them as UTC midnight, which is the day
         // before on Gabriola, so every edit used to move the event back a day.
-        start_date: String(event.start_date).slice(0, 10),
-        end_date: event.end_date ? String(event.end_date).slice(0, 10) : '',
+        start_date: ymd(event.start_date),
+        end_date: event.end_date ? ymd(event.end_date) : '',
         start_time: event.start_time || '',
         end_time: event.end_time || '',
         is_all_day: event.is_all_day || false,
@@ -434,17 +436,17 @@ export default function EventFormModal({
       if (event && seriesId && scope === 'later') {
         // This date and all later dates in the series. A changed date moves them all by the same
         // number of days (e.g. moving one Tuesday to Wednesday moves every later Tuesday too).
-        const shift = daysBetween(String(event.start_date).slice(0, 10), form.start_date);
+        const shift = daysBetween(ymd(event.start_date), form.start_date);
         const { data: rows, error } = await supabase
           .from('events')
           .select('id, start_date')
           .eq('series_id', seriesId)
-          .gte('start_date', String(event.start_date).slice(0, 10));
+          .gte('start_date', ymd(event.start_date));
         if (error) throw error;
         const { start_date: _s, end_date: _e, ...shared } = payload;
         const results = await Promise.all((rows || []).map((r: any) =>
           supabase.from('events')
-            .update({ ...shared, ...datesFor(addDays(String(r.start_date).slice(0, 10), shift)) })
+            .update({ ...shared, ...datesFor(addDays(ymd(r.start_date), shift)) })
             .eq('id', r.id)
         ));
         const failed = results.find(r => r.error);
@@ -513,6 +515,15 @@ export default function EventFormModal({
             <X className="w-6 h-6" />
           </button>
         </div>
+
+        {!event && (
+          <div className="mx-8 mt-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-green-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-sm text-green-900">
+              Your event goes on the calendar and the events list as soon as you publish it. You can edit or delete it any time from the event or from My Events.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
           
