@@ -1,5 +1,8 @@
 // Path: components/EventsManager.tsx
-// Version: 6.1.1 - Fixed: deleting "this and all later dates" read the date wrong (Date object)
+// Version: 6.2.0 - Search looks through every upcoming event, not just the next 14 days (finding a
+//                  March event took 8 clicks of "Show the next 14 days"). Matches still show by day,
+//                  50 at a time.
+// Previous: 6.1.1 - Fixed: deleting "this and all later dates" read the date wrong (Date object)
 // Previous: 6.1.0 - Every signed-in member can add events and they go straight on the calendar (no
 //                  approval). Deleting a repeating event asks: just this date, or this and all later
 //                  dates. Signed-in members see who added the event and who last edited it.
@@ -564,8 +567,8 @@ export default function EventsManager() {
   // Search and venue filter
   const filteredEvents = events.filter(event => {
     if (venueFilter && eventPlace(event) !== venueFilter) return false;
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.trim().toLowerCase();
     return (
       event.title.toLowerCase().includes(query) ||
       (event.description || '').toLowerCase().includes(query) ||
@@ -603,10 +606,13 @@ export default function EventsManager() {
     .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
 
   // Date order: group by day, two weeks at a time. Other orders: one list, 50 at a time.
+  // Searching: every upcoming match (50 at a time), not just the next two weeks.
   const byDate = sortBy === 'date-asc' || sortBy === 'date-desc';
+  const searching = searchQuery.trim() !== '';
+  const twoWeekPages = sortBy === 'date-asc' && !searching;
   const lastDay = addDays(today, days);
-  const shownUpcoming = byDate
-    ? (sortBy === 'date-asc' ? upcoming.filter(e => isBefore(e.start_date, lastDay)) : upcoming.slice(0, listLimit))
+  const shownUpcoming = twoWeekPages
+    ? upcoming.filter(e => isBefore(e.start_date, lastDay))
     : upcoming.slice(0, listLimit);
   const moreUpcoming = upcoming.length - shownUpcoming.length;
 
@@ -785,10 +791,10 @@ export default function EventsManager() {
             {moreUpcoming > 0 && (
               <div className="text-center mt-5">
                 <button
-                  onClick={() => (byDate && sortBy === 'date-asc' ? setDays(d => d + 14) : setListLimit(n => n + 50))}
+                  onClick={() => (twoWeekPages ? setDays(d => d + 14) : setListLimit(n => n + 50))}
                   className="px-6 min-h-[48px] rounded-full border-2 border-gabriola-green text-gabriola-green font-semibold hover:bg-gabriola-green hover:text-white transition-colors"
                 >
-                  {byDate && sortBy === 'date-asc' ? 'Show the next 14 days' : 'Show more events'}
+                  {twoWeekPages ? 'Show the next 14 days' : 'Show more events'}
                 </button>
               </div>
             )}
