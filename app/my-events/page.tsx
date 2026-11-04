@@ -1,6 +1,7 @@
 // app/my-events/page.tsx
-// Version: 1.0.3 - REFACTORED: Uses shared EventFormModal component
-// Date: 2025-12-22
+// Version: 1.1.0 - Deleting a repeating event can also delete all its later dates
+// Previous: 1.0.3 - REFACTORED: Uses shared EventFormModal component
+// Date: 2026-11-03
 
 'use client';
 
@@ -61,6 +62,7 @@ export default function MyEventsPage() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title'>('date-desc');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [deleteLater, setDeleteLater] = useState(false);   // repeating event: also all later dates
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -161,20 +163,28 @@ export default function MyEventsPage() {
   const handleDelete = async () => {
     if (!eventToDelete) return;
 
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', eventToDelete.id);
+    const seriesId = (eventToDelete as any).series_id as string | null;
+    const day = String(eventToDelete.start_date).slice(0, 10);
+
+    const { error } = seriesId && deleteLater
+      ? await supabase.from('events').delete().eq('series_id', seriesId).gte('start_date', day)
+      : await supabase.from('events').delete().eq('id', eventToDelete.id);
 
     if (!error) {
-      setEvents(events.filter(e => e.id !== eventToDelete.id));
+      if (seriesId && deleteLater) {
+        fetchMyEvents();
+      } else {
+        setEvents(events.filter(e => e.id !== eventToDelete.id));
+      }
       setShowDeleteModal(false);
       setEventToDelete(null);
+      setDeleteLater(false);
     }
   };
 
   const confirmDelete = (event: Event) => {
     setEventToDelete(event);
+    setDeleteLater(false);
     setShowDeleteModal(true);
   };
 
@@ -452,6 +462,17 @@ export default function MyEventsPage() {
                 <p className="text-sm text-orange-600 font-medium mt-2">
                   ⚠️ {eventToDelete.attendance_count} people are attending this event
                 </p>
+              )}
+              {(eventToDelete as any).series_id && (
+                <label className="flex items-center gap-2 text-sm text-gray-800 mt-3">
+                  <input
+                    type="checkbox"
+                    checked={deleteLater}
+                    onChange={e => setDeleteLater(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  This event repeats. Also delete all later dates.
+                </label>
               )}
             </div>
 

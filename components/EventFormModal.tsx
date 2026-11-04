@@ -1,6 +1,12 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.0.2 - Fixed timestamp fields (registration_deadline empty string → null)
-// Date: 2025-01-11
+// Version: 3.1.0 - Events go on the calendar straight away for every member (no approval step).
+//                  Editing keeps the original owner (the database enforces it too) and records who
+//                  edited. Repeats: every week / every 2 weeks / monthly, up to 6 months, each date
+//                  saved as its own event linked by series_id; edits can apply to one date or this
+//                  and all later dates. Editing no longer moves the date back a day on phones and
+//                  computers set behind UTC.
+// Previous: 3.0.2 - Fixed timestamp fields (registration_deadline empty string → null)
+// Date: 2026-11-03
 
 'use client';
 
@@ -12,6 +18,7 @@ import { X, Upload, AlertCircle } from 'lucide-react';
 import { compressImage } from '@/lib/imageCompression';
 import ImageUploadManager from './ImageUploadManager';
 import FileUploader from './FileUploader';
+import { REPEAT_OPTIONS, Repeat, seriesDates, repeatLabel, latestUntil, prettyDate, addDays, daysBetween } from '@/lib/eventSeries';
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -40,6 +47,12 @@ export default function EventFormModal({
   // NEW - Multiple images and documents
   const [eventImages, setEventImages] = useState<Array<{id: string; url: string; file?: File}>>([]);
   const [eventFiles, setEventFiles] = useState<string[]>([]);
+
+  // Repeating events
+  const [repeat, setRepeat] = useState<Repeat>('none');
+  const [repeatUntil, setRepeatUntil] = useState('');
+  const [scope, setScope] = useState<'one' | 'later'>('one');
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     // Basic Info
@@ -103,6 +116,9 @@ export default function EventFormModal({
 
   // Load event data when editing
   useEffect(() => {
+    setRepeat('none');
+    setRepeatUntil('');
+    setScope('one');
     if (event) {
       // Editing mode
       const eventVenueName = event.venue_name || '';
@@ -116,8 +132,10 @@ export default function EventFormModal({
         image_url: event.image_url || '',
         
         // Date & Time
-        start_date: format(new Date(event.start_date), 'yyyy-MM-dd'),
-        end_date: event.end_date ? format(new Date(event.end_date), 'yyyy-MM-dd') : '',
+        // Dates are plain 'YYYY-MM-DD'. new Date() read them as UTC midnight, which is the day
+        // before on Gabriola, so every edit used to move the event back a day.
+        start_date: String(event.start_date).slice(0, 10),
+        end_date: event.end_date ? String(event.end_date).slice(0, 10) : '',
         start_time: event.start_time || '',
         end_time: event.end_time || '',
         is_all_day: event.is_all_day || false,
@@ -339,68 +357,137 @@ export default function EventFormModal({
     }
   };
 
+  const seriesId: string | null = event?.series_id || null;
+  const plannedDates = !seriesId && repeat !== 'none' && repeatUntil
+    ? seriesDates(form.start_date, repeat, repeatUntil)
+    : [];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || saving) return;
 
-    // Upload event images to Supabase Storage
-    const uploadedImageUrls: string[] = [];
-    for (const imageData of eventImages) {
-      if (imageData.file) {
-        const fileExt = imageData.file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `event-images/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('events')
-          .upload(filePath, imageData.file);
-
-        if (!uploadError) {
-          const { data } = supabase.storage
-            .from('events')
-            .getPublicUrl(filePath);
-          uploadedImageUrls.push(data.publicUrl);
-        }
-      } else if (imageData.url) {
-        // Existing image from editing
-        uploadedImageUrls.push(imageData.url);
+    const makingSeries = !seriesId && repeat !== 'none';
+    if (makingSeries) {
+      if (!repeatUntil) {
+        alert('Please choose the date it repeats until.');
+        return;
+      }
+      if (repeatUntil < form.start_date) {
+        alert('The "Until" date is before the start date.');
+        return;
       }
     }
 
-    // Build payload
-    const payload: any = {
-      ...form,
-      created_by: user.id,
-      start_date: form.start_date,
-      end_date: form.end_date || null,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
-      registration_deadline: form.registration_deadline || null,  // Fix: empty string → null
-      tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-      is_approved: canPublishInstantly,
-      gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
-      attachments: eventFiles.length > 0 ? eventFiles : null,
-    };
-
-    // Convert number fields - empty strings become null, valid numbers get parsed
-    payload.max_attendees = form.max_attendees ? parseInt(form.max_attendees) : null;
-    payload.min_attendees = form.min_attendees ? parseInt(form.min_attendees) : null;
-
+    setSaving(true);
     try {
-      if (event) {
-        // Update existing event
+      // Upload event images to Supabase Storage
+      const uploadedImageUrls: string[] = [];
+      for (const imageData of eventImages) {
+        if (imageData.file) {
+          const fileExt = imageData.file.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `event-images/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('events')
+            .upload(filePath, imageData.file);
+
+          if (!uploadError) {
+            const { data } = supabase.storage
+              .from('events')
+              .getPublicUrl(filePath);
+            uploadedImageUrls.push(data.publicUrl);
+          }
+        } else if (imageData.url) {
+          // Existing image from editing
+          uploadedImageUrls.push(imageData.url);
+        }
+      }
+
+      // Build payload. No owner and no approval here: the database keeps the owner on edits,
+      // and new events go straight on the calendar.
+      const payload: any = {
+        ...form,
+        start_date: form.start_date,
+        end_date: form.end_date || null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        registration_deadline: form.registration_deadline || null,  // Fix: empty string → null
+        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        gallery_images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
+        attachments: eventFiles.length > 0 ? eventFiles : null,
+      };
+
+      // Convert number fields - empty strings become null, valid numbers get parsed
+      payload.max_attendees = form.max_attendees ? parseInt(form.max_attendees) : null;
+      payload.min_attendees = form.min_attendees ? parseInt(form.min_attendees) : null;
+
+      // Multi-day events keep the same length on every date
+      const span = form.end_date ? daysBetween(form.start_date, form.end_date) : null;
+      const datesFor = (d: string) => ({ start_date: d, end_date: span === null ? null : addDays(d, span) });
+
+      const dates = makingSeries ? seriesDates(form.start_date, repeat, repeatUntil) : [form.start_date];
+      const pattern = makingSeries
+        ? `${repeatLabel(form.start_date, repeat)} until ${prettyDate(dates[dates.length - 1])}`
+        : null;
+
+      if (event && seriesId && scope === 'later') {
+        // This date and all later dates in the series. A changed date moves them all by the same
+        // number of days (e.g. moving one Tuesday to Wednesday moves every later Tuesday too).
+        const shift = daysBetween(String(event.start_date).slice(0, 10), form.start_date);
+        const { data: rows, error } = await supabase
+          .from('events')
+          .select('id, start_date')
+          .eq('series_id', seriesId)
+          .gte('start_date', String(event.start_date).slice(0, 10));
+        if (error) throw error;
+        const { start_date: _s, end_date: _e, ...shared } = payload;
+        const results = await Promise.all((rows || []).map((r: any) =>
+          supabase.from('events')
+            .update({ ...shared, ...datesFor(addDays(String(r.start_date).slice(0, 10), shift)) })
+            .eq('id', r.id)
+        ));
+        const failed = results.find(r => r.error);
+        if (failed?.error) throw failed.error;
+      } else if (event && makingSeries) {
+        // An existing one-off event becomes the first date of a new series
+        const { error } = await supabase
+          .from('events')
+          .update({ ...payload, series_id: event.id, is_recurring: true, recurrence_pattern: pattern })
+          .eq('id', event.id);
+        if (error) throw error;
+        if (dates.length > 1) {
+          const { error: addError } = await supabase.from('events').insert(
+            dates.slice(1).map(d => ({
+              ...payload, ...datesFor(d), series_id: event.id, is_recurring: true,
+              recurrence_pattern: pattern, created_by: event.created_by, is_approved: true,
+            }))
+          );
+          if (addError) throw addError;
+        }
+      } else if (event) {
+        // Update existing event (just this one)
         const { error } = await supabase
           .from('events')
           .update(payload)
           .eq('id', event.id);
-
+        if (error) throw error;
+      } else if (makingSeries) {
+        // New repeating event: one event per date, all linked to the first
+        const firstId = crypto.randomUUID();
+        const { error } = await supabase.from('events').insert(
+          dates.map((d, i) => ({
+            ...payload, ...datesFor(d), id: i === 0 ? firstId : crypto.randomUUID(),
+            series_id: firstId, is_recurring: true, recurrence_pattern: pattern,
+            created_by: user.id, is_approved: true,
+          }))
+        );
         if (error) throw error;
       } else {
         // Create new event
         const { error } = await supabase
           .from('events')
-          .insert([payload]);
-
+          .insert([{ ...payload, created_by: user.id, is_approved: true }]);
         if (error) throw error;
       }
 
@@ -408,6 +495,8 @@ export default function EventFormModal({
       onClose();
     } catch (error: any) {
       alert('Error saving event: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -418,21 +507,12 @@ export default function EventFormModal({
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 rounded-t-2xl flex justify-between items-center">
           <h2 className="text-3xl font-bold text-gabriola-green">
-            {event ? 'Edit Event' : canPublishInstantly ? 'Add New Event' : 'Submit Event for Approval'}
+            {event ? 'Edit Event' : 'Add New Event'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="w-6 h-6" />
           </button>
         </div>
-
-        {!canPublishInstantly && !event && (
-          <div className="mx-8 mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-yellow-800">
-              For demo purposes, your event will appear immediately on the calendar!
-            </p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
           
@@ -568,6 +648,69 @@ export default function EventFormModal({
                 <label htmlFor="is_all_day" className="text-sm font-medium text-gray-700">
                   All-day event
                 </label>
+              </div>
+
+              {/* Repeats */}
+              <div className="border-t border-gray-200 pt-4">
+                {seriesId ? (
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-gray-700 mb-2">
+                      This event repeats{event?.recurrence_pattern ? ` (${event.recurrence_pattern})` : ''}. Save my changes to:
+                    </legend>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-800">
+                        <input type="radio" name="scope" value="one" checked={scope === 'one'}
+                          onChange={() => setScope('one')} className="w-4 h-4 text-gabriola-green focus:ring-gabriola-green" />
+                        Only this date
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-gray-800">
+                        <input type="radio" name="scope" value="later" checked={scope === 'later'}
+                          onChange={() => setScope('later')} className="w-4 h-4 text-gabriola-green focus:ring-gabriola-green" />
+                        This date and all later dates
+                      </label>
+                    </div>
+                  </fieldset>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="repeat" className="block text-sm font-medium text-gray-700 mb-2">Repeats</label>
+                        <select
+                          id="repeat"
+                          value={repeat}
+                          onChange={e => setRepeat(e.target.value as Repeat)}
+                          className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green bg-white"
+                        >
+                          {REPEAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      {repeat !== 'none' && (
+                        <div>
+                          <label htmlFor="repeat_until" className="block text-sm font-medium text-gray-700 mb-2">Until *</label>
+                          <input
+                            id="repeat_until"
+                            type="date"
+                            value={repeatUntil}
+                            min={form.start_date || undefined}
+                            max={form.start_date ? latestUntil(form.start_date) : undefined}
+                            onChange={e => setRepeatUntil(e.target.value)}
+                            required
+                            className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {repeat !== 'none' && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        {!form.start_date
+                          ? 'Choose the start date first.'
+                          : plannedDates.length > 0
+                            ? `${repeatLabel(form.start_date, repeat)}: ${plannedDates.length} date${plannedDates.length === 1 ? '' : 's'}, ${prettyDate(plannedDates[0])} to ${prettyDate(plannedDates[plannedDates.length - 1])}.`
+                            : `${repeatLabel(form.start_date, repeat)}. Up to 6 months at a time; you can add more later.`}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -871,9 +1014,10 @@ export default function EventFormModal({
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-gabriola-green text-white rounded-lg font-medium hover:bg-gabriola-green-dark transition"
+              disabled={saving}
+              className="flex-1 px-6 py-3 bg-gabriola-green text-white rounded-lg font-medium hover:bg-gabriola-green-dark transition disabled:opacity-60"
             >
-              {event ? 'Update Event' : canPublishInstantly ? 'Publish Event' : 'Submit for Approval'}
+              {saving ? 'Saving...' : event ? 'Update Event' : 'Publish Event'}
             </button>
           </div>
         </form>

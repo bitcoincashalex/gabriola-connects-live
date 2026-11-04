@@ -1,5 +1,8 @@
 // Path: components/EventsManager.tsx
-// Version: 6.0.0 - Events page redesign: compact day-by-day list (time, name, venue) two weeks at a
+// Version: 6.1.0 - Every signed-in member can add events and they go straight on the calendar (no
+//                  approval). Deleting a repeating event asks: just this date, or this and all later
+//                  dates. Signed-in members see who added the event and who last edited it.
+// Before: 6.0.0 - Events page redesign: compact day-by-day list (time, name, venue) two weeks at a
 //                  time with "Show more" (it drew all 720 events as big cards, making the page about
 //                  435,000 pixels tall on a phone); tap an event to open it in place with its
 //                  description and the RSVP, Add to Calendar, Details, Edit and Delete buttons;
@@ -57,12 +60,8 @@ export default function EventsManager() {
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
   const [customLocation, setCustomLocation] = useState('');
 
-  // Check if user can publish events instantly
-  const canPublishInstantly = user && (
-    user.is_super_admin || 
-    (user as any).admin_events || 
-    (user as any).can_create_events
-  );
+  // Every signed-in member's events go straight on the calendar (no approval step since v1.3.67)
+  const canPublishInstantly = !!user;
 
   // Form state
   const [form, setForm] = useState({
@@ -391,9 +390,22 @@ export default function EventsManager() {
     setCustomLocation('');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this event forever?')) return;
-    await supabase.from('events').delete().eq('id', id);
+  const handleDelete = async (event: Event) => {
+    const seriesId = (event as any).series_id as string | null;
+    const day = String(event.start_date).slice(0, 10);
+    if (seriesId) {
+      // Repeating event: this and all later dates, or just this one
+      if (confirm(`"${event.title}" repeats.\n\nDelete this date AND all later dates?\n\nOK = this and all later dates\nCancel = choose just this date instead`)) {
+        await supabase.from('events').delete().eq('series_id', seriesId).gte('start_date', day);
+      } else if (confirm('Delete just this one date?')) {
+        await supabase.from('events').delete().eq('id', event.id);
+      } else {
+        return;
+      }
+    } else {
+      if (!confirm('Delete this event forever?')) return;
+      await supabase.from('events').delete().eq('id', event.id);
+    }
     fetchEvents();
   };
 
@@ -642,8 +654,9 @@ export default function EventsManager() {
             onExport={buildExport(event)}
             onEdit={() => startEdit(event)}
             onViewDetails={() => setViewEvent(event)}
-            onDelete={() => handleDelete(event.id)}
+            onDelete={() => handleDelete(event)}
             canEdit={canEditEvent(event)}
+            showCredits={!!user}
           />
         )}
       </div>
@@ -865,7 +878,31 @@ export default function EventsManager() {
 }
 
 // EventCard component
-function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onViewDetails, canEdit }: any) {
+// "Added by Kent · Last edited by Alex": names come from the members list, so signed-in only
+function EventCredits({ createdBy, updatedBy }: { createdBy?: string | null; updatedBy?: string | null }) {
+  const [names, setNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = [createdBy, updatedBy].filter(Boolean) as string[];
+    if (ids.length === 0) return;
+    supabase.from('users').select('id, full_name').in('id', ids).then(({ data }) => {
+      const n: Record<string, string> = {};
+      (data || []).forEach((u: any) => { if (u.full_name) n[u.id] = u.full_name; });
+      setNames(n);
+    });
+  }, [createdBy, updatedBy]);
+  const added = createdBy ? names[createdBy] : null;
+  const edited = updatedBy ? names[updatedBy] : null;
+  if (!added && !edited) return null;
+  return (
+    <p className="text-xs text-[#5B6660]">
+      {added && <>Added by {added}</>}
+      {added && edited && ' · '}
+      {edited && <>Last edited by {edited}</>}
+    </p>
+  );
+}
+
+function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onViewDetails, canEdit, showCredits }: any) {
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -1053,6 +1090,8 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
             </div>
           </div>
           
+          {showCredits && <EventCredits createdBy={event.created_by} updatedBy={event.updated_by} />}
+
           {/* Admin action buttons */}
           {canEdit && (
             <div className="flex items-center gap-2">
