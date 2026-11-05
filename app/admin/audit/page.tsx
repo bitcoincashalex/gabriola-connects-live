@@ -5,7 +5,7 @@
 //   Admin powers: changes to a member's admin roles, permissions, bans, verification.
 //   Removals: someone else's post, reply, listing, comment, event or business removed or put back.
 //   Anonymous lookups: who looked up the poster of an anonymous item (the poster isn't recorded).
-// Version: 1.1.0
+// Version: 1.1.1 - Shows the new member review (Resident / Not a Resident / Spam) in Admin powers
 // Date: 2026-11-02
 // Needs sql/2026-11-02-alert-audit.sql and sql/2026-11-02-admin-audit.sql.
 // Alerts: super admins and alert admins. The other three: super admins only.
@@ -48,7 +48,7 @@ const POWER: Record<string, string> = {
   alert_level_permission: 'Alert level allowed', alert_organization: 'Alert organization', can_post: 'Can post',
   can_create_posts: 'Can start forum posts', can_reply: 'Can reply', can_comment: 'Can comment',
   is_banned: 'Banned', is_suspended: 'Suspended', account_locked: 'Account locked', forum_read_only: 'Forum read only',
-  is_verified: 'Verified', is_resident: 'Resident',
+  is_verified: 'Verified', is_resident: 'Resident', resident_review: 'New member review',
 };
 
 const showPower = (v: any) =>
