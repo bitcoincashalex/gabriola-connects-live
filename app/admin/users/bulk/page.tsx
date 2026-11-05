@@ -1,12 +1,15 @@
 // Path: app/admin/users/bulk/page.tsx
-// Version: 1.0.0 - Bulk User Admin Update Module
-// Date: 2024-12-10
+// Version: 1.1.0 - Saves through the server, one member at a time (the browser update never saved
+//                  for other members)
+// Previous: 1.0.0 - Bulk User Admin Update Module
+// Date: 2026-11-05
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { adminUpdateUsers } from '@/lib/adminUsers';
 import { useUser } from '@/components/AuthProvider';
 import { Shield, Users, CheckSquare, Square, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -87,13 +90,11 @@ export default function BulkUserAdminPage() {
 
     const userIdsArray = Array.from(selectedUserIds);
     
-    const { error } = await supabase
-      .from('users')
-      .update({ [field]: value })
-      .in('id', userIdsArray);
+    const errors = await adminUpdateUsers(userIdsArray, { [field]: value });
 
-    if (error) {
-      alert('Error updating users: ' + error.message);
+    if (errors.length > 0) {
+      alert(`${userIdsArray.length - errors.length} of ${userIdsArray.length} updated. Error: ${errors[0]}`);
+      await fetchUsers();
     } else {
       alert(`Successfully updated ${selectedUserIds.size} user(s)!`);
       await fetchUsers();

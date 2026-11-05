@@ -1,12 +1,16 @@
 // app/admin/forum/users/page.tsx
-// Version: 1.0.0 - User Management Admin Page
-// Date: 2025-12-11
+// Version: 1.1.0 - Ban, unban, read-only and moderator now save through the server. They used to
+//                  update the database from the browser, which it never allowed for other members,
+//                  so they quietly saved nothing.
+// Previous: 1.0.0 - User Management Admin Page
+// Date: 2026-11-05
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
+import { adminUpdateUser } from '@/lib/adminUsers';
 import { 
   Users, Search, Ban, Shield, Eye, EyeOff, 
   MessageSquare, Calendar, Clock, Filter, X,
@@ -133,17 +137,8 @@ export default function UserManagementPage() {
 
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          is_banned: true,
-          banned_at: new Date().toISOString(),
-          banned_by: user?.id,
-          banned_reason: banReason
-        })
-        .eq('id', selectedUser.id);
-
-      if (error) throw error;
+      const error = await adminUpdateUser(selectedUser.id, { is_banned: true, banned_reason: banReason });
+      if (error) throw new Error(error);
 
       // Log action
       await supabase.rpc('log_moderation_action', {
@@ -160,7 +155,7 @@ export default function UserManagementPage() {
       fetchUsers();
     } catch (error) {
       console.error('Error banning user:', error);
-      alert('Failed to ban user');
+      alert('Failed to ban user: ' + (error as Error).message);
     } finally {
       setActionLoading(false);
     }
@@ -170,17 +165,8 @@ export default function UserManagementPage() {
     if (!confirm('Are you sure you want to unban this user?')) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          is_banned: false,
-          banned_at: null,
-          banned_by: null,
-          banned_reason: null
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
+      const error = await adminUpdateUser(userId, { is_banned: false });
+      if (error) throw new Error(error);
 
       // Log action
       await supabase.rpc('log_moderation_action', {
@@ -193,18 +179,14 @@ export default function UserManagementPage() {
       fetchUsers();
     } catch (error) {
       console.error('Error unbanning user:', error);
-      alert('Failed to unban user');
+      alert('Failed to unban user: ' + (error as Error).message);
     }
   };
 
   const handleToggleReadOnly = async (userId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ forum_read_only: !currentStatus })
-        .eq('id', userId);
-
-      if (error) throw error;
+      const error = await adminUpdateUser(userId, { forum_read_only: !currentStatus });
+      if (error) throw new Error(error);
 
       // Log action
       await supabase.rpc('log_moderation_action', {
@@ -217,7 +199,7 @@ export default function UserManagementPage() {
       fetchUsers();
     } catch (error) {
       console.error('Error toggling read-only:', error);
-      alert('Failed to update user status');
+      alert('Failed to update user status: ' + (error as Error).message);
     }
   };
 
@@ -225,12 +207,8 @@ export default function UserManagementPage() {
     if (!confirm(`Are you sure you want to ${currentStatus ? 'remove' : 'grant'} moderator status?`)) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ forum_moderator: !currentStatus })
-        .eq('id', userId);
-
-      if (error) throw error;
+      const error = await adminUpdateUser(userId, { forum_moderator: !currentStatus });
+      if (error) throw new Error(error);
 
       // Log action
       await supabase.rpc('log_moderation_action', {
@@ -243,7 +221,7 @@ export default function UserManagementPage() {
       fetchUsers();
     } catch (error) {
       console.error('Error toggling moderator:', error);
-      alert('Failed to update moderator status');
+      alert('Failed to update moderator status: ' + (error as Error).message);
     }
   };
 

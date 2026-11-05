@@ -1,12 +1,15 @@
 // Path: app/admin/events/creators/page.tsx
-// Version: 1.0.0 - Manage Authorized Event Creators
-// Date: 2024-12-10
+// Version: 1.1.0 - Grant / revoke saves through the server (the browser update never saved for
+//                  other members)
+// Previous: 1.0.0 - Manage Authorized Event Creators
+// Date: 2026-11-05
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
+import { adminUpdateUser } from '@/lib/adminUsers';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -94,13 +97,10 @@ export default function ManageEventCreators() {
   const handleGrantPermission = async (userId: string, userName: string) => {
     if (!confirm(`Grant event creation permission to ${userName}?`)) return;
 
-    const { error } = await supabase
-      .from('users')
-      .update({ can_create_events: true })
-      .eq('id', userId);
+    const error = await adminUpdateUser(userId, { can_create_events: true });
 
     if (error) {
-      alert('Failed to grant permission');
+      alert('Failed to grant permission: ' + error);
     } else {
       setSearchEmail('');
       setSearchResults([]);
@@ -111,13 +111,10 @@ export default function ManageEventCreators() {
   const handleRevokePermission = async (userId: string, userName: string) => {
     if (!confirm(`Revoke event creation permission from ${userName}?\n\nThey will no longer be able to create events without approval.`)) return;
 
-    const { error } = await supabase
-      .from('users')
-      .update({ can_create_events: false })
-      .eq('id', userId);
+    const error = await adminUpdateUser(userId, { can_create_events: false });
 
     if (error) {
-      alert('Failed to revoke permission');
+      alert('Failed to revoke permission: ' + error);
     } else {
       fetchAuthorizedUsers();
     }

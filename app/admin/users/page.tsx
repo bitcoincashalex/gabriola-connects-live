@@ -2,8 +2,10 @@
 // ADMIN USERS PAGE - Paginated User Management with Full Features
 // ============================================================================
 // Path: app/admin/users/page.tsx
-// Version: 6.3.3 - Fixed mobile user card layout (buttons now accessible, grid layout)
-// Date: 2025-01-11
+// Version: 6.3.4 - Force logout saves through the server (the browser update never saved for
+//                  other members)
+// Previous: 6.3.3 - Fixed mobile user card layout (buttons now accessible, grid layout)
+// Date: 2026-11-05
 // Created: 2025-12-18
 // Updated: 2025-01-11
 // ============================================================================
@@ -13,6 +15,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { adminUpdateUser } from '@/lib/adminUsers';
 import { useUser } from '@/components/AuthProvider';
 import { 
   Shield, Search, Filter, ChevronLeft, ChevronRight,
@@ -278,19 +281,13 @@ export default function AdminUsersPage() {
     
     setActionLoading(userId);
     
-    const { error } = await supabase
-      .from('users')
-      .update({ 
-        current_session_id: null,
-        session_started_at: null
-      })
-      .eq('id', userId);
+    const error = await adminUpdateUser(userId, { current_session_id: null, session_started_at: null });
 
     if (!error) {
       alert(`${userName} has been logged out successfully`);
       await fetchUsers();
     } else {
-      alert(`Failed to logout user: ${error.message}`);
+      alert(`Failed to logout user: ${error}`);
     }
     
     setActionLoading(null);

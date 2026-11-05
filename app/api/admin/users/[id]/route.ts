@@ -1,7 +1,12 @@
 // app/api/admin/users/[id]/route.ts
 // API endpoint for updating individual user permissions and settings
-// Version: 1.0.6 - Passes changed_by so the audit log knows which admin made the change
-// Date: 2026-11-02
+// Version: 1.1.0 - Forum admins can ban / unban, set read-only and moderators; event admins can
+//                  grant event creation. Super admins can change everything, plus force logout.
+//                  Nobody but a super admin can change a super admin. Ban date and "banned by" are
+//                  set here, not by the browser. (These pages used to update the database straight
+//                  from the browser, which the database never allowed for other members.)
+// Previous: 1.0.6 - Passes changed_by so the audit log knows which admin made the change
+// Date: 2026-11-05
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -36,20 +41,53 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check if user is super admin
+    // What this admin may change
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
-      .select('is_super_admin')
+      .select('is_super_admin, admin_forum, admin_bbs, admin_events')
       .eq('id', user.id)
       .single();
 
-    if (userError || !userData?.is_super_admin) {
-      return NextResponse.json({ error: 'Unauthorized - Super Admin only' }, { status: 403 });
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+    const isSuper = userData.is_super_admin === true;
+    const isForumAdmin = userData.admin_forum === true || userData.admin_bbs === true;
+    const isEventAdmin = userData.admin_events === true;
+    if (!isSuper && !isForumAdmin && !isEventAdmin) {
+      return NextResponse.json({ error: 'Unauthorized - admins only' }, { status: 403 });
     }
 
     // Get the update data
     const body = await request.json();
     const userId = params.id;
+
+    // Only a super admin can change a super admin (or themselves into one)
+    const { data: target } = await supabaseAdmin
+      .from('users')
+      .select('id, is_super_admin')
+      .eq('id', userId)
+      .single();
+    if (!target) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    }
+    if (target.is_super_admin && !isSuper) {
+      return NextResponse.json({ error: 'Only a super admin can change a super admin' }, { status: 403 });
+    }
+    if (body.is_banned === true && userId === user.id) {
+      return NextResponse.json({ error: "You can't ban yourself" }, { status: 400 });
+    }
+
+    // Fields forum admins and event admins may change
+    const forumFields = ['is_banned', 'banned_reason', 'forum_read_only', 'forum_moderator'];
+    const eventFields = ['can_create_events'];
+    if (!isSuper) {
+      const mine = [...(isForumAdmin ? forumFields : []), ...(isEventAdmin ? eventFields : [])];
+      const notAllowed = Object.keys(body).filter(k => !mine.includes(k));
+      if (notAllowed.length > 0) {
+        return NextResponse.json({ error: `You don't have permission to change: ${notAllowed.join(', ')}` }, { status: 403 });
+      }
+    }
 
     // Validate that we're only updating allowed fields
     const allowedFields = [
@@ -80,7 +118,13 @@ export async function PATCH(
       'account_locked',
       'forum_read_only',
       'is_verified',
-      'email_verified'
+      'email_verified',
+      // Forum moderation
+      'banned_reason',
+      'forum_moderator',
+      // Force logout
+      'current_session_id',
+      'session_started_at'
     ];
 
     const updateData: any = {};
@@ -88,6 +132,16 @@ export async function PATCH(
       if (allowedFields.includes(key)) {
         updateData[key] = value;
       }
+    }
+
+    // Ban details are set here, not trusted from the browser
+    if (updateData.is_banned === true) {
+      updateData.banned_at = new Date().toISOString();
+      updateData.banned_by = user.id;
+    } else if (updateData.is_banned === false) {
+      updateData.banned_at = null;
+      updateData.banned_by = null;
+      updateData.banned_reason = null;
     }
 
     if (Object.keys(updateData).length === 0) {
