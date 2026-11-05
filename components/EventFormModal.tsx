@@ -1,5 +1,8 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.1.1 - Fixed: editing from the Events page showed a blank date (dates there are Date
+// Version: 3.2.0 - Category is required and always shown. The Events page never passed the list, so
+//                  the box was hidden there and members' events had no category; the form now loads
+//                  the list itself when it isn't given.
+// Previous: 3.1.1 - Fixed: editing from the Events page showed a blank date (dates there are Date
 //                  objects, not text). Adding an event now says it goes on the calendar straight away.
 // Previous: 3.1.0 - Events go on the calendar straight away for every member (no approval step).
 //                  Editing keeps the original owner (the database enforces it too) and records who
@@ -42,6 +45,15 @@ export default function EventFormModal({
   canPublishInstantly = false
 }: EventFormModalProps) {
   const { user } = useUser();
+
+  // Categories: use the list passed in, or load it (the Events page doesn't pass one)
+  const [loadedCategories, setLoadedCategories] = useState<any[]>([]);
+  useEffect(() => {
+    if (!isOpen || categories.length > 0 || loadedCategories.length > 0) return;
+    supabase.from('event_categories').select('id, name, icon').order('display_order')
+      .then(({ data }) => setLoadedCategories(data || []));
+  }, [isOpen, categories.length, loadedCategories.length]);
+  const categoryList = categories.length > 0 ? categories : loadedCategories;
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState<string>('');
   const [customLocation, setCustomLocation] = useState('');
@@ -544,24 +556,28 @@ export default function EventFormModal({
                 />
               </div>
 
-              {/* Category */}
-              {categories.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select 
-                    value={form.category} 
-                    onChange={e => setForm({ ...form, category: e.target.value })}
-                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
-                  >
-                    <option value="">Select a category...</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Category (required) */}
+              <div>
+                <label htmlFor="event_category" className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                <select
+                  id="event_category"
+                  value={form.category}
+                  onChange={e => setForm({ ...form, category: e.target.value })}
+                  required
+                  className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green bg-white"
+                >
+                  <option value="">Select a category...</option>
+                  {/* An older event may have a category that's no longer in the list: keep it selectable */}
+                  {form.category && !categoryList.some((c: any) => c.name === form.category) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+                  {categoryList.map((cat: any) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.icon} {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* Description */}
               <div>
