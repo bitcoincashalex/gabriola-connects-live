@@ -1,5 +1,7 @@
 // Path: components/EventsManager.tsx
-// Version: 6.2.0 - Search looks through every upcoming event, not just the next 14 days (finding a
+// Version: 6.2.1 - Event images show whole (scaled to fit, up to 512px tall) instead of cropped to a
+//                  224px strip, so posters are readable. Tap the image to open it full size.
+// Previous: 6.2.0 - Search looks through every upcoming event, not just the next 14 days (finding a
 //                  March event took 8 clicks of "Show the next 14 days"). Matches still show by day,
 //                  50 at a time.
 // Previous: 6.1.1 - Fixed: deleting "this and all later dates" read the date wrong (Date object)
@@ -969,8 +971,11 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
   return (
     <div className="px-4 pb-4 -mt-1">
       {event.image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={event.image_url} alt={event.title} className="w-full max-h-56 object-cover rounded-xl mb-3" />
+        // Whole poster, scaled to fit (no cropping). Tap to open it full size.
+        <a href={event.image_url} target="_blank" rel="noopener noreferrer" className="block mb-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={event.image_url} alt={`Poster: ${event.title}`} className="w-full max-h-[32rem] object-contain rounded-xl bg-[#F3F1EC]" />
+        </a>
       )}
 
       <div className="text-sm text-[#3A4640] space-y-1 mb-2">
