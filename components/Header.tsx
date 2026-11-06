@@ -1,5 +1,7 @@
 // components/Header.tsx
-// Version: 2.11.0 - Menu item renamed to Audit Log (alerts, admin powers, removals, anonymous lookups)
+// Version: 2.12.0 - Island News Drafts shows how many drafts are waiting. New User Signups counts
+//                  members still waiting for review (not everyone who isn't a resident).
+// Previous: 2.11.0 - Menu item renamed to Audit Log (alerts, admin powers, removals, anonymous lookups)
 // Previous: 2.9.0 - Added Island News Drafts link (super admin)
 // Previous: 2.8.2 - Computer width: the search box shrinks to make room, so "Sign In" no longer covers "Alerts"
 // Previous: 2.8.1 - Phone width: "Sign In" and the site name no longer wrap onto two lines
@@ -23,6 +25,7 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [newsDraftsCount, setNewsDraftsCount] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -55,6 +58,7 @@ export default function Header() {
       // Fetch pending users count for super admin
       if (isSuperAdmin) {
         fetchPendingUsersCount();
+        fetchNewsDraftsCount();
       }
       
       // Subscribe to new messages
@@ -132,9 +136,19 @@ export default function Header() {
       .from('users')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo.toISOString())
-      .eq('is_resident', false);
+      .eq('resident_review', 'pending');
 
     setPendingUsersCount(count || 0);
+  };
+
+  // Island News drafts waiting for Alex to publish or reject
+  const fetchNewsDraftsCount = async () => {
+    if (!user?.is_super_admin) return;
+    const { count } = await supabase
+      .from('news_drafts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    setNewsDraftsCount(count || 0);
   };
 
   const goHome = () => {
@@ -195,7 +209,11 @@ export default function Header() {
               <div className="relative" ref={menuRef}>
                 {/* User Menu Button */}
                 <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  onClick={() => {
+                    // Fresh admin counts each time the menu opens
+                    if (!userMenuOpen && isSuperAdmin) { fetchPendingUsersCount(); fetchNewsDraftsCount(); }
+                    setUserMenuOpen(!userMenuOpen);
+                  }}
                   className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition"
                 >
                   <User className="w-5 h-5" />
@@ -416,7 +434,12 @@ export default function Header() {
                             className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
                           >
                             <AlertTriangle className="w-5 h-5" />
-                            <span>Island News Drafts</span>
+                            <span className={newsDraftsCount > 0 ? 'font-bold' : ''}>Island News Drafts</span>
+                            {newsDraftsCount > 0 && (
+                              <span className="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-1">
+                                {newsDraftsCount}
+                              </span>
+                            )}
                           </Link>
                         )}
                         
