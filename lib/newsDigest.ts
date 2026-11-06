@@ -1,9 +1,11 @@
 // lib/newsDigest.ts
 // Reads the Gabriola Sounder's RSS feed and has the AI draft a short Island News summary of each
 // story. Drafts are only saved for Alex to review at /admin/news; nothing is posted from here.
-// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
-// Previous: 1.0.0
-// Date: 2026-11-01
+// Version: 1.0.2 - The AI is no longer forced to use the tool (tool_choice "tool"), which this model
+//                  rejects with a 400 error: every draft since Oct 27 failed because of it. It's now
+//                  told to always answer with the tool, and a reply without it is retried next run.
+// Previous: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts)
+// Date: 2026-11-06
 //
 // Uses Claude Sonnet 5.5 through the Anthropic API (ANTHROPIC_API_KEY in Vercel, already set).
 
@@ -106,7 +108,9 @@ If not skipped, write the post:
 - topic_slug: the best forum topic for it, from this list:
 ${Object.entries(NEWS_TOPICS).map(([k, v]) => `  ${k} = ${v}`).join('\n')}
 
-If skipped, still fill in title, body and topic_slug with empty strings or your best guess; they are ignored.`;
+If skipped, still fill in title, body and topic_slug with empty strings or your best guess; they are ignored.
+
+Always answer by calling the record_news_post tool exactly once. Do not write anything outside the tool call.`;
 
 const TOOL: Anthropic.Tool = {
   name: 'record_news_post',
@@ -133,7 +137,7 @@ export async function draftNewsPost(story: { title: string; url: string; date: D
     max_tokens: 1500,
     system: SYSTEM,
     tools: [TOOL],
-    tool_choice: { type: 'tool', name: 'record_news_post' },
+    tool_choice: { type: 'auto' },   // 'tool' / 'any' are rejected by this model
     messages: [{
       role: 'user',
       content: `<story>\n<headline>${story.title}</headline>\n<url>${story.url}</url>\n<published>${story.date ? story.date.toISOString() : 'unknown'}</published>\n<text>\n${text}\n</text>\n</story>`,
