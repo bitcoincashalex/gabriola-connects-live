@@ -2,8 +2,11 @@
 // Twice a week (Mon and Thu, Supabase pg_cron timer 'news-digest'): reads the Gabriola Sounder's
 // feed, drafts a short summary of each new story with the AI, and saves the drafts for Alex to
 // check at /admin/news. NOTHING is posted to the forum from here.
-// Version: 1.0.0
-// Date: 2026-10-27
+// Version: 1.1.0 - When the AI fails, the answer now says why (it only went to the server log, so
+//                  every run since Oct 27 failed without anyone seeing the reason), and Alex gets an
+//                  inbox message when a run drafts nothing because of errors.
+// Previous: 1.0.0
+// Date: 2026-11-06
 //
 // Needs these Vercel environment variables (already set):
 //   CRON_SECRET, ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
 
   let drafted = 0;
   let skipped = 0;
+  const failures: string[] = [];
   const results: { title: string; status: string }[] = [];
 
   // Obituaries are never summarized, and don't need the AI to tell
@@ -97,8 +101,10 @@ export async function GET(request: NextRequest) {
     };
     if (outcome.status === 'rejected') {
       // Not saved, so it's tried again next run
-      console.error('[news-digest] draft failed for', item.link, outcome.reason?.message || outcome.reason);
-      results.push({ title: item.title, status: 'failed, will retry' });
+      const why = String(outcome.reason?.message || outcome.reason || 'unknown error').slice(0, 300);
+      console.error('[news-digest] draft failed for', item.link, why);
+      failures.push(why);
+      results.push({ title: item.title, status: `failed, will retry: ${why}` });
       continue;
     }
     const draft = outcome.value;
@@ -119,7 +125,8 @@ export async function GET(request: NextRequest) {
     });
     if (error) {
       console.error('[news-digest] could not save draft for', item.link, error.message);
-      results.push({ title: item.title, status: 'failed, will retry' });
+      failures.push(`could not save: ${error.message}`);
+      results.push({ title: item.title, status: `failed, will retry: could not save: ${error.message}` });
       continue;
     }
     drafted++;
@@ -131,5 +138,40 @@ export async function GET(request: NextRequest) {
     if (error) console.error('[news-digest] notice failed:', error.message);
   }
 
-  return NextResponse.json({ drafted, skipped, results });
+  // Nothing drafted because of errors: tell Alex, so a broken run can't go unnoticed again
+  if (drafted === 0 && failures.length > 0) {
+    await tellAlex(supabase,
+      `Island News: the run drafted nothing. ${failures.length} stor${failures.length === 1 ? 'y' : 'ies'} failed and will be retried next run. ` +
+      `First error: ${failures[0]}`);
+  }
+
+  return NextResponse.json({ drafted, skipped, failed: failures.length, results });
+}
+
+// Inbox message to Alex from the Gabriola Connects account
+async function tellAlex(supabase: any, message: string) {
+  try {
+    const sender = '713881fc-2506-490c-8d72-4c6205bd1093';
+    const { data: alex } = await supabase.from('users').select('id').ilike('email', 'bitcoincashalex@gmail.com').maybeSingle();
+    if (!alex) return;
+    const { data: convs } = await supabase.from('message_conversations').select('id')
+      .or(`and(participant_1.eq.${sender},participant_2.eq.${alex.id}),and(participant_1.eq.${alex.id},participant_2.eq.${sender})`)
+      .limit(1);
+    let conv = convs?.[0]?.id;
+    if (!conv) {
+      const { data: made } = await supabase.from('message_conversations')
+        .insert({ participant_1: sender, participant_2: alex.id, last_message_at: new Date().toISOString() })
+        .select('id').single();
+      conv = made?.id;
+    } else {
+      await supabase.from('message_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conv);
+    }
+    if (!conv) return;
+    await supabase.from('private_messages').insert({
+      sender_id: sender, receiver_id: alex.id, message, conversation_id: conv, read: false,
+      link_url: 'https://www.gabriolaconnects.ca/admin/news',
+    });
+  } catch (e: any) {
+    console.error('[news-digest] could not message Alex:', e?.message || e);
+  }
 }
