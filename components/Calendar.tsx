@@ -1,5 +1,9 @@
 // Path: components/Calendar.tsx
-// Version: 4.0.0 - Calendar redesign: List view (day by day, the default on phones) and Month view
+// Version: 4.1.0 - Month view: an event that runs more than a week (e.g. a program listed as
+//                  "Sept 15 to Dec 22") shows as one entry on its first day instead of a bar across
+//                  every week that pushed the day's other events into "+N more". The list under the
+//                  calendar now includes events still running on the chosen day ("ongoing").
+// Previous: 4.0.0 - Calendar redesign: List view (day by day, the default on phones) and Month view
 //                  with a toggle; filter by venue; shows "Loading events..." until events arrive
 //                  (was "0 events" over an empty calendar); times shown as 10:00 AM (was 10:00:00);
 //                  second Sign In button removed (the site header has one); day's events no longer
@@ -11,6 +15,7 @@
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
 
+import { ymd, daysBetween, prettyDate } from '@/lib/eventSeries';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
@@ -49,6 +54,11 @@ const localizer = dateFnsLocalizer({
 // CRITICAL FIX: Helper to safely handle Date objects from page.tsx
 // page.tsx already converts dates to Date objects, not strings!
 // Also handles undefined/null by returning current date as fallback
+// Events longer than this show as a single entry in the month grid
+const LONG_EVENT_DAYS = 7;
+const spanDays = (e: any) =>
+  e?.end_date ? daysBetween(ymd(e.start_date), ymd(e.end_date)) : 0;
+
 const ensureDate = (dateValue: Date | string | undefined | null): Date => {
   if (!dateValue) return new Date(); // Handle undefined/null
   if (dateValue instanceof Date) {
@@ -199,12 +209,16 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     
     return shownEvents
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
-      .map(event => ({
-        title: event.title || 'Untitled Event',
-        start: ensureDate(event.start_date),
-        end: ensureDate(event.end_date || event.start_date),
-        resource: event,
-      }));
+      .map(event => {
+        const long = spanDays(event) > LONG_EVENT_DAYS;
+        return {
+          title: long ? `${event.title || 'Untitled Event'} (ongoing)` : (event.title || 'Untitled Event'),
+          start: ensureDate(event.start_date),
+          // A long-running event is one entry on its first day, not a bar across every week
+          end: long ? ensureDate(event.start_date) : ensureDate(event.end_date || event.start_date),
+          resource: event,
+        };
+      });
   }, [shownEvents]);
 
   const eventsForSelectedDate = useMemo(() => {
@@ -217,14 +231,22 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .filter(event => {
         try {
-          return ensureDate(event.start_date).toDateString() === selectedDate.toDateString();
+          // Starts that day, or a multi-day event still running that day
+          const day = ymd(selectedDate);
+          const start = ymd(event.start_date);
+          const end = event.end_date ? ymd(event.end_date) : start;
+          return start === day || (start < day && day <= end);
         } catch (e) {
           console.error('Error filtering event by date:', e);
           return false;
         }
       })
       .sort((a, b) => {
-        // Sort by time - handle all-day events and missing times
+        // Events starting that day first (by time), then ongoing ones
+        const day = ymd(selectedDate);
+        const ongoingA = ymd(a.start_date) !== day ? 1 : 0;
+        const ongoingB = ymd(b.start_date) !== day ? 1 : 0;
+        if (ongoingA !== ongoingB) return ongoingA - ongoingB;
         const timeA = a.start_time || '00:00:00';
         const timeB = b.start_time || '00:00:00';
         return timeA.localeCompare(timeB);
@@ -704,10 +726,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                   >
                     <span className="w-[72px] flex-shrink-0 text-sm font-semibold text-gabriola-green pt-0.5 flex items-start gap-1">
                       <Clock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                      {formatEventTime(event.start_time, event.is_all_day)}
+                      {ymd(event.start_date) !== ymd(selectedDate) ? 'Ongoing' : formatEventTime(event.start_time, event.is_all_day)}
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-[15px] font-semibold leading-snug">{event.title}</span>
+                      {event.end_date && ymd(event.end_date) !== ymd(event.start_date) && (
+                        <span className="block text-[13px] text-[#5B6660]">
+                          {prettyDate(ymd(event.start_date))} to {prettyDate(ymd(event.end_date))}
+                        </span>
+                      )}
                       {eventPlace(event) && <span className="block text-[13px] text-[#5B6660] truncate">{eventPlace(event)}</span>}
                     </span>
                   </button>
