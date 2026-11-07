@@ -1,5 +1,7 @@
 // Path: components/Ferry.tsx
-// Version: 4.1.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Version: 4.2.0 - Terminal webcams (Descanso Bay and Nanaimo Harbour, from BC Ferries) under the
+//                  next sailings
+// Previous: 4.1.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 4.1.1 - Overnight (before 4:45 AM) the Nanaimo card says live status starts at 4:45 AM,
 //                  instead of "isn't available right now" (the check pauses overnight on purpose)
 // Previous: 4.1.0 - Running late: the next sailing shows the EXPECTED departure (big) with the
@@ -21,6 +23,7 @@
 
 'use client';
 
+import FerryWebcams from '@/components/FerryWebcams';
 import { useState, useEffect } from 'react';
 import { Anchor, RefreshCw, AlertTriangle, Radio, ChevronDown, ChevronUp, Video, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabaseWithTimeout';
@@ -298,6 +301,9 @@ export default function Ferry() {
         <p className="text-[13px] text-[#5B6660] px-1">
           Crossing takes about 20 minutes. Check-in closes 10 minutes before departure from Gabriola, 3 minutes from Nanaimo.
         </p>
+
+        {/* BC Ferries terminal webcams */}
+        <FerryWebcams />
 
         {/* Service notices */}
         {liveFresh && liveMeta?.notices && liveMeta.notices.length > 0 && (
