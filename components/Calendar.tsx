@@ -1,5 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 4.1.0 - Month view: an event that runs more than a week (e.g. a program listed as
+// Version: 4.1.1 - An event whose end date is before its start date (bad data) shows on its start
+//                  day instead of breaking the layout of that whole week.
+// Previous: 4.1.0 - Month view: an event that runs more than a week (e.g. a program listed as
 //                  "Sept 15 to Dec 22") shows as one entry on its first day instead of a bar across
 //                  every week that pushed the day's other events into "+N more". The list under the
 //                  calendar now includes events still running on the chosen day ("ongoing").
@@ -210,12 +212,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     return shownEvents
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .map(event => {
-        const long = spanDays(event) > LONG_EVENT_DAYS;
+        const span = spanDays(event);
+        // Long-running, or ending before it starts (bad data): one entry on its first day
+        const long = span > LONG_EVENT_DAYS;
+        const backwards = span < 0;
         return {
           title: long ? `${event.title || 'Untitled Event'} (ongoing)` : (event.title || 'Untitled Event'),
           start: ensureDate(event.start_date),
           // A long-running event is one entry on its first day, not a bar across every week
-          end: long ? ensureDate(event.start_date) : ensureDate(event.end_date || event.start_date),
+          end: long || backwards ? ensureDate(event.start_date) : ensureDate(event.end_date || event.start_date),
           resource: event,
         };
       });
@@ -730,7 +735,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-[15px] font-semibold leading-snug">{event.title}</span>
-                      {event.end_date && ymd(event.end_date) !== ymd(event.start_date) && (
+                      {event.end_date && ymd(event.end_date) > ymd(event.start_date) && (
                         <span className="block text-[13px] text-[#5B6660]">
                           {prettyDate(ymd(event.start_date))} to {prettyDate(ymd(event.end_date))}
                         </span>

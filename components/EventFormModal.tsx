@@ -1,5 +1,6 @@
 // Path: components/EventFormModal.tsx
-// Version: 3.2.0 - Category is required and always shown. The Events page never passed the list, so
+// Version: 3.2.1 - End date can't be before the start date (picker and on save)
+// Previous: 3.2.0 - Category is required and always shown. The Events page never passed the list, so
 //                  the box was hidden there and members' events had no category; the form now loads
 //                  the list itself when it isn't given.
 // Previous: 3.1.1 - Fixed: editing from the Events page showed a blank date (dates there are Date
@@ -380,6 +381,11 @@ export default function EventFormModal({
     e.preventDefault();
     if (!user || saving) return;
 
+    if (form.end_date && form.end_date < form.start_date) {
+      alert('The end date is before the start date. Fix the end date, or clear it for a one-day event.');
+      return;
+    }
+
     const makingSeries = !seriesId && repeat !== 'none';
     if (makingSeries) {
       if (!repeatUntil) {
@@ -649,6 +655,7 @@ export default function EventFormModal({
                   <input 
                     type="date" 
                     value={form.end_date} 
+                    min={form.start_date || undefined}
                     onChange={e => setForm({ ...form, end_date: e.target.value })} 
                     className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-gabriola-green"
                   />
