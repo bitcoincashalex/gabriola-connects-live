@@ -1,5 +1,6 @@
 // components/Header.tsx
-// Version: 2.12.0 - Island News Drafts shows how many drafts are waiting. New User Signups counts
+// Version: 2.13.0 - Event Finder menu item (super admin) with the number of suggestions waiting
+// Previous: 2.12.0 - Island News Drafts shows how many drafts are waiting. New User Signups counts
 //                  members still waiting for review (not everyone who isn't a resident).
 // Previous: 2.11.0 - Menu item renamed to Audit Log (alerts, admin powers, removals, anonymous lookups)
 // Previous: 2.9.0 - Added Island News Drafts link (super admin)
@@ -26,6 +27,7 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [newsDraftsCount, setNewsDraftsCount] = useState(0);
+  const [finderCount, setFinderCount] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ export default function Header() {
       if (isSuperAdmin) {
         fetchPendingUsersCount();
         fetchNewsDraftsCount();
+        fetchFinderCount();
       }
       
       // Subscribe to new messages
@@ -151,6 +154,17 @@ export default function Header() {
     setNewsDraftsCount(count || 0);
   };
 
+  // Event Finder suggestions waiting (events on other calendars, or ours gone from theirs)
+  const fetchFinderCount = async () => {
+    if (!user?.is_super_admin) return;
+    const { count, error } = await supabase
+      .from('event_suggestions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .gte('start_date', new Date().toISOString().slice(0, 10));
+    setFinderCount(error ? 0 : count || 0);   // 0 until the event finder SQL has been run
+  };
+
   const goHome = () => {
     window.location.href = '/';
   };
@@ -211,7 +225,7 @@ export default function Header() {
                 <button
                   onClick={() => {
                     // Fresh admin counts each time the menu opens
-                    if (!userMenuOpen && isSuperAdmin) { fetchPendingUsersCount(); fetchNewsDraftsCount(); }
+                    if (!userMenuOpen && isSuperAdmin) { fetchPendingUsersCount(); fetchNewsDraftsCount(); fetchFinderCount(); }
                     setUserMenuOpen(!userMenuOpen);
                   }}
                   className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition"
@@ -438,6 +452,23 @@ export default function Header() {
                             {newsDraftsCount > 0 && (
                               <span className="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-1">
                                 {newsDraftsCount}
+                              </span>
+                            )}
+                          </Link>
+                        )}
+
+                        {/* Event Finder - SUPER ADMIN ONLY */}
+                        {isSuperAdmin && (
+                          <Link
+                            href="/admin/event-finder"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-700"
+                          >
+                            <AlertTriangle className="w-5 h-5" />
+                            <span className={finderCount > 0 ? 'font-bold' : ''}>Event Finder</span>
+                            {finderCount > 0 && (
+                              <span className="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-1">
+                                {finderCount}
                               </span>
                             )}
                           </Link>
