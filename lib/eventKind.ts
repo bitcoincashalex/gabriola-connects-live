@@ -6,15 +6,23 @@
 //      events themselves, so nobody has to tag anything.
 //   2. The colour family for a category: seven colours for the fifteen categories, because fifteen
 //      can't be told apart in a small calendar entry.
-// Version: 1.0.0
-// Date: 2026-11-10
+// Version: 1.1.0 - The place on the end of a title is ignored when matching ("Drop-In Indoor Soccer @
+//                  Gabriola Elementary" is the same program as "Drop-in Indoor Soccer")
+// Previous: 1.0.0
+// Date: 2026-11-11
 
 import { ymd, daysBetween } from '@/lib/eventSeries';
 
 const WINDOW_DAYS = 35;
 const MIN_REPEATS = 3;
 
-const titleKey = (t: string) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// Same program, typed differently from week to week: ignore capitals, punctuation, and a place on
+// the end ("... @ Gabriola Elementary", "... at the Community Hall")
+const titleKey = (t: string) => {
+  const whole = String(t || '').toLowerCase();
+  const noPlace = whole.replace(/\s+(@|at)\s+.*$/, '');
+  return (noPlace.trim() || whole).replace(/[^a-z0-9]+/g, ' ').trim();
+};
 
 /** Ids of the events that are regular programs. Pass every event you have, not just one day's. */
 export function programIds(events: any[]): Set<string> {
