@@ -4,8 +4,10 @@
 //   ComingUpWidget        the next three special events after today (no weekly programs)
 // Both read one shared download of the events from four weeks back to six weeks ahead; the weeks
 // back are what lets lib/eventKind.ts tell a weekly program from a one-off.
-// Version: 1.0.0
-// Date: 2026-11-10
+// Version: 1.1.0 - Today card: special events come first and are marked "Special", so a one-off
+//                  (like the Remembrance Day gathering) isn't buried under the day's programs
+// Previous: 1.0.0
+// Date: 2026-11-11
 
 'use client';
 
@@ -139,7 +141,7 @@ export function TodayEventsWidget() {
   if (failed && !loaded) return <Note>Unable to load events. Please refresh the page to try again.</Note>;
   if (!loaded) return <Note>Loading...</Note>;
 
-  const { today, now, events } = loaded;
+  const { today, now, events, programs } = loaded;
   const day = (d: string | null) => (d ? String(d).slice(0, 10) : '');
   const left = events.filter(e => {
     const start = day(e.start_date);
@@ -152,7 +154,9 @@ export function TodayEventsWidget() {
   // Timed events first, in order; all-day ones after
   const timed = left.filter(e => !e.is_all_day && e.start_time && day(e.start_date) === today);
   const allDay = left.filter(e => !timed.includes(e));
-  const rows = [...timed, ...allDay];
+  // Special events first, then the regular programs; each in time order
+  const inOrder = [...timed, ...allDay];
+  const rows = [...inOrder.filter(e => !programs.has(e.id)), ...inOrder.filter(e => programs.has(e.id))];
 
   if (rows.length === 0) return <Note>Nothing more today.</Note>;
 
@@ -165,6 +169,9 @@ export function TodayEventsWidget() {
           </span>
           <span className="flex-1 min-w-0">
             <span className="block text-[15px] font-semibold leading-snug line-clamp-2"><Dot category={e.category} />{e.title}</span>
+            {!programs.has(e.id) && (
+              <span className="inline-block mt-0.5 mr-1.5 px-1.5 py-0.5 rounded-full bg-[#FBEFD5] text-[#7A4A00] text-[11px] font-bold uppercase tracking-wide">Special</span>
+            )}
             {e.location && <span className="block text-[13px] text-[#5B6660] truncate">{e.location}</span>}
           </span>
         </div>
