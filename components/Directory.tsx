@@ -1,5 +1,7 @@
 // components/Directory.tsx
-// Version: 5.3.1 - No more full-screen "Loading 53+ businesses..." flash: the page shows straight
+// Version: 5.3.2 - Phones: the Chamber thank-you strip is shorter (its second sentence shows on
+//                  wider screens), so the search box sits higher
+// Previous: 5.3.1 - No more full-screen "Loading 53+ businesses..." flash: the page shows straight
 //                  away with a small "Loading businesses..." where the list goes
 // Previous: 5.3.0 - Owners can edit their own listing: an Edit button shows on businesses you added
 //                  (and on every business for directory admins), opening the same form filled in.
@@ -493,7 +495,7 @@ export default function Directory() {
         <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="text-sm text-gabriola-green-dark">
             <strong>Thank You Gabriola Chamber of Commerce!</strong>{' '}
-            <span className="text-[#3A4640]">Supporting local businesses and our island community</span>
+            <span className="hidden sm:inline text-[#3A4640]">Supporting local businesses and our island community</span>
           </p>
           <a
             href="https://business.gabriolachamber.ca/directory"

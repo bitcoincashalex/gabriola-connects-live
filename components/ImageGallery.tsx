@@ -1,6 +1,8 @@
 // components/ImageGallery.tsx
-// Version: 1.0.0 - Display multiple images in grid with click-to-enlarge
-// Date: 2025-12-20
+// Version: 1.1.0 - "compact" option for the forum list: one short strip of up to three photos, so a
+//                  post with a photo doesn't fill a phone screen. Click still opens the full photo.
+// Previous: 1.0.0 - Display multiple images in grid with click-to-enlarge
+// Date: 2026-11-11
 
 'use client';
 
@@ -18,9 +20,11 @@ interface Image {
 interface Props {
   images: Image[];
   initialIndex?: number;
+  /** Short strip for lists (the thread page shows the photos full size) */
+  compact?: boolean;
 }
 
-export default function ImageGallery({ images, initialIndex = 0 }: Props) {
+export default function ImageGallery({ images, initialIndex = 0, compact = false }: Props) {
   const [showCarousel, setShowCarousel] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(initialIndex);
 
@@ -43,6 +47,50 @@ export default function ImageGallery({ images, initialIndex = 0 }: Props) {
     if (count === 4) return 'grid-cols-2';
     return 'grid-cols-3'; // 5+ images
   };
+
+  const carousel = showCarousel && (
+    <ImageCarousel
+      images={sortedImages.map(img => ({
+        url: img.image_url,
+        caption: img.caption || undefined
+      }))}
+      initialIndex={carouselIndex}
+      onClose={() => setShowCarousel(false)}
+    />
+  );
+
+  // Lists: one strip, up to three photos, fixed height
+  if (compact) {
+    const strip = sortedImages.slice(0, 3);
+    const more = sortedImages.length - strip.length;
+    return (
+      <>
+        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${strip.length}, minmax(0, 1fr))` }}>
+          {strip.map((image, index) => (
+            <div
+              key={image.id}
+              onClick={() => handleImageClick(index)}
+              className="relative cursor-pointer rounded-lg overflow-hidden border border-[#E3DCCF] bg-[#EEE8DD] h-[150px] md:h-[190px]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={image.image_url}
+                alt={image.caption || `Image ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+              {more > 0 && index === strip.length - 1 && (
+                <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white px-2 py-0.5 rounded text-xs font-bold">
+                  +{more} more
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        {carousel}
+      </>
+    );
+  }
 
   return (
     <>
@@ -111,16 +159,7 @@ export default function ImageGallery({ images, initialIndex = 0 }: Props) {
       </div>
 
       {/* Carousel Modal */}
-      {showCarousel && (
-        <ImageCarousel
-          images={sortedImages.map(img => ({
-            url: img.image_url,
-            caption: img.caption || undefined
-          }))}
-          initialIndex={carouselIndex}
-          onClose={() => setShowCarousel(false)}
-        />
-      )}
+      {carousel}
     </>
   );
 }

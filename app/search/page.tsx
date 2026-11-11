@@ -1,7 +1,12 @@
 // app/search/page.tsx
 // Complete schemas: Alert (15 fields), DirectoryBusiness (73 fields), Event (62 fields), FerrySchedule (12 fields)
-// Version: 5.0.0 - Added accessibility filters for events and businesses (wheelchair, parking, pet, family friendly)
-// Date: 2025-01-11
+// Version: 5.1.0 - Phones: the search box gets the full width (Search and Filters sit under it).
+//                  Event times read "3:00 PM" (were "15:00:00") and event dates are no longer a
+//                  day early. Repeating events show once, with their other dates listed. One row
+//                  of All / Events / Directory / Ferry / Alerts (with counts) where there were two.
+//                  Colours and heading match the rest of the site.
+// Previous: 5.0.0 - Added accessibility filters for events and businesses (wheelchair, parking, pet, family friendly)
+// Date: 2026-11-11
 
 'use client';
 
@@ -12,6 +17,37 @@ import { Calendar, MapPin, Ship, AlertTriangle, Search as SearchIcon, Filter, X,
 import { format } from 'date-fns';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+
+// "2026-11-14" (or a full timestamp) as a calendar day, the same on every device
+const dayOf = (v: any): string => String(v || '').slice(0, 10);
+const dayDate = (v: any): Date => new Date(`${dayOf(v)}T12:00:00Z`);
+const longDay = (v: any): string =>
+  dayDate(v).toLocaleDateString('en-CA', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+const shortDay = (v: any): string =>
+  dayDate(v).toLocaleDateString('en-CA', { timeZone: 'UTC', month: 'short', day: 'numeric' }).replace('.', '');
+
+// "15:00:00" -> "3:00 PM"
+const clock = (t: string | null | undefined): string => {
+  if (!t) return '';
+  const [h, m] = String(t).split(':').map(Number);
+  if (isNaN(h)) return String(t);
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+// A repeating event (same title on several dates) shows once: the soonest date, with the rest listed
+const titleKey = (t: string) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function groupEvents<T extends { id: string; title: string; start_date?: any }>(list: T[]): { event: T; others: T[] }[] {
+  const byTitle = new Map<string, T[]>();
+  for (const e of list || []) {
+    const key = titleKey(e.title) || e.id;
+    if (!byTitle.has(key)) byTitle.set(key, []);
+    byTitle.get(key)!.push(e);
+  }
+  return Array.from(byTitle.values()).map(group => {
+    const sorted = group.slice().sort((a, b) => dayOf(a.start_date).localeCompare(dayOf(b.start_date)));
+    return { event: sorted[0], others: sorted.slice(1) };
+  }).sort((a, b) => dayOf(a.event.start_date).localeCompare(dayOf(b.event.start_date)));
+}
 
 // Extended Alert interface - matches actual database schema
 interface Alert {
@@ -382,8 +418,9 @@ function SearchPageContent() {
   };
 
   const getCountForScope = (scope: SearchScope): number => {
-    if (scope === 'all') return results.totalCount;
-    if (scope === 'events') return results.events.length;
+    const eventCount = groupEvents(results.events).length;   // a repeating event counts once
+    if (scope === 'all') return results.totalCount - results.events.length + eventCount;
+    if (scope === 'events') return eventCount;
     if (scope === 'directory') return results.directory.length;
     if (scope === 'ferry') return results.ferry.length;
     if (scope === 'alerts') return results.alerts.length;
@@ -562,33 +599,21 @@ function SearchPageContent() {
     eventWheelchairAccessible || eventParkingAvailable || eventPetFriendly || eventFamilyFriendly ||
     wheelchairAccessible || acceptsCredit || offersDelivery || petFriendly || hasWifi || hasParking || businessFamilyFriendly;
 
+  const eventGroups = groupEvents(filteredResults.events);
+  const shownTotal = filteredResults.totalCount - filteredResults.events.length + eventGroups.length;
+  const haveResults = !!query && !loading && results.totalCount > 0;
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 md:pt-8 pb-8">
       
       {/* Search Input Section */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Gabriola Connects</h1>
-		{/* Scope Selector - Added */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <span className="text-sm text-gray-600 self-center font-medium mr-2">Search in:</span>
-          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
-            <button
-              key={scope}
-              onClick={() => setActiveScope(scope)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${ activeScope === scope
-                  ? 'bg-gabriola-green text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {scope.charAt(0).toUpperCase() + scope.slice(1)}
-            </button>
-          ))}
-        </div>
-        
-        {/* Main Search Bar */}
-        <div className="flex gap-2 mb-4">
+      <div className="mb-6 md:mb-8">
+        <h1 className="font-display text-[26px] md:text-3xl font-bold text-gabriola-green-dark leading-tight mb-3 md:mb-4">Search Gabriola Connects</h1>
+
+        {/* Main Search Bar: on phones the box gets the full width and the buttons sit under it */}
+        <div className="flex flex-col sm:flex-row gap-2 mb-3 md:mb-4">
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -597,20 +622,21 @@ function SearchPageContent() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Search events, businesses, ferry schedules, alerts..."
-              className="w-full pl-12 pr-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:border-gabriola-green focus:outline-none"
+              className="w-full pl-12 pr-4 py-3 md:py-4 text-base md:text-lg bg-white border-2 border-[#CFC6B4] rounded-lg focus:border-gabriola-green focus:outline-none"
             />
           </div>
+          <div className="flex gap-2">
           <button
             onClick={performSearch}
             disabled={query.trim().length < 2}
-            className="px-8 py-4 bg-gabriola-green text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 sm:flex-none px-8 py-3 md:py-4 min-h-[48px] bg-gabriola-green text-white font-semibold rounded-lg hover:bg-gabriola-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             Search
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-6 py-4 border-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-              showFilters ? 'border-gabriola-green text-gabriola-green bg-green-50' : 'border-gray-300 text-gray-700 hover:border-gray-400'
+            className={`px-5 md:px-6 py-3 md:py-4 min-h-[48px] bg-white border-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+              showFilters ? 'border-gabriola-green text-gabriola-green bg-green-50' : 'border-[#CFC6B4] text-[#3A4640] hover:border-gray-400'
             }`}
           >
             <Filter className="w-5 h-5" />
@@ -623,6 +649,25 @@ function SearchPageContent() {
               </span>
             )}
           </button>
+          </div>
+        </div>
+
+        {/* What to search: one row, with the number found once there are results */}
+        <div className="flex gap-2 mb-3 md:mb-4 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap" role="group" aria-label="Search in">
+          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
+            <button
+              key={scope}
+              onClick={() => handleScopeChange(scope)}
+              aria-pressed={activeScope === scope}
+              className={`px-4 min-h-[40px] rounded-full border text-sm font-semibold whitespace-nowrap transition-colors ${ activeScope === scope
+                  ? 'bg-gabriola-green border-gabriola-green text-white'
+                  : 'bg-white border-[#CFC6B4] text-[#3A4640] hover:border-gabriola-green'
+              }`}
+            >
+              {scope.charAt(0).toUpperCase() + scope.slice(1)}
+              {haveResults && (activeScope === 'all' || activeScope === scope) && ` (${getCountForScope(scope)})`}
+            </button>
+          ))}
         </div>
 
         {/* Filters Panel */}
@@ -1042,7 +1087,7 @@ function SearchPageContent() {
         {/* Results Summary */}
         {query && !loading && (
           <p className="text-gray-600 mt-4">
-            {filteredResults.totalCount} {filteredResults.totalCount === 1 ? 'result' : 'results'} found for "{query}"
+            {shownTotal} {shownTotal === 1 ? 'result' : 'results'} found for "{query}"
             {hasActiveFilters && ' (filtered)'}
           </p>
         )}
@@ -1058,25 +1103,6 @@ function SearchPageContent() {
             <li>• Search works across events, businesses, ferry schedules, and alerts</li>
             <li>• Results are sorted by relevance by default</li>
           </ul>
-        </div>
-      )}
-
-      {/* Tabs */}
-      {query && (
-        <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
-          {(['all', 'events', 'directory', 'ferry', 'alerts'] as SearchScope[]).map((scope) => (
-            <button
-              key={scope}
-              onClick={() => handleScopeChange(scope)}
-              className={`px-4 py-3 font-medium whitespace-nowrap transition-colors ${
-                activeScope === scope
-                  ? 'text-gabriola-green border-b-2 border-gabriola-green'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {scope.charAt(0).toUpperCase() + scope.slice(1)} ({getCountForScope(scope)})
-            </button>
-          ))}
         </div>
       )}
 
@@ -1113,10 +1139,10 @@ function SearchPageContent() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-6 h-6 text-gabriola-green" />
-                <h2 className="text-2xl font-bold text-gray-900">Events ({filteredResults.events.length})</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Events ({eventGroups.length})</h2>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                {filteredResults.events.map(event => (
+                {eventGroups.map(({ event, others }) => (
                   <Link
                     key={event.id}
                     href={`/events#${event.id}`}
@@ -1132,8 +1158,14 @@ function SearchPageContent() {
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
                     {event.start_date && (
                       <div className="text-sm text-gray-600 mb-2">
-                        {format(new Date(event.start_date), 'EEEE, MMMM d, yyyy')}
-                        {event.start_time && ` at ${event.start_time}`}
+                        {longDay(event.start_date)}
+                        {event.start_time && ` at ${clock(event.start_time)}`}
+                      </div>
+                    )}
+                    {others.length > 0 && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        Also {others.slice(0, 4).map(o => shortDay(o.start_date)).join(', ')}
+                        {others.length > 4 && ` and ${others.length - 4} more ${others.length - 4 === 1 ? 'date' : 'dates'}`}
                       </div>
                     )}
                     {event.location && (
@@ -1204,7 +1236,7 @@ function SearchPageContent() {
                       {schedule.from_location} → {schedule.to_location}
                     </h3>
                     <div className="text-lg text-gabriola-green font-semibold mb-2">
-                      {schedule.departure_time}
+                      {clock(schedule.departure_time)}
                     </div>
                     <div className="text-sm text-gray-600 mb-2">{schedule.day_of_week}</div>
                     {schedule.notes && (

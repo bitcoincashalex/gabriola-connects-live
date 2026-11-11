@@ -1,5 +1,6 @@
 // components/ThreadCard.tsx
-// Version: 8.1.1 - Your own anonymous posts show Delete again (anonymous posts no longer carry your
+// Version: 8.1.2 - Photos in the list are a short strip (full size on the thread page). 2026-11-11
+// Previous: 8.1.1 - Your own anonymous posts show Delete again (anonymous posts no longer carry your
 //                  account id; the database says which are yours). Date: 2026-10-18
 // Previous: 8.1.0 - Island News posts (by Claude) are labelled ISLAND NEWS in navy; Share button
 //                  on every card (phone share sheet, or copies the link)
@@ -343,7 +344,7 @@ export default function ThreadCard({
             {/* Images */}
             {!imagesLoading && images.length > 0 && (
               <div onClick={(e) => e.preventDefault()} className="mt-2">
-                <ImageGallery images={images} />
+                <ImageGallery images={images} compact />
               </div>
             )}
 
