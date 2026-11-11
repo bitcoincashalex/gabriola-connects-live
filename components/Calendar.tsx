@@ -1,5 +1,12 @@
 // Path: components/Calendar.tsx
-// Version: 4.1.1 - An event whose end date is before its start date (bad data) shows on its start
+// Version: 4.2.0 - "Special events / Everything" switch: the calendar opens on special events
+//                  (concerts, fairs, AGMs), with the weekly programs one click away; each day in
+//                  Month view says how many programs are hidden, and clicking a day still lists
+//                  everything on it. Entries are coloured by category (seven colour families, key
+//                  under the calendar). See lib/eventKind.ts for both rules.
+// Previous: 4.1.2 - Times in the day list stay on one line ("10:00 AM", not "10:00 / AM"). On wide
+//                  screens the page lines up with the header instead of running edge to edge.
+// Previous: 4.1.1 - An event whose end date is before its start date (bad data) shows on its start
 //                  day instead of breaking the layout of that whole week.
 // Previous: 4.1.0 - Month view: an event that runs more than a week (e.g. a program listed as
 //                  "Sept 15 to Dec 22") shows as one entry on its first day instead of a bar across
@@ -18,6 +25,7 @@
 'use client';
 
 import { ymd, daysBetween, prettyDate } from '@/lib/eventSeries';
+import { programIds, familyFor, FAMILIES } from '@/lib/eventKind';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
@@ -91,6 +99,16 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     if (saved === 'list' || saved === 'month') setView(saved);
     else setView(window.innerWidth < 768 ? 'list' : 'month');
   }, []);
+
+  // Special events only (the default), or everything including the weekly programs
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem('gc-calendar-show') === 'all') setShowAll(true); } catch {}
+  }, []);
+  const chooseShow = (all: boolean) => {
+    setShowAll(all);
+    try { localStorage.setItem('gc-calendar-show', all ? 'all' : 'special'); } catch {}
+  };
 
   const chooseView = (v: 'list' | 'month') => {
     setView(v);
@@ -203,13 +221,34 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     return venueFilter ? events.filter(e => e && eventPlace(e) === venueFilter) : events;
   }, [events, venueFilter]);
 
+  // Which events are regular programs (worked out from every event, not just one venue's)
+  const programs = useMemo(() => programIds(Array.isArray(events) ? events : []), [events]);
+
+  // What the list and the month grid show: special events, or everything
+  const visibleEvents = useMemo(
+    () => (showAll ? shownEvents : shownEvents.filter(e => e && !programs.has(e.id))),
+    [shownEvents, showAll, programs]
+  );
+
+  // Programs hidden on each day, for the "+ 9 programs" line in the month grid
+  const hiddenPerDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (showAll) return counts;
+    for (const e of shownEvents) {
+      if (!e || !e.start_date || !programs.has(e.id)) continue;
+      const day = ymd(e.start_date);
+      counts[day] = (counts[day] || 0) + 1;
+    }
+    return counts;
+  }, [shownEvents, showAll, programs]);
+
   const calendarEvents = useMemo(() => {
     // Safety: Return empty array if events is not a valid array
-    if (!Array.isArray(shownEvents) || shownEvents.length === 0) {
+    if (!Array.isArray(visibleEvents) || visibleEvents.length === 0) {
       return [];
     }
     
-    return shownEvents
+    return visibleEvents
       .filter(event => event && event.start_date) // Filter out null/undefined events and those without dates
       .map(event => {
         const span = spanDays(event);
@@ -224,7 +263,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
           resource: event,
         };
       });
-  }, [shownEvents]);
+  }, [visibleEvents]);
 
   const eventsForSelectedDate = useMemo(() => {
     // Safety: Return empty array if events is not a valid array
@@ -479,7 +518,7 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
 
   return (
     <div className="flex flex-col h-full bg-[#F6F2EA] text-[#1F2A24]">
-      <div className="px-4 pt-4 pb-3 bg-white border-b border-[#E3DCCF]">
+      <div className="px-4 lg:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))] pt-4 pb-3 bg-white border-b border-[#E3DCCF]">
         <div className="flex items-center justify-between gap-3 mb-2">
           <h1 className="text-2xl font-display font-bold text-gabriola-green-dark">
             Island Events
@@ -531,6 +570,25 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
               className={`flex items-center gap-1.5 px-4 min-h-[44px] text-sm font-semibold border-l border-gabriola-green transition-colors ${view === 'month' ? 'bg-gabriola-green text-white' : 'bg-white text-gabriola-green hover:bg-gabriola-green/10'}`}
             >
               <CalendarDays className="w-4 h-4" aria-hidden="true" /> Month
+            </button>
+          </div>
+
+          <div className="inline-flex rounded-lg border border-gabriola-green overflow-hidden" role="group" aria-label="Which events to show">
+            <button
+              onClick={() => chooseShow(false)}
+              aria-pressed={!showAll}
+              title="Concerts, fairs, meetings and other one-off events"
+              className={`px-4 min-h-[44px] text-sm font-semibold transition-colors ${!showAll ? 'bg-gabriola-green text-white' : 'bg-white text-gabriola-green hover:bg-gabriola-green/10'}`}
+            >
+              Special events
+            </button>
+            <button
+              onClick={() => chooseShow(true)}
+              aria-pressed={showAll}
+              title="Also show the weekly programs"
+              className={`px-4 min-h-[44px] text-sm font-semibold border-l border-gabriola-green transition-colors ${showAll ? 'bg-gabriola-green text-white' : 'bg-white text-gabriola-green hover:bg-gabriola-green/10'}`}
+            >
+              Everything
             </button>
           </div>
 
@@ -691,10 +749,18 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
       {loading ? (
         <div className="py-20 text-center text-[#5B6660]" role="status">Loading events...</div>
       ) : view === 'list' ? (
-        <CalendarList events={shownEvents} onSelect={setSelectedEvent} />
+        <>
+          {!showAll && (
+            <p className="px-4 lg:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))] pt-3 text-sm text-[#5B6660]">
+              Showing special events. Weekly programs like classes, clubs and meetings are under{' '}
+              <button onClick={() => chooseShow(true)} className="font-semibold text-gabriola-green underline">Everything</button>.
+            </p>
+          )}
+          <CalendarList events={visibleEvents} onSelect={setSelectedEvent} />
+        </>
       ) : (
         <>
-          <div className="p-4 bg-white">
+          <div className="p-4 lg:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))] bg-white">
             <p className="text-sm text-[#5B6660] mb-2">
               {eventsForSelectedDate.length} event{eventsForSelectedDate.length !== 1 ? 's' : ''} on {format(selectedDate, 'MMMM d, yyyy')}
             </p>
@@ -711,14 +777,51 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                 onSelectSlot={handleSelectSlot}
                 onSelectEvent={handleSelectEvent}
                 selectable
+                eventPropGetter={(ev: any) => {
+                  const fam = familyFor(ev?.resource?.category);
+                  return { style: { '--ev-bg': fam.tint, '--ev-edge': fam.edge, '--ev-fg': '#1F2A24' } as React.CSSProperties };
+                }}
+                components={{
+                  event: ({ event: ev }: any) => (
+                    <span>
+                      <span
+                        aria-hidden="true"
+                        className="inline-block w-[7px] h-[7px] rounded-full mr-1 align-middle"
+                        style={{ backgroundColor: familyFor(ev?.resource?.category).color }}
+                      />
+                      {ev.title}
+                    </span>
+                  ),
+                  month: {
+                    dateHeader: ({ date, label }: any) => {
+                      const n = hiddenPerDay[ymd(date)] || 0;
+                      return (
+                        <span className="flex items-baseline justify-between gap-1">
+                          <span className="text-[11px] text-[#5B6660] truncate">
+                            {n > 0 && <>+{n}<span className="hidden md:inline"> program{n === 1 ? '' : 's'}</span></>}
+                          </span>
+                          <span>{label}</span>
+                        </span>
+                      );
+                    },
+                  },
+                }}
                 className="h-full"
                 style={{ minHeight: '600px' }}
               />
             </div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[13px] text-[#3A4640]" aria-label="Colour key">
+              {FAMILIES.map(f => (
+                <li key={f.key} className="flex items-center gap-1.5">
+                  <span aria-hidden="true" className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: f.color }} />
+                  {f.label}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {eventsForSelectedDate.length > 0 && !selectedEvent && (
-            <div ref={eventListRef} className="p-4 scroll-mt-24">
+            <div ref={eventListRef} className="p-4 lg:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))] scroll-mt-24">
               <h3 className="text-sm font-bold uppercase tracking-wide text-gabriola-green-dark mb-2">
                 Events on {format(selectedDate, 'EEEE, MMMM d')}
               </h3>
@@ -729,12 +832,19 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
                     onClick={() => setSelectedEvent(event)}
                     className="w-full text-left flex gap-3 px-4 py-3 min-h-[56px] hover:bg-[#F6F2EA] transition-colors"
                   >
-                    <span className="w-[72px] flex-shrink-0 text-sm font-semibold text-gabriola-green pt-0.5 flex items-start gap-1">
+                    <span className="w-[92px] flex-shrink-0 whitespace-nowrap text-sm font-semibold text-gabriola-green pt-0.5 flex items-start gap-1">
                       <Clock className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" aria-hidden="true" />
                       {ymd(event.start_date) !== ymd(selectedDate) ? 'Ongoing' : formatEventTime(event.start_time, event.is_all_day)}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[15px] font-semibold leading-snug">{event.title}</span>
+                      <span className="block text-[15px] font-semibold leading-snug">
+                        <span
+                          aria-hidden="true"
+                          className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
+                          style={{ backgroundColor: familyFor((event as any).category).color }}
+                        />
+                        {event.title}
+                      </span>
                       {event.end_date && ymd(event.end_date) > ymd(event.start_date) && (
                         <span className="block text-[13px] text-[#5B6660]">
                           {prettyDate(ymd(event.start_date))} to {prettyDate(ymd(event.end_date))}

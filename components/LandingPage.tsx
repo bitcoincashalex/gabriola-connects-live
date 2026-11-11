@@ -1,5 +1,9 @@
 // components/LandingPage.tsx
-// v6.1.1 - Flag now uses the sharp vector version (gabriola-flag.svg, traced from the original
+// v6.2.0 - Today first on phones: the flag header is a slim navy strip with today's date on phones (the
+//          full flag stays on computers and tablets), the Ferry card comes first on phones, the
+//          Calendar card is now "Today" (what's still to come today), and a new "Coming up" card
+//          shows the next three special events (no weekly programs).
+// Previous: v6.1.1 - Flag now uses the sharp vector version (gabriola-flag.svg, traced from the original
 //          gabriola-flag.gif) so it stays crisp on computers and high-resolution phones
 // Previous: v6.1.0 - Flag is the header background again, with "Gabriola Connects / Your Island Community
 //          Hub" written over it on a navy panel so the words read clearly over the white of the flag.
@@ -12,14 +16,14 @@
 //          and "Total registrations"; solid green share button.
 // Previous: v5.0.2 - About text: added "ferry times"
 // Previous: v5.0.1 - Fixed Firefox z-index bug (card background covering widget content)
-// Date: 2026-10-10
+// Date: 2026-11-10
 'use client';
 
 import Link from 'next/link';
-import { Calendar, MessageSquare, Book, Anchor } from 'lucide-react';
+import { Calendar, CalendarDays, MessageSquare, Book, Anchor } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { NextFerryWidget } from '@/components/NextFerryWidget';
-import { NextEventWidget } from '@/components/NextEventWidget';
+import { TodayEventsWidget, ComingUpWidget, gabriolaDateLine } from '@/components/HomeEventsWidget';
 import { DirectoryWidget } from '@/components/DirectoryWidget';
 import { ForumWidget } from '@/components/ForumWidget';
 import { AlertsWidget } from '@/components/AlertsWidget';
@@ -219,9 +223,12 @@ export default function LandingPage() {
     businesses: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+  // Today's date in Gabriola time (set after the page loads, so the server and browser agree)
+  const [dateLine, setDateLine] = useState('');
 
   useEffect(() => {
     fetchCommunityStats();
+    setDateLine(gabriolaDateLine());
   }, []);
 
   const fetchCommunityStats = async () => {
@@ -257,18 +264,24 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
-      {/* Header: the Gabriola Island flag as the background, site name over it */}
+      {/* Phones: a slim strip with today's date, so today's cards start near the top */}
+      <section className="md:hidden bg-[#002774] text-white px-4 py-2.5 min-h-[44px] flex items-center">
+        <h1 className="sr-only">Gabriola Connects</h1>
+        <p className="font-display font-bold text-[18px] leading-tight">{dateLine}</p>
+      </section>
+
+      {/* Computers and tablets: the Gabriola Island flag as the background, site name over it */}
       <section
-        className="relative bg-[#002774] bg-center bg-no-repeat bg-cover md:bg-contain text-white text-center aspect-[380/216] md:aspect-auto md:h-[420px] flex items-center justify-center overflow-hidden"
+        className="relative hidden md:flex bg-[#002774] bg-center bg-no-repeat bg-contain text-white text-center h-[420px] items-center justify-center overflow-hidden"
         style={{ backgroundImage: 'url(/gabriola-flag.svg), linear-gradient(to right, #002774 50%, #FFFFFF 50%)' }}
         role="img"
         aria-label="Gabriola Island flag"
       >
         {/* Navy panel behind the words so they read clearly over the white of the flag */}
         <div className="relative z-10 mx-6 px-6 py-3 md:px-10 md:py-5 rounded-2xl bg-[#002774]/80 shadow-lg">
-          <h1 className="font-display font-bold text-[32px] md:text-6xl leading-tight">
+          <p className="font-display font-bold text-[32px] md:text-6xl leading-tight">
             Gabriola Connects
-          </h1>
+          </p>
           <p className="text-[16px] md:text-2xl mt-0.5 text-[#E3E9F7]">
             Your Island Community Hub
           </p>
@@ -278,19 +291,32 @@ export default function LandingPage() {
       <div className="max-w-5xl mx-auto px-4 md:px-6 pt-5 md:pt-8 pb-10">
         {/* Main cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-5 items-start">
-          <HomeCard href="/calendar" icon={Calendar} title="Calendar" subtitle="Upcoming events">
-            <NextEventWidget />
-          </HomeCard>
+          {/* Phones: Ferry first. Computers: Today on the left, Ferry on the right. */}
+          <div className="order-2 md:order-1">
+            <HomeCard href="/calendar" icon={Calendar} title="Today" subtitle="What's still to come today">
+              <TodayEventsWidget />
+            </HomeCard>
+          </div>
 
-          <HomeCard href="/ferry" icon={Anchor} title="Ferry" subtitle="Schedule & live status" tone="navy">
-            <NextFerryWidget />
-          </HomeCard>
+          <div className="order-1 md:order-2">
+            <HomeCard href="/ferry" icon={Anchor} title="Ferry" subtitle="Schedule & live status" tone="navy">
+              <NextFerryWidget />
+            </HomeCard>
+          </div>
 
-          <HomeCard href="/community-hub" icon={MessageSquare} title="Community" subtitle="Forum · Emergency · Map · News · Volunteer">
-            <ForumWidget />
-          </HomeCard>
+          <div className="order-3">
+            <HomeCard href="/calendar" icon={CalendarDays} title="Coming up" subtitle="Special events">
+              <ComingUpWidget />
+            </HomeCard>
+          </div>
 
-          <div className="flex flex-col gap-3.5 md:gap-5">
+          <div className="order-4">
+            <HomeCard href="/community-hub" icon={MessageSquare} title="Community" subtitle="Forum · Emergency · Map · News · Volunteer">
+              <ForumWidget />
+            </HomeCard>
+          </div>
+
+          <div className="order-5 flex flex-col gap-3.5 md:gap-5">
             <HomeCard href="/directory" icon={Book} title="Directory" subtitle={<DirectoryWidget />} />
             <AlertsWidget />
           </div>

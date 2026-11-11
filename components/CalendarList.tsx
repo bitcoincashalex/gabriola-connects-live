@@ -1,6 +1,7 @@
 // components/CalendarList.tsx
 // Day-by-day list of events for the Calendar page (the default view on phones)
-// Version: 1.1.0 - Adds realDescription(): hides stand-in descriptions such as
+// Version: 1.2.0 - Coloured dot for the event's category; times stay on one line
+// Previous: 1.1.0 - Adds realDescription(): hides stand-in descriptions such as
 //                  "See the original listing for details." (shared with the Events page and pop-up)
 // Previous: 1.0.0 - Day-by-day list
 // Date: 2026-10-10
@@ -10,6 +11,7 @@
 import { useMemo, useState } from 'react';
 import { format, isToday, isTomorrow, addDays, startOfDay } from 'date-fns';
 import { Event } from '@/lib/types';
+import { familyFor } from '@/lib/eventKind';
 
 const DAYS_PER_PAGE = 14;
 
@@ -92,11 +94,18 @@ export default function CalendarList({ events, onSelect }: { events: Event[]; on
                 onClick={() => onSelect(e)}
                 className="w-full text-left flex gap-3 px-4 py-3 min-h-[56px] hover:bg-[#F6F2EA] transition-colors"
               >
-                <span className="w-[72px] flex-shrink-0 text-sm font-semibold text-gabriola-green pt-0.5">
+                <span className="w-[76px] flex-shrink-0 whitespace-nowrap text-sm font-semibold text-gabriola-green pt-0.5">
                   {formatEventTime(e.start_time, e.is_all_day)}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[15px] font-semibold text-[#1F2A24] leading-snug">{e.title}</span>
+                  <span className="block text-[15px] font-semibold text-[#1F2A24] leading-snug">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle"
+                      style={{ backgroundColor: familyFor((e as any).category).color }}
+                    />
+                    {e.title}
+                  </span>
                   {eventPlace(e) && <span className="block text-[13px] text-[#5B6660] truncate">{eventPlace(e)}</span>}
                 </span>
               </button>

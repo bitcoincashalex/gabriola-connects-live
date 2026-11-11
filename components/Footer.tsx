@@ -1,5 +1,7 @@
 // components/Footer.tsx
-// v4.0.1 - "Privacy" is now a link to the privacy policy. Its pop-up said "No personal
+// v4.1.0 - The bottom menu is hidden on wide screens (1024px and up), where the top menu already
+//          has the same links. Phones and tablets keep it.
+// Previous: v4.0.1 - "Privacy" is now a link to the privacy policy. Its pop-up said "No personal
 //          information is collected", which isn't true since sign-in (including Google) stores
 //          names and emails.
 // Previous: v4.0.0 - Bottom menu stays fixed to the bottom of the screen on every page (like a phone app),
@@ -96,7 +98,7 @@ export default function Footer({ activeTab = '' }: FooterProps) {
       {/* Bottom Navigation Bar */}
       <nav
         aria-label="Main"
-        className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E3DCCF] shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E3DCCF] shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex justify-around items-center h-16 max-w-screen-xl mx-auto px-2">
@@ -136,8 +138,7 @@ export default function Footer({ activeTab = '' }: FooterProps) {
 
       {/* Footer Links */}
       <div
-        className="bg-gabriola-green-dark text-white pt-4 text-center text-xs"
-        style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        className="bg-gabriola-green-dark text-white pt-4 text-center text-xs pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-4"
       >
         <div className="max-w-7xl mx-auto px-6">
           <p className="mb-2">
