@@ -4,10 +4,12 @@
 //   ComingUpWidget        the next three special events after today (no weekly programs)
 // Both read one shared download of the events from four weeks back to six weeks ahead; the weeks
 // back are what lets lib/eventKind.ts tell a weekly program from a one-off.
-// Version: 1.1.0 - Today card: special events come first and are marked "Special", so a one-off
+// Version: 1.2.0 - Today card: the next two things by time always come first, special or not, so
+//                  what's happening next isn't hidden on a day with several special events
+// Previous: 1.1.0 - Today card: special events come first and are marked "Special", so a one-off
 //                  (like the Remembrance Day gathering) isn't buried under the day's programs
 // Previous: 1.0.0
-// Date: 2026-11-11
+// Date: 2026-11-15
 
 'use client';
 
@@ -135,6 +137,7 @@ const Dot = ({ category }: { category: string | null }) => (
 );
 
 const TODAY_ROWS = 4;
+const NEXT_UP = 2;
 
 export function TodayEventsWidget() {
   const { loaded, failed } = useHomeEvents();
@@ -154,9 +157,11 @@ export function TodayEventsWidget() {
   // Timed events first, in order; all-day ones after
   const timed = left.filter(e => !e.is_all_day && e.start_time && day(e.start_date) === today);
   const allDay = left.filter(e => !timed.includes(e));
-  // Special events first, then the regular programs; each in time order
-  const inOrder = [...timed, ...allDay];
-  const rows = [...inOrder.filter(e => !programs.has(e.id)), ...inOrder.filter(e => programs.has(e.id))];
+  // What's next first (the two soonest by time, special or not), then the rest of the day's
+  // special events, then the regular programs; each in time order
+  const nextUp = timed.slice(0, NEXT_UP);
+  const later = [...timed.slice(NEXT_UP), ...allDay];
+  const rows = [...nextUp, ...later.filter(e => !programs.has(e.id)), ...later.filter(e => programs.has(e.id))];
 
   if (rows.length === 0) return <Note>Nothing more today.</Note>;
 
