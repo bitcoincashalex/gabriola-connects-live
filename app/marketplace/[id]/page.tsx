@@ -1,7 +1,9 @@
 // app/marketplace/[id]/page.tsx
 // One Buy, Sell & Free listing: photos, details, Message the seller, Share.
 // The seller can edit, mark sold, renew or delete; admins can hide or show it.
-// Version: 1.5.0 - Lost and Found: red / blue-green label, "Found it" / "Back with its owner",
+// Version: 1.6.0 - Counts a view when someone opens the listing (not the poster), and the poster
+//                  sees "Seen by 12 people" on their own listing
+// Previous: 1.5.0 - Lost and Found: red / blue-green label, "Found it" / "Back with its owner",
 //                  the poster's comment tag says "Poster" instead of "Seller"
 // Previous: 1.4.0 - Listings posted without a name: "Posted by a neighbour", the poster still gets
 //                  their controls, and Message goes through the database without revealing them
@@ -11,7 +13,7 @@
 // Earlier: 1.1.0 - Public questions and comments under the listing (ListingComments)
 // Previous: 1.0.1 - Took out the meet-somewhere-public note
 // Earlier: 1.0.0
-// Date: 2026-11-02
+// Date: 2026-11-15
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -29,7 +31,7 @@ import {
   LISTING_COLUMNS, Listing, categoryLabel, kindLabel, priceLabel, timeAgo,
   isLive, listingState, daysLeft, removeListingPhotos,
   isRental, rentalTypeLabel, availableLabel, listingDays,
-  isLostFound,
+  isLostFound, recordListingView, myListingViews, viewsLabel, ListingViews,
 } from '@/lib/marketplace';
 
 export default function ListingPage() {
@@ -70,6 +72,18 @@ export default function ListingPage() {
   useEffect(() => {
     load();
   }, [id, user?.id]);
+
+  // Count the view once per visit to this page (the database leaves out the poster)
+  useEffect(() => {
+    if (listing?.id) recordListingView(listing.id);
+  }, [listing?.id]);
+
+  // The poster sees how many people have looked
+  const [views, setViews] = useState<ListingViews | undefined>(undefined);
+  useEffect(() => {
+    if (!isSeller || !listing?.id) return;
+    myListingViews().then(all => setViews(all[listing.id] || { people: 0, views: 0 }));
+  }, [isSeller, listing?.id]);
 
   const load = async () => {
     const { data } = await supabase.from('marketplace_listings').select(LISTING_COLUMNS).eq('id', id).maybeSingle();
@@ -205,6 +219,7 @@ export default function ListingPage() {
               Posted by {listing.is_anonymous ? 'a neighbour' : (listing.seller_name || 'a neighbour')} · {timeAgo(listing.created_at)}
               {isSeller && listing.is_anonymous && <> · your name isn&apos;t shown</>}
               {isSeller && live && <> · {daysLeft(listing)}</>}
+              {isSeller && views && <> · {viewsLabel(views)}</>}
             </p>
 
             {listing.description && (

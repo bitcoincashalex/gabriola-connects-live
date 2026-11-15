@@ -1,12 +1,14 @@
 // lib/marketplace.ts
 // Buy, Sell & Free: shared types, labels, photo upload and small helpers
-// Version: 1.4.0 - Lost and Found: two more kinds, no price, 14-day listings, Pets category
+// Version: 1.5.0 - View counts: recordListingView() when a listing is opened, myListingViews() for
+//                  the poster ("Seen by 12 people")
+// Previous: 1.4.0 - Lost and Found: two more kinds, no price, 14-day listings, Pets category
 // Previous: 1.3.0 - is_anonymous: post without your name (user_id is empty on those listings)
 // Previous: 1.2.0 - comments_enabled: the poster can turn public comments off
 // Earlier: 1.1.0 - Rentals: "For rent" listings (home, suite or cabin, room, trailer / RV,
 //                  RV pad) by the month, "Looking for a rental" under Wanted, 60-day listings
 // Previous: 1.0.0 (2026-10-20)
-// Date: 2026-11-02
+// Date: 2026-11-15
 
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/imageCompression';
@@ -176,4 +178,50 @@ export async function removeListingPhotos(urls: string[]) {
     .map(u => (u.includes(marker) ? decodeURIComponent(u.split(marker)[1]) : ''))
     .filter(Boolean);
   if (paths.length) await supabase.storage.from(PHOTO_BUCKET).remove(paths);
+}
+
+// ---------------------------------------------------------------------------
+// View counts (sql/2026-11-15-marketplace-views.sql)
+
+export interface ListingViews { people: number; views: number }
+
+/** A random number kept in this browser, so a visitor who isn't signed in counts once */
+function deviceNumber(): string | null {
+  try {
+    let id = localStorage.getItem('gc-device');
+    if (!id) {
+      id = (crypto as any).randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('gc-device', id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+/** Someone opened a listing. The database leaves out the owner and quick repeat visits. */
+export async function recordListingView(listingId: string): Promise<void> {
+  try {
+    await supabase.rpc('record_listing_view', { p_listing: listingId, p_device: deviceNumber() });
+  } catch {
+    // counting views never gets in the way of showing the listing
+  }
+}
+
+/** The signed-in member's listings and how many people have seen each (empty if none yet) */
+export async function myListingViews(): Promise<Record<string, ListingViews>> {
+  const out: Record<string, ListingViews> = {};
+  try {
+    const { data, error } = await supabase.rpc('my_listing_views');
+    if (error || !Array.isArray(data)) return out;
+    for (const r of data as any[]) out[r.listing_id] = { people: r.people || 0, views: r.views || 0 };
+  } catch {}
+  return out;
+}
+
+/** "Seen by 12 people · 30 views" */
+export function viewsLabel(v?: ListingViews): string {
+  if (!v || !v.people) return 'Not seen by anyone yet';
+  const people = `Seen by ${v.people} ${v.people === 1 ? 'person' : 'people'}`;
+  return v.views > v.people ? `${people} · ${v.views} views` : people;
 }

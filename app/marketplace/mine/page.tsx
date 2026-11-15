@@ -1,24 +1,26 @@
 // app/marketplace/mine/page.tsx
 // My Buy, Sell & Free listings: live, sold and expired, with days left
-// Version: 1.1.1 - Says lost and found listings stay up 14 days
+// Version: 1.2.0 - Each listing says how many people have seen it
+// Previous: 1.1.1 - Says lost and found listings stay up 14 days
 // Previous: 1.1.0 - Includes listings posted without a name (marked "Name not shown")
 // Previous: 1.0.1 - Says rentals stay up for 60 days
 // Previous: 1.0.0 (2026-10-20)
-// Date: 2026-11-02
+// Date: 2026-11-15
 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, ImageOff } from 'lucide-react';
+import { ArrowLeft, Plus, ImageOff, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
 import Footer from '@/components/Footer';
-import { LISTING_COLUMNS, Listing, priceLabel, kindLabel, listingState, daysLeft, isLive } from '@/lib/marketplace';
+import { LISTING_COLUMNS, Listing, priceLabel, kindLabel, listingState, daysLeft, isLive, myListingViews, viewsLabel, ListingViews } from '@/lib/marketplace';
 
 export default function MyListingsPage() {
   const { user, loading: userLoading } = useUser();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [views, setViews] = useState<Record<string, ListingViews>>({});
 
   useEffect(() => {
     if (!user) {
@@ -37,6 +39,7 @@ export default function MyListingsPage() {
         .order('created_at', { ascending: false });
       setListings((data as Listing[]) || []);
       setLoading(false);
+      setViews(await myListingViews());
     })();
   }, [user?.id]);
 
@@ -88,6 +91,9 @@ export default function MyListingsPage() {
                       <p className={`text-sm mt-0.5 ${isLive(l) ? 'text-[#5B6660]' : 'font-semibold text-[#9A4A00]'}`}>
                         {isLive(l) ? `Live · ${daysLeft(l)}` : state}
                         {!isLive(l) && state === 'Expired' && ' · open it to put it back up'}
+                      </p>
+                      <p className="flex items-center gap-1 text-sm text-[#5B6660] mt-0.5">
+                        <Eye className="w-4 h-4" aria-hidden="true" /> {viewsLabel(views[l.id])}
                       </p>
                     </div>
                   </Link>
