@@ -4,7 +4,9 @@
 //   ComingUpWidget        the next three special events after today (no weekly programs)
 // Both read one shared download of the events from four weeks back to six weeks ahead; the weeks
 // back are what lets lib/eventKind.ts tell a weekly program from a one-off.
-// Version: 1.2.0 - Today card: the next two things by time always come first, special or not, so
+// Version: 1.3.0 - Today card: something already under way says "On now" and when it ends, not its
+//                  start time, and doesn't take one of the two "next" places
+// Previous: 1.2.0 - Today card: the next two things by time always come first, special or not, so
 //                  what's happening next isn't hidden on a day with several special events
 // Previous: 1.1.0 - Today card: special events come first and are marked "Special", so a one-off
 //                  (like the Remembrance Day gathering) isn't buried under the day's programs
@@ -108,12 +110,15 @@ function useHomeEvents() {
   return { loaded, failed };
 }
 
-const timeLabel = (e: HomeEvent): string => {
-  if (e.is_all_day || !e.start_time) return 'All day';
-  const [h, m] = e.start_time.split(':').map(Number);
-  if (isNaN(h)) return 'All day';
+/** "15:00:00" -> "3:00 PM" ('' when there's no usable time) */
+const clock = (t: string | null): string => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h)) return '';
   return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
+
+const timeLabel = (e: HomeEvent): string => (e.is_all_day ? '' : clock(e.start_time)) || 'All day';
 
 /** "Sat Nov 14" */
 const dayLabel = (d: string): string =>
@@ -159,8 +164,12 @@ export function TodayEventsWidget() {
   const allDay = left.filter(e => !timed.includes(e));
   // What's next first (the two soonest by time, special or not), then the rest of the day's
   // special events, then the regular programs; each in time order
-  const nextUp = timed.slice(0, NEXT_UP);
-  const later = [...timed.slice(NEXT_UP), ...allDay];
+  // Already under way (started, not over): at most one leads the card, marked "On now"
+  const started = (e: HomeEvent) => timed.includes(e) && (e.start_time as string) <= now;
+  const onNow = timed.filter(started);
+  const upcoming = timed.filter(e => !started(e));
+  const nextUp = [...onNow.slice(0, 1), ...upcoming.slice(0, NEXT_UP)];
+  const later = [...upcoming.slice(NEXT_UP), ...onNow.slice(1), ...allDay];
   const rows = [...nextUp, ...later.filter(e => !programs.has(e.id)), ...later.filter(e => programs.has(e.id))];
 
   if (rows.length === 0) return <Note>Nothing more today.</Note>;
@@ -170,12 +179,17 @@ export function TodayEventsWidget() {
       {rows.slice(0, TODAY_ROWS).map(e => (
         <div key={e.id} className="flex gap-3 pt-2.5 pb-2.5 border-t border-[#EEE8DD] last:pb-0">
           <span className="w-[76px] flex-shrink-0 whitespace-nowrap text-sm font-semibold text-gabriola-green pt-0.5">
-            {timeLabel(e)}
+            {started(e) ? 'On now' : timeLabel(e)}
           </span>
           <span className="flex-1 min-w-0">
             <span className="block text-[15px] font-semibold leading-snug line-clamp-2"><Dot category={e.category} />{e.title}</span>
             {!programs.has(e.id) && (
               <span className="inline-block mt-0.5 mr-1.5 px-1.5 py-0.5 rounded-full bg-[#FBEFD5] text-[#7A4A00] text-[11px] font-bold uppercase tracking-wide">Special</span>
+            )}
+            {started(e) && (
+              <span className="block text-[13px] text-[#5B6660]">
+                Started {clock(e.start_time)}{e.end_time && clock(e.end_time) ? `, until ${clock(e.end_time)}` : ''}
+              </span>
             )}
             {e.location && <span className="block text-[13px] text-[#5B6660] truncate">{e.location}</span>}
           </span>
