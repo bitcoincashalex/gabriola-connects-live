@@ -1,10 +1,14 @@
 // app/api/cron/ferry-status/route.ts
 // Reads BC Ferries live status every 5 minutes (called by Supabase pg_cron),
 // stores it, and posts automatic ferry alerts.
-// Version: 1.0.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Version: 1.1.0 - Reads each route service notice too, for its table of cancelled and at-risk
+//                  sailings (both directions), and keeps them with the notice (ferry_live_meta.notices).
+//                  BC Ferries' live page can still show those sailings as "Upcoming" (Nov 17, 2026).
+//                  The notice alert now lists the cancelled and at-risk times, and is kept up to date.
+// Previous: 1.0.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 1.0.1 - Setting renamed to AUTO_ALERT_USER_ID (shared with the notices email reader)
 // Previous: 1.0.0
-// Date: 2026-11-01
+// Date: 2026-11-17
 //
 // Needs these Vercel environment variables:
 //   CRON_SECRET               - long random string, same one used in the Supabase cron job
@@ -21,6 +25,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { BCF_STATUS_URL, parseBcFerriesStatus, LiveSailing } from '@/lib/bcferriesStatus';
 import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
+import { parseServiceNotice, StoredNotice, NoticeSailings, minutesList } from '@/lib/ferryNotices';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -56,6 +61,24 @@ function pacificToIso(date: string, minutes: number): string {
   const pacificClockAsUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
   const offsetMs = asUtc - pacificClockAsUtc; // 7h in summer, 8h in winter
   return new Date(asUtc + offsetMs).toISOString();
+}
+
+// The alert text for a service notice, listing the times when the notice has them
+function noticeMessage(n: StoredNotice, today: string): string {
+  const s = n.sailings;
+  const base = `BC Ferries has posted a service notice for the Nanaimo Harbour - Gabriola route: ${n.title}.`;
+  if (!s || !s.dates.includes(today)) return base;
+  const parts: string[] = [];
+  const both = (g: number[], h: number[]) => [
+    g.length ? `from Gabriola ${minutesList(g)}` : '',
+    h.length ? `from Nanaimo ${minutesList(h)}` : '',
+  ].filter(Boolean).join('; ');
+  const cancelled = both(s.cancelled.gab, s.cancelled.nah);
+  const atRisk = both(s.atRisk.gab, s.atRisk.nah);
+  if (cancelled) parts.push(`Cancelled today: ${cancelled}.`);
+  if (atRisk) parts.push(`At risk of cancellation: ${atRisk}.`);
+  if (!parts.length) return base;
+  return `${base} ${parts.join(' ')} Check the notice for the sailings that are running.`;
 }
 
 function toSqlTime(minutes: number): string {
@@ -124,12 +147,31 @@ export async function GET(request: NextRequest) {
     if (error) console.error('[ferry-status] save sailings failed:', error.message);
   }
 
+  // Each notice's own page: the cancelled and at-risk sailings, if it has a table of them.
+  // If a notice page can't be read this time, keep what was read last time.
+  const { data: prevMeta } = await supabase.from('ferry_live_meta').select('notices').eq('route', ROUTE).maybeSingle();
+  const prevByCode = new Map<string, StoredNotice>(((prevMeta?.notices as StoredNotice[]) || []).map(n => [n.code, n]));
+  const notices: StoredNotice[] = await Promise.all(parsed.notices.map(async (n): Promise<StoredNotice> => {
+    let sailings: NoticeSailings | null = prevByCode.get(n.code)?.sailings || null;
+    try {
+      const res = await fetch(n.url, {
+        headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) sailings = parseServiceNotice(await res.text()) ?? sailings;
+    } catch (e: any) {
+      console.error('[ferry-status] notice fetch failed:', n.code, e?.message || e);
+    }
+    return { ...n, sailings };
+  }));
+
   await supabase.from('ferry_live_meta').upsert({
     route: ROUTE,
     last_checked_at: checkedAt,
     last_success_at: checkedAt,
     bc_last_updated: parsed.bcLastUpdated,
-    notices: parsed.notices,
+    notices,
     last_error: null,
   });
 
@@ -192,15 +234,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Route service notices about disruptions
-    for (const n of parsed.notices.filter(n => NOTICE_ALERT_WORDS.test(n.title))) {
-      await postOnce(`notice:${n.code}`, {
-        title: `BC Ferries notice: ${n.title}`.slice(0, 200),
-        message: `BC Ferries has posted a service notice for the Nanaimo Harbour - Gabriola route: ${n.title}`,
+    // Route service notices about disruptions, with the cancelled and at-risk times when the
+    // notice lists them (kept up to date as BC Ferries updates the notice)
+    for (const n of notices.filter(n => NOTICE_ALERT_WORDS.test(n.title))) {
+      const title = `BC Ferries notice: ${n.title}`.slice(0, 200);
+      const message = noticeMessage(n, now.date);
+      const key = `notice:${n.code}`;
+      const id = await postOnce(key, {
+        title,
+        message,
         severity: 'advisory',
         link_url: n.url,
+        link_text: 'BC Ferries service notice',
         expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
       });
+      // Already posted: bring the times up to date, unless someone has rewritten the alert by hand
+      if (id && !alertsPosted.includes(key)) {
+        const { data: cur } = await supabase.from('alerts').select('message').eq('id', id).maybeSingle();
+        if (cur && cur.message !== message && String(cur.message || '').startsWith('BC Ferries has posted a service notice')) {
+          await supabase.from('alerts').update({ message, link_url: n.url, link_text: 'BC Ferries service notice' }).eq('id', id);
+        }
+      }
     }
   }
 

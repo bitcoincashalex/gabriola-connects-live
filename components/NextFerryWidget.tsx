@@ -1,6 +1,9 @@
 // components/NextFerryWidget.tsx
 // Next ferry from both terminals (body of the front page Ferry card)
-// Version: 6.1.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Version: 6.2.0 - Sailings cancelled in a BC Ferries service notice count as cancelled (both ways);
+//                  each box shows the next sailing that is actually running, with any cancelled one
+//                  before it named, and "At risk" when the notice says it may be cancelled
+// Previous: 6.1.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 6.1.0 - Running late: shows the expected departure with the scheduled time under it,
 //                  and keeps showing a sailing until it has actually gone (same rules as the
 //                  Ferry page, lib/ferryEstimate.ts). On time it says "Scheduled".
@@ -14,14 +17,15 @@
 //                  Gabriola time instead of the visitor's clock, and shows a live delay or
 //                  cancellation line from BC Ferries when Nanaimo sailings are running late
 // Previous: 5.1.0 - Removed timeout (BC Ferries needs time) + removed sailing count (not useful)
-// Date: 2026-11-01
+// Date: 2026-11-17
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseWithTimeout';
 import { AlertCircle } from 'lucide-react';
-import { currentDelay, upcomingSailings, minutesToDisplay, SHOW_LATE_FROM, LiveRow, SailingView } from '@/lib/ferryEstimate';
+import { currentDelay, upcomingSailings, minutesToDisplay, nextRunning, SHOW_LATE_FROM, LiveRow, SailingView } from '@/lib/ferryEstimate';
+import { noticeStatusToday, minutesList, StoredNotice, NoticeStatus } from '@/lib/ferryNotices';
 import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 interface Sailing {
@@ -48,6 +52,7 @@ export function NextFerryWidget() {
   const [schedule, setSchedule] = useState<{ fromGabriola: Sailing[]; fromNanaimo: Sailing[] } | null>(null);
   const [live, setLive] = useState<LiveRow[]>([]);
   const [liveFresh, setLiveFresh] = useState(false);
+  const [notice, setNotice] = useState<{ gab: Map<number, NoticeStatus>; nah: Map<number, NoticeStatus> }>({ gab: new Map(), nah: new Map() });
   const [isLoading, setIsLoading] = useState(true);
   const [liveNote, setLiveNote] = useState<{ text: string; kind: 'cancelled' | 'late' } | null>(null);
   const [nowMin, setNowMin] = useState<number>(() => pacificNowMinutes());
@@ -65,7 +70,7 @@ export function NextFerryWidget() {
             .eq('route', 'NAH-GAB')
             .eq('sailing_date', today)
             .order('scheduled_time'),
-          supabase.from('ferry_live_meta').select('last_success_at').eq('route', 'NAH-GAB').maybeSingle(),
+          supabase.from('ferry_live_meta').select('last_success_at, notices').eq('route', 'NAH-GAB').maybeSingle(),
         ]);
 
         if (scheduleResult.data) {
@@ -79,18 +84,26 @@ export function NextFerryWidget() {
         const live = (liveResult.data || []) as LiveRow[];
         setLive(live);
         setLiveFresh(fresh);
-        const toDisplay = (t: string) => {
-          const [h, m] = t.split(':').map(Number);
-          return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
-        };
+        const noticeNow = fresh
+          ? noticeStatusToday((metaResult.data?.notices as StoredNotice[]) || [], today)
+          : { gab: new Map<number, NoticeStatus>(), nah: new Map<number, NoticeStatus>() };
+        setNotice(noticeNow);
         let note: { text: string; kind: 'cancelled' | 'late' } | null = null;
         if (fresh) {
           // Cancellations still relevant: upcoming, or within the last hour
           const current = pacificNowMinutes();
           const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-          const cancelled = live.filter(l => l.status === 'cancelled' && toMin(l.scheduled_time) >= current - 60);
-          if (cancelled.length > 0) {
-            note = { kind: 'cancelled', text: `Cancelled: ${cancelled.map(c => toDisplay(c.scheduled_time)).join(', ')} from Nanaimo` };
+          const recent = (m: number) => m >= current - 60;
+          const fromNoticeG = Array.from(noticeNow.gab.entries()).filter(([m, st]) => st === 'cancelled' && recent(m)).map(([m]) => m);
+          const fromNoticeN = Array.from(noticeNow.nah.entries()).filter(([m, st]) => st === 'cancelled' && recent(m)).map(([m]) => m);
+          const liveN = live.filter(l => l.status === 'cancelled' && recent(toMin(l.scheduled_time))).map(l => toMin(l.scheduled_time));
+          const nah = Array.from(new Set([...fromNoticeN, ...liveN]));
+          const parts = [
+            fromNoticeG.length ? `${minutesList(fromNoticeG)} from Gabriola` : '',
+            nah.length ? `${minutesList(nah)} from Nanaimo` : '',
+          ].filter(Boolean);
+          if (parts.length > 0) {
+            note = { kind: 'cancelled', text: `Cancelled: ${parts.join('; ')}` };
           }
         }
         setLiveNote(note);
@@ -122,8 +135,8 @@ export function NextFerryWidget() {
     const [h, m] = l.scheduled_time.split(':').map(Number);
     return [h * 60 + m, l] as [number, LiveRow];
   }));
-  const nextG = upcomingSailings(schedule.fromGabriola.map(s => s.time), delay, nowMin, null, liveFresh)[0];
-  const nextN = upcomingSailings(schedule.fromNanaimo.map(s => s.time), delay, nowMin, liveByMinutes, liveFresh)[0];
+  const nextG = nextRunning(upcomingSailings(schedule.fromGabriola.map(s => s.time), delay, nowMin, null, liveFresh, notice.gab)).next;
+  const nextN = nextRunning(upcomingSailings(schedule.fromNanaimo.map(s => s.time), delay, nowMin, liveByMinutes, liveFresh, notice.nah)).next;
 
   if (!nextG && !nextN) {
     return <div className="text-base text-[#5B6660]">Service ended for today</div>;
@@ -151,7 +164,9 @@ export function NextFerryWidget() {
             <>
               <div className="text-2xl font-bold text-[#002774] leading-tight">{list[v.index].time}</div>
               <div className="text-[13px] font-semibold text-[#1F2A24]">{untilText(v.scheduledMin, nowMin)}</div>
-              <div className="text-[12px] text-[#5B6660]">Scheduled</div>
+              {v.atRisk
+                ? <div className="text-[12px] font-semibold text-[#8A3E00]">At risk of cancellation</div>
+                : <div className="text-[12px] text-[#5B6660]">Scheduled</div>}
             </>
           )
         ) : (

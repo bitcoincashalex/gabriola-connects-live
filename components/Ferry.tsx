@@ -1,5 +1,9 @@
 // Path: components/Ferry.tsx
-// Version: 4.2.0 - Terminal webcams (Descanso Bay and Nanaimo Harbour, from BC Ferries) under the
+// Version: 4.3.0 - Sailings cancelled in a BC Ferries service notice are shown as cancelled in both
+//                  directions (BC Ferries' live page can still say "Upcoming"), and sailings at risk
+//                  of cancellation are marked. "Next" is the next sailing that is actually running;
+//                  a cancelled one before it is mentioned above it.
+// Previous: 4.2.0 - Terminal webcams (Descanso Bay and Nanaimo Harbour, from BC Ferries) under the
 //                  next sailings
 // Previous: 4.1.2 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 4.1.1 - Overnight (before 4:45 AM) the Nanaimo card says live status starts at 4:45 AM,
@@ -19,7 +23,7 @@
 //                  show actual departure times, delays and cancellations. If the schedule fails to
 //                  load it now says so, instead of "No more sailings today".
 // Earlier: 2.3.0 - Added "Refresh Status" label to refresh button for clarity
-// Date: 2026-11-01
+// Date: 2026-11-17
 
 'use client';
 
@@ -28,7 +32,8 @@ import { useState, useEffect } from 'react';
 import { Anchor, RefreshCw, AlertTriangle, Radio, ChevronDown, ChevronUp, Video, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabaseWithTimeout';
 import { pacificNowMinutes, displayToMinutes, sqlTimeToMinutes, sqlTimeToDisplay, untilText } from '@/lib/ferryTime';
-import { currentDelay, upcomingSailings, minutesToDisplay, SailingView, SHOW_LATE_FROM } from '@/lib/ferryEstimate';
+import { currentDelay, upcomingSailings, minutesToDisplay, nextRunning, SailingView, SHOW_LATE_FROM } from '@/lib/ferryEstimate';
+import { noticeStatusToday, minutesList, StoredNotice } from '@/lib/ferryNotices';
 import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
 
 // Live status older than this is treated as unavailable
@@ -49,7 +54,7 @@ interface LiveSailing {
 interface LiveMeta {
   last_success_at: string | null;
   bc_last_updated: string | null;
-  notices: { code: string; title: string; url: string }[];
+  notices: StoredNotice[];
 }
 
 interface Sailing {
@@ -172,20 +177,33 @@ export default function Ferry() {
     (Date.now() - new Date(liveMeta.last_success_at).getTime()) < LIVE_STALE_MINUTES * 60 * 1000;
   const liveByMinutes = new Map(liveSailings.map(l => [sqlTimeToMinutes(l.scheduled_time), l]));
   const lastDeparted = [...liveSailings].reverse().find(l => l.status === 'departed');
-  const cancelledToday = liveFresh ? liveSailings.filter(l => l.status === 'cancelled') : [];
+  const cancelledLive = liveFresh ? liveSailings.filter(l => l.status === 'cancelled') : [];
+
+  // Cancelled / at-risk sailings from BC Ferries' service notices (both directions)
+  const noticeToday = liveFresh
+    ? noticeStatusToday(liveMeta?.notices, gabriolaToday())
+    : { gab: new Map(), nah: new Map() };
+  const withStatus = (m: Map<number, string>, st: string) => Array.from(m.entries()).filter(([, v]) => v === st).map(([k]) => k);
+  const cancelledG = withStatus(noticeToday.gab, 'cancelled');
+  const cancelledN = Array.from(new Set([...withStatus(noticeToday.nah, 'cancelled'), ...cancelledLive.map(c => sqlTimeToMinutes(c.scheduled_time))]));
+  const atRiskG = withStatus(noticeToday.gab, 'at_risk');
+  const atRiskN = withStatus(noticeToday.nah, 'at_risk').filter(m => !cancelledN.includes(m));
+  const noticeLink = (liveMeta?.notices || []).find(n => n.sailings && n.sailings.dates.includes(gabriolaToday()));
+  const sideText = (g: number[], n: number[]) =>
+    [g.length ? `from Gabriola ${minutesList(g)}` : '', n.length ? `from Nanaimo ${minutesList(n)}` : ''].filter(Boolean).join(' · ');
 
   // How late the boats are running now (from the last Nanaimo departure), carried forward
   const delay = currentDelay(liveSailings, liveFresh, nowMin);
   const timesG = schedule.fromGabriola.map(s => s.time);
   const timesN = schedule.fromNanaimo.map(s => s.time);
-  const viewsG = upcomingSailings(timesG, delay, nowMin, null, liveFresh);
-  const viewsN = upcomingSailings(timesN, delay, nowMin, liveByMinutes, liveFresh);
+  const viewsG = upcomingSailings(timesG, delay, nowMin, null, liveFresh, noticeToday.gab);
+  const viewsN = upcomingSailings(timesN, delay, nowMin, liveByMinutes, liveFresh, noticeToday.nah);
 
   const NextCard = ({ from, to, list, views, live }: { from: string; to: string; list: Sailing[]; views: SailingView[]; live: boolean }) => {
-    const v = views[0];
+    const { next: v, skipped, after } = nextRunning(views);
     const next = v ? list[v.index] : undefined;
-    const then = views.slice(1, 3);
-    const nextCancelled = !!v?.cancelled;
+    const then = after.slice(0, 2);
+    const nextCancelled = false;
     const late = v && !v.cancelled && v.late >= SHOW_LATE_FROM ? v.late : 0;
     const shownMin = v ? (late ? v.expectedMin : v.scheduledMin) : 0;
     const arrSched = next ? displayToMinutes(next.arrivalTime) : null;
@@ -193,6 +211,11 @@ export default function Ferry() {
     return (
       <div className="bg-white border border-[#E3DCCF] rounded-2xl p-5">
         <div className="text-sm font-semibold text-[#5B6660]">Next from {from}</div>
+        {skipped.length > 0 && (
+          <div className="text-sm font-bold text-[#B42318] mt-1">
+            {skipped.map(c => list[c.index].time).join(', ')} cancelled
+          </div>
+        )}
         {next && v ? (
           <>
             {late > 0 && <div className="text-sm font-bold text-[#8A3E00] mt-1">Expected about</div>}
@@ -207,6 +230,10 @@ export default function Ferry() {
             {late > 0 ? (
               <div className="text-sm font-semibold text-[#8A3E00] mt-1.5">
                 Scheduled {next.time} · running about {late} min late
+              </div>
+            ) : v.atRisk ? (
+              <div className="text-sm font-semibold text-[#8A3E00] mt-1.5">
+                At risk of cancellation (BC Ferries notice)
               </div>
             ) : !nextCancelled && (
               <div className="text-sm text-[#5B6660] mt-1.5">
@@ -270,8 +297,11 @@ export default function Ferry() {
   const scheduleToUse = activeTab === 'from-gabriola' ? schedule.fromGabriola : schedule.fromNanaimo;
   const tabViews = activeTab === 'from-gabriola' ? viewsG : viewsN;
   const viewByIndex = new Map(tabViews.map(v => [v.index, v]));
-  const nextIndex = tabViews.length > 0 ? tabViews[0].index : -1;
-  const pastCount = nextIndex === -1 ? scheduleToUse.length : nextIndex;
+  const tabNotice = activeTab === 'from-gabriola' ? noticeToday.gab : noticeToday.nah;
+  const runningView = tabViews.find(v => !v.cancelled);
+  const nextIndex = runningView ? runningView.index : -1;
+  const firstUpcoming = tabViews.length > 0 ? tabViews[0].index : -1;
+  const pastCount = firstUpcoming === -1 ? scheduleToUse.length : firstUpcoming;
   const visible = scheduleToUse
     .map((s, i) => ({ s, i }))
     .filter(({ i }) => showEarlier || i >= pastCount);
@@ -282,12 +312,22 @@ export default function Ferry() {
 
       <div className="max-w-5xl mx-auto px-4 py-5 space-y-4">
         {/* Cancellations today */}
-        {cancelledToday.length > 0 && (
+        {(cancelledG.length > 0 || cancelledN.length > 0) && (
           <div className="flex items-start gap-2 bg-[#B42318] text-white px-4 py-3 rounded-2xl" role="alert">
             <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <span className="font-semibold">
-              Cancelled today: {cancelledToday.map(c => sqlTimeToDisplay(c.scheduled_time)).join(', ')} from Nanaimo
-              {cancelledToday[0].reason ? ` (${cancelledToday[0].reason})` : ''}
+            <span>
+              <span className="font-semibold">
+                Cancelled today: {sideText(cancelledG, cancelledN)}
+                {cancelledLive[0]?.reason ? ` (${cancelledLive[0].reason})` : ''}
+              </span>
+              {(atRiskG.length > 0 || atRiskN.length > 0) && (
+                <span className="block text-sm mt-1">At risk of cancellation: {sideText(atRiskG, atRiskN)}</span>
+              )}
+              {noticeLink && (
+                <a href={noticeLink.url} target="_blank" rel="noopener noreferrer" className="block text-sm underline mt-1">
+                  BC Ferries notice: {noticeLink.title}
+                </a>
+              )}
             </span>
           </div>
         )}
@@ -372,6 +412,10 @@ export default function Ferry() {
                     };
                   } else if (live?.status === 'cancelled') {
                     liveLine = { text: `Cancelled${live.reason ? `: ${live.reason}` : ''}`, tone: 'text-[#B42318] font-semibold' };
+                  } else if (tabNotice.get(mins(s)) === 'cancelled' && live?.status !== 'departed') {
+                    liveLine = { text: 'Cancelled (BC Ferries service notice)', tone: 'text-[#B42318] font-semibold' };
+                  } else if (tabNotice.get(mins(s)) === 'at_risk' && !isPast) {
+                    liveLine = { text: 'At risk of cancellation (BC Ferries service notice)', tone: 'text-[#8A3E00] font-semibold' };
                   } else if (live?.status === 'departed' && live.actual_departure) {
                     const late = live.delay_minutes || 0;
                     liveLine = {

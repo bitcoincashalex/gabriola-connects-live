@@ -1,7 +1,9 @@
 // lib/ferryEstimate.ts
 // Works out when the next ferry is actually expected to leave when the boats are running late.
-// Version: 1.0.0
-// Date: 2026-10-30
+// Version: 1.1.0 - Sailings cancelled or at risk in a BC Ferries service notice (lib/ferryNotices.ts)
+//                  count as cancelled / at risk, both directions; nextRunning() skips cancelled ones
+// Previous: 1.0.0
+// Date: 2026-11-17
 //
 // BC Ferries only publishes actual departure times for sailings leaving Nanaimo Harbour, and
 // never an expected time for sailings still to come. So the estimate is: the delay of the most
@@ -10,6 +12,7 @@
 // and the schedule is used as normal.
 
 import { displayToMinutes, sqlTimeToMinutes } from '@/lib/ferryTime';
+import type { NoticeStatus } from '@/lib/ferryNotices';
 
 export const SHOW_LATE_FROM = 5;       // delays under this many minutes are treated as on time
 const DELAY_STILL_VALID = 90;          // a departure older than this no longer predicts anything
@@ -55,20 +58,22 @@ export interface SailingView {
   expectedMin: number;                 // same as scheduledMin when on time
   late: number;                        // expectedMin - scheduledMin
   cancelled: boolean;
+  atRisk?: boolean;                    // BC Ferries' notice says it may be cancelled
 }
 
 // Has this sailing not left yet? Uses BC Ferries' departed flag for Nanaimo when there is one.
 export function stillToLeave(
   time: string, index: number, delay: Delay | null, nowMin: number,
-  liveRow: LiveRow | undefined, liveFresh: boolean,
+  liveRow: LiveRow | undefined, liveFresh: boolean, notice?: NoticeStatus,
 ): SailingView | null {
   const sched = displayToMinutes(time);
   if (sched === null) return null;
-  const cancelled = liveFresh && liveRow?.status === 'cancelled';
+  const cancelled = liveFresh && (liveRow?.status === 'cancelled' || (notice === 'cancelled' && liveRow?.status !== 'departed'));
   if (cancelled) return sched > nowMin ? { index, scheduledMin: sched, expectedMin: sched, late: 0, cancelled: true } : null;
   if (liveFresh && liveRow?.status === 'departed') return null;
   const expected = expectedMinutes(sched, delay, nowMin);
-  const view = { index, scheduledMin: sched, expectedMin: expected, late: expected - sched, cancelled: false };
+  const view: SailingView = { index, scheduledMin: sched, expectedMin: expected, late: expected - sched, cancelled: false };
+  if (liveFresh && notice === 'at_risk') view.atRisk = true;
   if (expected >= nowMin) return view;
   // Nanaimo only: BC Ferries hasn't shown it leaving yet, so it's probably leaving now
   if (liveFresh && liveRow && delay && nowMin - expected <= NOT_YET_LEFT_GRACE) return view;
@@ -79,15 +84,24 @@ export function stillToLeave(
 export function upcomingSailings(
   times: string[], delay: Delay | null, nowMin: number,
   liveByMinutes: Map<number, LiveRow> | null, liveFresh: boolean,
+  noticeByMinutes?: Map<number, NoticeStatus>,
 ): SailingView[] {
   const out: SailingView[] = [];
   times.forEach((t, i) => {
     const sched = displayToMinutes(t);
     const row = sched !== null && liveByMinutes ? liveByMinutes.get(sched) : undefined;
-    const v = stillToLeave(t, i, delay, nowMin, row, liveFresh);
+    const notice = sched !== null && noticeByMinutes ? noticeByMinutes.get(sched) : undefined;
+    const v = stillToLeave(t, i, delay, nowMin, row, liveFresh, notice);
     if (v) out.push(v);
   });
   return out;
+}
+
+// The next sailing that is actually running, and the cancelled ones skipped to get to it
+export function nextRunning(views: SailingView[]): { next: SailingView | undefined; skipped: SailingView[]; after: SailingView[] } {
+  const i = views.findIndex(v => !v.cancelled);
+  if (i === -1) return { next: undefined, skipped: views, after: [] };
+  return { next: views[i], skipped: views.slice(0, i), after: views.slice(i + 1).filter(v => !v.cancelled) };
 }
 
 // 805 -> "1:25 PM"
