@@ -1,5 +1,7 @@
 // Path: components/EventsManager.tsx
-// Version: 6.2.1 - Event images show whole (scaled to fit, up to 512px tall) instead of cropped to a
+// Version: 6.3.0 - A YouTube, Vimeo or Facebook video link in an event's description plays in the
+//                  open event (VideoEmbeds)
+// Previous: 6.2.1 - Event images show whole (scaled to fit, up to 512px tall) instead of cropped to a
 //                  224px strip, so posters are readable. Tap the image to open it full size.
 // Previous: 6.2.0 - Search looks through every upcoming event, not just the next 14 days (finding a
 //                  March event took 8 clicks of "Show the next 14 days"). Matches still show by day,
@@ -17,10 +19,11 @@
 // Previous: 5.0.3 - Attribution now lists all event sources (was "Sample events data")
 // Earlier: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
 // Before: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
-// Date: 2026-10-10
+// Date: 2026-11-17
 
 'use client';
 
+import VideoEmbeds from '@/components/VideoEmbeds';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fetchApprovedEvents } from '@/lib/fetchEvents';
@@ -993,6 +996,7 @@ function EventCard({ event, rsvpCount, onRsvp, onExport, onEdit, onDelete, onVie
       </div>
 
       {desc && <p className="text-sm text-[#1F2A24] leading-relaxed mb-3 line-clamp-4">{desc}</p>}
+      <VideoEmbeds text={desc} className="mb-3" />
 
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-3 gap-2">

@@ -1,15 +1,17 @@
 // components/EventDetailModal.tsx
 // Reusable event detail modal - extracted from Calendar.tsx
-// Version: 1.2.2 - Stand-in descriptions ("See the original listing for details.") are hidden
+// Version: 1.3.0 - A YouTube, Vimeo or Facebook video link in the description plays in the event (VideoEmbeds)
+// Previous: 1.2.2 - Stand-in descriptions ("See the original listing for details.") are hidden
 // Previous: 1.2.1 - Times shown as 10:00 AM (was 10:00:00)
 // Earlier: 1.2.0 - Added gallery_images support with lightbox
-// Date: 2026-10-10
+// Date: 2026-11-17
 
 'use client';
 
 import { useState } from 'react';
 import { Event } from '@/lib/types';
 import { X, Clock, MapPin, Mail, Phone, ZoomIn } from 'lucide-react';
+import VideoEmbeds from '@/components/VideoEmbeds';
 import { format } from 'date-fns';
 import { formatEventTime, realDescription } from '@/components/CalendarList';
 
@@ -241,6 +243,8 @@ export default function EventDetailModal({ event, onClose }: EventDetailModalPro
               <p className="text-gray-700 leading-relaxed">{realDescription(event.description)}</p>
             )}
           </div>
+
+          <VideoEmbeds text={realDescription(event.description)} className="mb-6" />
 
           {/* Gallery Images */}
           {event.gallery_images && event.gallery_images.length > 0 && (

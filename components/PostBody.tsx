@@ -2,12 +2,14 @@
 // Shows a forum post's text with formatting: **bold**, ## headings, - lists and [links](url).
 // Plain posts look the same as before: line breaks are kept and bare web addresses become links.
 // Raw HTML in a post is never run (react-markdown ignores it by default).
-// Version: 1.0.0
-// Date: 2026-10-11
+// Version: 1.1.0 - A YouTube, Vimeo or Facebook video link in the text plays under it (VideoEmbeds)
+// Previous: 1.0.0
+// Date: 2026-11-17
 
 'use client';
 
 import ReactMarkdown from 'react-markdown';
+import VideoEmbeds from '@/components/VideoEmbeds';
 
 // Keep single line breaks (people type posts like messages), and make bare URLs clickable
 function prepare(text: string): string {
@@ -49,6 +51,7 @@ export default function PostBody({ text, className = '' }: { text: string; class
       >
         {prepare(text)}
       </ReactMarkdown>
+      <VideoEmbeds text={text} className="mt-4" />
     </div>
   );
 }
