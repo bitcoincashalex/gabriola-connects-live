@@ -4,7 +4,8 @@
 //   ComingUpWidget        the next three special events after today (no weekly programs)
 // Both read one shared download of the events from four weeks back to six weeks ahead; the weeks
 // back are what lets lib/eventKind.ts tell a weekly program from a one-off.
-// Version: 1.3.0 - Today card: something already under way says "On now" and when it ends, not its
+// Version: 1.3.1 - gabriolaTimeNow(): the time now in Gabriola ("9:39 AM"), for the front page strip
+// Previous: 1.3.0 - Today card: something already under way says "On now" and when it ends, not its
 //                  start time, and doesn't take one of the two "next" places
 // Previous: 1.2.0 - Today card: the next two things by time always come first, special or not, so
 //                  what's happening next isn't hidden on a day with several special events
@@ -127,6 +128,14 @@ const dayLabel = (d: string): string =>
 /** "Tuesday, November 10", in Gabriola time (for the front page) */
 export function gabriolaDateLine(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: GABRIOLA_TZ, weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+/** "9:39 AM", the time now in Gabriola */
+export function gabriolaTimeNow(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: GABRIOLA_TZ, hour: 'numeric', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  const h = Number(parts.find(p => p.type === 'hour')?.value);
+  const m = parts.find(p => p.type === 'minute')?.value || '00';
+  return `${h % 12 || 12}:${m} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 const Note = ({ children }: { children: React.ReactNode }) => (

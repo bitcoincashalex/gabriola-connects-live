@@ -1,5 +1,6 @@
 // components/LandingPage.tsx
-// v6.2.0 - Today first on phones: the flag header is a slim navy strip with today's date on phones (the
+// v6.2.1 - Phone strip shows the time now (Gabriola time) beside the date, updated every 15 seconds
+// Previous: v6.2.0 - Today first on phones: the flag header is a slim navy strip with today's date on phones (the
 //          full flag stays on computers and tablets), the Ferry card comes first on phones, the
 //          Calendar card is now "Today" (what's still to come today), and a new "Coming up" card
 //          shows the next three special events (no weekly programs).
@@ -23,7 +24,7 @@ import Link from 'next/link';
 import { Calendar, CalendarDays, MessageSquare, Book, Anchor } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { NextFerryWidget } from '@/components/NextFerryWidget';
-import { TodayEventsWidget, ComingUpWidget, gabriolaDateLine } from '@/components/HomeEventsWidget';
+import { TodayEventsWidget, ComingUpWidget, gabriolaDateLine, gabriolaTimeNow } from '@/components/HomeEventsWidget';
 import { DirectoryWidget } from '@/components/DirectoryWidget';
 import { ForumWidget } from '@/components/ForumWidget';
 import { AlertsWidget } from '@/components/AlertsWidget';
@@ -225,10 +226,14 @@ export default function LandingPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   // Today's date in Gabriola time (set after the page loads, so the server and browser agree)
   const [dateLine, setDateLine] = useState('');
+  const [timeNow, setTimeNow] = useState('');
 
   useEffect(() => {
     fetchCommunityStats();
-    setDateLine(gabriolaDateLine());
+    const tick = () => { setDateLine(gabriolaDateLine()); setTimeNow(gabriolaTimeNow()); };
+    tick();
+    const timer = setInterval(tick, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const fetchCommunityStats = async () => {
@@ -265,9 +270,10 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#F6F2EA] text-[#1F2A24]">
       {/* Phones: a slim strip with today's date, so today's cards start near the top */}
-      <section className="md:hidden bg-[#002774] text-white px-4 py-2.5 min-h-[44px] flex items-center">
+      <section className="md:hidden bg-[#002774] text-white px-4 py-2.5 min-h-[44px] flex items-center justify-between gap-3">
         <h1 className="sr-only">Gabriola Connects</h1>
         <p className="font-display font-bold text-[18px] leading-tight">{dateLine}</p>
+        <p className="font-display font-bold text-[18px] leading-tight whitespace-nowrap tabular-nums" aria-label={timeNow ? `Time now ${timeNow}` : undefined}>{timeNow}</p>
       </section>
 
       {/* Computers and tablets: the Gabriola Island flag as the background, site name over it */}
