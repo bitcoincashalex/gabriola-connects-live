@@ -1,8 +1,10 @@
 // app/api/cron/notices-email/route.ts
 // Reads new mail in notices@gabriolaconnects.ca every 5 minutes (called by Supabase pg_cron),
 // has the AI decide what each email means for Gabriola, and publishes alerts.
-// Version: 1.0.0
-// Date: 2026-10-10
+// Version: 1.1.0 - Ferry alerts come down at the end of the Gabriola day (after 8 PM: end of tomorrow),
+//                  or sooner if the AI says so. The AI was giving them 12 to 24 hours.
+// Previous: 1.0.0
+// Date: 2026-11-17
 //
 // Needs these Vercel environment variables:
 //   CRON_SECRET               - same secret as the ferry check
@@ -26,6 +28,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { triageEmail, TRIAGE_MODEL } from '@/lib/noticeTriage';
 import { checkSender } from '@/lib/senderTrust';
+import { ferryAlertExpiry } from '@/lib/gabriolaTime';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -137,7 +140,9 @@ export async function GET(request: NextRequest) {
               on_behalf_of_organization: ai.source_name || null,
               affected_areas: ['Gabriola Island'],
               active: true,
-              expires_at: new Date(Date.now() + ai.expires_in_hours * 3600 * 1000).toISOString(),
+              expires_at: ai.category === 'ferry'
+                ? ferryAlertExpiry(ai.expires_in_hours)
+                : new Date(Date.now() + ai.expires_in_hours * 3600 * 1000).toISOString(),
               link_url: ai.link_url,
               link_text: ai.link_url ? 'More information' : null,
             }).select('id').single();

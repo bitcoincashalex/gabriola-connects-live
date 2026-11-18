@@ -1,7 +1,8 @@
 // app/api/cron/ferry-status/route.ts
 // Reads BC Ferries live status every 5 minutes (called by Supabase pg_cron),
 // stores it, and posts automatic ferry alerts.
-// Version: 1.1.0 - Reads each route service notice too, for its table of cancelled and at-risk
+// Version: 1.2.0 - The service notice alert comes down at the end of the Gabriola day (or 12 hours, if sooner)
+// Previous: 1.1.0 - Reads each route service notice too, for its table of cancelled and at-risk
 //                  sailings (both directions), and keeps them with the notice (ferry_live_meta.notices).
 //                  BC Ferries' live page can still show those sailings as "Upcoming" (Nov 17, 2026).
 //                  The notice alert now lists the cancelled and at-risk times, and is kept up to date.
@@ -24,7 +25,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { BCF_STATUS_URL, parseBcFerriesStatus, LiveSailing } from '@/lib/bcferriesStatus';
-import { GABRIOLA_TZ } from '@/lib/gabriolaTime';
+import { GABRIOLA_TZ, ferryAlertExpiry } from '@/lib/gabriolaTime';
 import { parseServiceNotice, StoredNotice, NoticeSailings, minutesList } from '@/lib/ferryNotices';
 
 export const dynamic = 'force-dynamic';
@@ -246,7 +247,7 @@ export async function GET(request: NextRequest) {
         severity: 'advisory',
         link_url: n.url,
         link_text: 'BC Ferries service notice',
-        expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+        expires_at: ferryAlertExpiry(12),
       });
       // Already posted: bring the times up to date, unless someone has rewritten the alert by hand
       if (id && !alertsPosted.includes(key)) {
