@@ -1,5 +1,7 @@
 // Path: app/community/thread/[id]/page.tsx
-// Version: 6.0.1 - Your own anonymous post shows Edit/Delete again (anonymous posts no longer carry
+// Version: 6.1.0 - Community Voices posts are marked OPINION, with a line saying the views are the
+//                  writer's own. Date: 2026-11-17
+// Previous: 6.0.1 - Your own anonymous post shows Edit/Delete again (anonymous posts no longer carry
 //                  your account id; the database says which are yours). Date: 2026-10-18
 // Previous: 6.0.0 - Post page redesign to match the rest of the site: smaller title, topic name
 //                  (was the topic's web code), ISLAND NEWS label on Claude's summaries, votes and
@@ -16,7 +18,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, Loader2, Flag, Mail, Edit, Trash2, Eye, MessageSquare, Pin, Newspaper } from 'lucide-react';
+import { ArrowLeft, Loader2, Flag, Mail, Edit, Trash2, Eye, MessageSquare, Pin, Newspaper, PenLine } from 'lucide-react';
 import ReplyForm from '@/components/ReplyForm';
 import ReplyList from '@/components/ReplyList';
 import { useUser } from '@/components/AuthProvider';
@@ -29,7 +31,7 @@ import ProfilePreviewCard from '@/components/ProfilePreviewCard';
 import PostBody from '@/components/PostBody';
 import ShareButton from '@/components/ShareButton';
 import Footer from '@/components/Footer';
-import { isNewsPost } from '@/lib/forum';
+import { isNewsPost, isOpinionPost } from '@/lib/forum';
 import { useMyAnonymousItems } from '@/lib/anonymousItems';
 
 export default function ThreadPage() {
@@ -207,6 +209,7 @@ export default function ThreadPage() {
   }
 
   const news = isNewsPost(thread);
+  const opinion = isOpinionPost(thread);
   const topic = topicName || (thread.category || '').replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
   const shareUrl = `https://www.gabriolaconnects.ca/community/thread/${thread.id}`;
 
@@ -229,7 +232,12 @@ export default function ThreadPage() {
                 <Newspaper className="w-3.5 h-3.5" aria-hidden="true" /> ISLAND NEWS
               </span>
             )}
-            <span className={news ? 'text-[#002774]' : 'text-gabriola-green'}>{topic}</span>
+            {opinion && (
+              <span className="inline-flex items-center gap-1 bg-[#7A3E72] text-white px-2 py-0.5 rounded tracking-wide">
+                <PenLine className="w-3.5 h-3.5" aria-hidden="true" /> OPINION
+              </span>
+            )}
+            <span className={news ? 'text-[#002774]' : opinion ? 'text-[#7A3E72]' : 'text-gabriola-green'}>{topic}</span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold leading-snug text-[#1F2A24] mb-3">{thread.title}</h1>
@@ -297,6 +305,11 @@ export default function ThreadPage() {
             text={thread.body}
             className="text-base md:text-lg text-[#1F2A24] leading-relaxed break-words"
           />
+          {opinion && (
+            <p className="mt-5 pt-3 border-t border-[#EEE8DD] text-sm italic text-[#5B6660]">
+              Community Voices: opinions are the writer&apos;s own, not Gabriola Connects&apos;.
+            </p>
+          )}
 
           {/* Votes, stats and actions */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-6 pt-4 border-t border-[#EEE8DD] text-sm text-[#5B6660]">

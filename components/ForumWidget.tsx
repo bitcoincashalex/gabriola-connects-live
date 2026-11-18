@@ -1,6 +1,7 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities (body of the front page Community card)
-// Version: 7.2.1 - Lost and Found listings show "Lost" / "Found"
+// Version: 7.3.0 - Community Voices: the newest column or letter (title and writer) at the top of the card
+// Previous: 7.2.1 - Lost and Found listings show "Lost" / "Found"
 // Previous: 7.2.0 - Shows the 2 newest live Buy, Sell, Rent & Free listings under 3 latest discussions.
 //                  With no live listings it shows 5 discussions as before.
 // Previous: 7.1.0 - Volunteer count only counts current listings (not taken down, date not passed)
@@ -18,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { queryWithTimeout, supabase } from '@/lib/supabaseWithTimeout';
 import { pacificToday } from '@/lib/volunteer';
 import { priceLabel, ListingKind } from '@/lib/marketplace';
+import { COMMUNITY_VOICES } from '@/lib/forum';
 
 interface WidgetListing {
   id: string;
@@ -31,6 +33,7 @@ const kindWord: Record<ListingKind, string> = { sale: 'For sale', rent: 'For ren
 
 export function ForumWidget() {
   const [latestTopics, setLatestTopics] = useState<string[]>([]);
+  const [voice, setVoice] = useState<{ title: string; by: string } | null>(null);
   const [listings, setListings] = useState<WidgetListing[]>([]);
   const [volunteerCount, setVolunteerCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -78,6 +81,30 @@ export function ForumWidget() {
       }
       setListings(live);
 
+      // Newest Community Voices column or letter. If this fails the card still shows the rest.
+      let voiceTitle: string | null = null;
+      try {
+        const { data: v } = await queryWithTimeout(async () =>
+          supabase
+            .from('bbs_posts')
+            .select('title, display_name, is_anonymous')
+            .eq('category', COMMUNITY_VOICES)
+            .eq('is_active', true)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+        );
+        const row = (v as any[])?.[0];
+        if (row) {
+          voiceTitle = row.title;
+          setVoice({ title: row.title, by: row.is_anonymous ? 'Island Neighbour' : (row.display_name || '') });
+        } else {
+          setVoice(null);
+        }
+      } catch (e) {
+        console.error('Error fetching Community Voices for the Community card:', e);
+      }
+
       // Get latest 5 topics (with timeout); 3 of them show when there are listings
       const { data: latest } = await queryWithTimeout(async () =>
         supabase
@@ -90,7 +117,7 @@ export function ForumWidget() {
       );
 
       if (latest && latest.length > 0) {
-        setLatestTopics(latest.map(post => post.title).slice(0, live.length > 0 ? 3 : 5));
+        setLatestTopics(latest.map(post => post.title).filter(t => t !== voiceTitle).slice(0, live.length > 0 ? 3 : 5));
       } else {
         setLatestTopics([]);
       }
@@ -137,6 +164,15 @@ export function ForumWidget() {
 
   return (
     <div className="border-t border-[#EEE8DD]">
+      {voice && (
+        <>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#7A3E72] pt-3 pb-1">Community Voices</p>
+          <p className="text-[15px] py-1 leading-snug">
+            <span className="font-semibold line-clamp-2">{voice.title}</span>
+            {voice.by && <span className="block text-sm text-[#5B6660]">by {voice.by}</span>}
+          </p>
+        </>
+      )}
       <p className="text-xs font-bold uppercase tracking-wide text-[#5B6660] pt-3 pb-1">Latest discussions</p>
 
       {latestTopics.length > 0 ? (

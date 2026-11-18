@@ -1,5 +1,6 @@
 // components/ThreadCard.tsx
-// Version: 8.1.2 - Photos in the list are a short strip (full size on the thread page). 2026-11-11
+// Version: 8.2.0 - Community Voices posts are marked OPINION. 2026-11-17
+// Previous: 8.1.2 - Photos in the list are a short strip (full size on the thread page). 2026-11-11
 // Previous: 8.1.1 - Your own anonymous posts show Delete again (anonymous posts no longer carry your
 //                  account id; the database says which are yours). Date: 2026-10-18
 // Previous: 8.1.0 - Island News posts (by Claude) are labelled ISLAND NEWS in navy; Share button
@@ -26,9 +27,9 @@ import SendMessageModal from '@/components/SendMessageModal';
 import ImageGallery from '@/components/ImageGallery';
 import EditPostModal from '@/components/EditPostModal';
 import ShareButton from '@/components/ShareButton';
-import { isNewsPost } from '@/lib/forum';
+import { isNewsPost, isOpinionPost } from '@/lib/forum';
 import { useMyAnonymousItems } from '@/lib/anonymousItems';
-import { Newspaper } from 'lucide-react';
+import { Newspaper, PenLine } from 'lucide-react';
 
 // Plain-text preview: removes markdown marks so "**Posted by:**" shows as "Posted by:"
 function previewText(body: string): string {
@@ -325,6 +326,11 @@ export default function ThreadCard({
               {!isPinned && isNewsPost(thread) && (
                 <span className="inline-flex items-center gap-1 bg-[#002774] text-white px-1.5 py-0.5 rounded text-[10px] tracking-wide">
                   <Newspaper className="w-3 h-3" aria-hidden="true" />ISLAND NEWS
+                </span>
+              )}
+              {!isNewsPost(thread) && isOpinionPost(thread) && (
+                <span className="inline-flex items-center gap-1 bg-[#7A3E72] text-white px-1.5 py-0.5 rounded text-[10px] tracking-wide">
+                  <PenLine className="w-3 h-3" aria-hidden="true" />OPINION
                 </span>
               )}
               {isPinned ? 'PINNED · ' : ''}{categoryName || (thread.category || '').replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
