@@ -1,38 +1,18 @@
 // Path: app/community-hub/page.tsx
-// Version: 1.5.0 - Compact list in the same white cards as the front page, so all six links fit on
-//                  one phone screen (same links, same wording)
+// Version: 2.0.0 - Each card shows what's live in its section (components/CommunityHubCards.tsx):
+//                  newest discussions and Community Voices column, 911 and the local numbers people
+//                  look up most, open volunteer listings, Buy/Sell/Rent/Free counts and newest listing,
+//                  the latest Island News. "More community features coming soon" replaced with
+//                  "Have an idea for the site?"
+// Previous: 1.5.0 - Compact list in the same white cards as the front page
 // Previous: 1.4.1 - Removed the NEW! badges
 // Previous: 1.4.0 - Island News is live: the card opens /news (the forum's news posts)
-// Previous: 1.3.1 - Card renamed Buy, Sell, Rent & Free; description mentions places for rent
-// Previous: 1.3.0 - Buy, Sell & Free card (links to /marketplace); Island News card spans the row
-// Previous: 1.2.0 - Island Map is live (links to /map)
-// Earlier: 1.1.0 - Activated Volunteer Opportunities module
-// Date: 2026-11-11
+// Earlier: 1.3.1, 1.3.0, 1.2.0, 1.1.0
+// Date: 2026-11-18
 
-import { MessageSquare, AlertCircle, Map, Newspaper, Heart, Tag, ChevronRight, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-
-const LINKS: { href: string; icon: LucideIcon; title: string; text: string; chip: string }[] = [
-  { href: '/community', icon: MessageSquare, title: 'Forum',
-    text: 'Connect with your community, ask questions, share information',
-    chip: 'bg-[#E6EFE8] text-gabriola-green' },
-  { href: '/emergency', icon: AlertCircle, title: 'Emergency Contacts',
-    text: 'Important phone numbers for Gabriola Island emergencies',
-    chip: 'bg-red-50 text-red-600' },
-  { href: '/volunteer', icon: Heart, title: 'Volunteer Opportunities',
-    text: 'Help out in your community and make a difference',
-    chip: 'bg-[#E6EFE8] text-gabriola-green' },
-  { href: '/map', icon: Map, title: 'Island Map',
-    text: 'Parks, beaches, trails, businesses, venues and the ferry, with you on the map',
-    chip: 'bg-amber-50 text-[#9A4A00]' },
-  { href: '/marketplace', icon: Tag, title: 'Buy, Sell, Rent & Free',
-    text: 'Things for sale, places for rent, things wanted, and things free to a good home',
-    chip: 'bg-[#E3E8F4] text-[#002774]' },
-  { href: '/news', icon: Newspaper, title: 'Island News',
-    text: 'Stay updated with community announcements and local news',
-    chip: 'bg-[#E3E8F4] text-[#002774]' },
-];
+import CommunityHubCards from '@/components/CommunityHubCards';
 
 export default function CommunityHubPage() {
   return (
@@ -49,32 +29,14 @@ export default function CommunityHubPage() {
             </p>
           </div>
 
-          {/* Community options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-            {LINKS.map(({ href, icon: Icon, title, text, chip }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group flex items-center gap-3 bg-white border border-[#E3DCCF] rounded-2xl px-3.5 py-2.5 md:p-5 min-h-[64px] shadow-sm hover:shadow-md hover:border-[#CFC6B4] transition-shadow"
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${chip}`}>
-                  <Icon className="w-[22px] h-[22px]" aria-hidden="true" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-display text-[18px] md:text-[21px] font-bold leading-tight text-gabriola-green-dark">{title}</h2>
-                  <p className="text-[13px] md:text-sm text-[#5B6660] leading-snug mt-0.5">{text}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-[#5B6660] flex-shrink-0 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" />
-              </Link>
-            ))}
-          </div>
+          <CommunityHubCards />
 
-          {/* Footer Info */}
+          {/* Ideas */}
           <div className="mt-5 md:mt-8 text-center bg-white border border-[#E3DCCF] rounded-xl p-4 md:p-6">
             <p className="text-[14px] md:text-base text-[#3A4640]">
-              More community features coming soon! Have a suggestion?{' '}
+              Have an idea for the site?{' '}
               <Link href="/community" className="text-gabriola-green font-semibold hover:underline">
-                Let us know in the forum
+                Post it in the forum under Welcome &amp; Help
               </Link>
             </p>
           </div>

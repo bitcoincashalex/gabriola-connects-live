@@ -1,12 +1,14 @@
 // Path: app/emergency/page.tsx
-// Version: 1.1.0 - Smaller heading and 911 box on phones, so the first phone numbers show without
+// Version: 1.1.1 - RCMP and clinic numbers come from lib/emergencyContacts.ts (shared with the Community Hub)
+// Previous: 1.1.0 - Smaller heading and 911 box on phones, so the first phone numbers show without
 //                  scrolling; on phones each call button is full width under its name (same contacts,
 //                  same wording)
 // Previous: 1.0.0 - Emergency contacts page with verified Gabriola Island phone numbers
-// Date: 2026-11-11
+// Date: 2026-11-18
 
 import { AlertCircle, Phone, MapPin, Clock } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { RCMP_NON_EMERGENCY, MEDICAL_CLINIC } from '@/lib/emergencyContacts';
 
 export default function EmergencyPage() {
   return (
@@ -60,11 +62,11 @@ export default function EmergencyPage() {
                     <p className="text-gray-600 mb-0 sm:mb-2">Non-emergency police matters</p>
                   </div>
                   <a 
-                    href="tel:250-247-8333" 
+                    href={`tel:${RCMP_NON_EMERGENCY.phone}`} 
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
                   >
                     <Phone className="w-5 h-5" />
-                    250-247-8333
+                    {RCMP_NON_EMERGENCY.phone}
                   </a>
                 </div>
               </div>
@@ -115,11 +117,11 @@ export default function EmergencyPage() {
                     </div>
                   </div>
                   <a 
-                    href="tel:250-247-9922" 
+                    href={`tel:${MEDICAL_CLINIC.phone}`} 
                     className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2"
                   >
                     <Phone className="w-5 h-5" />
-                    250-247-9922
+                    {MEDICAL_CLINIC.phone}
                   </a>
                 </div>
               </div>
