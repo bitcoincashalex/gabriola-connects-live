@@ -1,7 +1,12 @@
 // app/api/cron/ferry-status/route.ts
 // Reads BC Ferries live status every 5 minutes (called by Supabase pg_cron),
 // stores it, and posts automatic ferry alerts.
-// Version: 1.2.0 - The service notice alert comes down at the end of the Gabriola day (or 12 hours, if sooner)
+// Version: 1.3.0 - A notice about tomorrow lists its times too ("Wednesday, November 18: at risk ..."),
+//                  not just the headline. When BC Ferries changes a notice to an all-clear ("Sailings
+//                  no Longer at Risk", repaired, resumed) the notice alert comes down, and so do the
+//                  emailed ferry alerts (e.g. from the Sounder) about cancellations from the last day.
+//                  When a notice disappears from BC Ferries, its alert comes down too.
+// Previous: 1.2.0 - The service notice alert comes down at the end of the Gabriola day (or 12 hours, if sooner)
 // Previous: 1.1.0 - Reads each route service notice too, for its table of cancelled and at-risk
 //                  sailings (both directions), and keeps them with the notice (ferry_live_meta.notices).
 //                  BC Ferries' live page can still show those sailings as "Upcoming" (Nov 17, 2026).
@@ -21,6 +26,8 @@
 //   - sailings leaving Nanaimo 30+ minutes late (one rolling alert per day, kept up to date)
 //                                                            -> severity 'advisory'
 //   - a route service notice about cancellations/disruptions -> severity 'advisory'
+// and takes down its notice alert (plus emailed ferry alerts about cancellations from the last day)
+// when BC Ferries changes the notice to an all-clear or removes it.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -34,6 +41,10 @@ export const maxDuration = 30;
 const ROUTE = 'NAH-GAB';
 const DELAY_ALERT_MINUTES = 30;
 const NOTICE_ALERT_WORDS = /cancel|disrupt|out of service|suspend|not operating|reduced service|delay/i;
+// A notice title that says the trouble is over ("Sailings no Longer at Risk", "Service Resumed")
+const ALL_CLEAR_WORDS = /no longer|repaired|resum|restored|back in service|returned to service|as scheduled/i;
+// Emailed ferry alerts that an all-clear makes out of date
+const DISRUPTION_WORDS = /cancel|at risk|single.ship|one (ship|vessel)|reduced service|mechanical/i;
 const USER_AGENT = 'GabriolaConnects/1.0 (+https://www.gabriolaconnects.ca; community ferry status, checks every 5 minutes)';
 
 function pacificNow() {
@@ -68,7 +79,11 @@ function pacificToIso(date: string, minutes: number): string {
 function noticeMessage(n: StoredNotice, today: string): string {
   const s = n.sailings;
   const base = `BC Ferries has posted a service notice for the Nanaimo Harbour - Gabriola route: ${n.title}.`;
-  if (!s || !s.dates.includes(today)) return base;
+  if (!s) return base;
+  // About today, or else the next day it names (a notice posted in the evening about tomorrow)
+  const day = s.dates.includes(today) ? today : s.dates.filter(d => d > today).sort()[0];
+  if (!day) return base;
+  const when = day === today ? 'today' : dayLabel(day);
   const parts: string[] = [];
   const both = (g: number[], h: number[]) => [
     g.length ? `from Gabriola ${minutesList(g)}` : '',
@@ -76,10 +91,18 @@ function noticeMessage(n: StoredNotice, today: string): string {
   ].filter(Boolean).join('; ');
   const cancelled = both(s.cancelled.gab, s.cancelled.nah);
   const atRisk = both(s.atRisk.gab, s.atRisk.nah);
-  if (cancelled) parts.push(`Cancelled today: ${cancelled}.`);
-  if (atRisk) parts.push(`At risk of cancellation: ${atRisk}.`);
+  if (cancelled) parts.push(day === today ? `Cancelled today: ${cancelled}.` : `Cancelled ${when}: ${cancelled}.`);
+  if (atRisk) parts.push(day === today ? `At risk of cancellation: ${atRisk}.` : `At risk of cancellation ${when}: ${atRisk}.`);
   if (!parts.length) return base;
   return `${base} ${parts.join(' ')} Check the notice for the sailings that are running.`;
+}
+
+// "2026-11-18" -> "Wednesday, November 18"
+function dayLabel(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-CA', {
+    timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric',
+  });
 }
 
 function toSqlTime(minutes: number): string {
@@ -178,6 +201,7 @@ export async function GET(request: NextRequest) {
 
   // 3. Automatic alerts
   const alertsPosted: string[] = [];
+  const alertsClosed: string[] = [];
   const issuer = process.env.AUTO_ALERT_USER_ID;
   if (issuer) {
     const postOnce = async (key: string, alert: Record<string, any>) => {
@@ -237,7 +261,7 @@ export async function GET(request: NextRequest) {
 
     // Route service notices about disruptions, with the cancelled and at-risk times when the
     // notice lists them (kept up to date as BC Ferries updates the notice)
-    for (const n of notices.filter(n => NOTICE_ALERT_WORDS.test(n.title))) {
+    for (const n of notices.filter(n => NOTICE_ALERT_WORDS.test(n.title) && !ALL_CLEAR_WORDS.test(n.title))) {
       const title = `BC Ferries notice: ${n.title}`.slice(0, 200);
       const message = noticeMessage(n, now.date);
       const key = `notice:${n.code}`;
@@ -257,6 +281,47 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    // All-clear: take down what's out of date
+    const takeDown = async (ids: string[]) => {
+      if (!ids.length) return;
+      await supabase.from('alerts').update({ active: false, changed_by: issuer }).in('id', ids).eq('active', true);
+      alertsClosed.push(...ids);
+    };
+    const noticeAlertId = async (code: string) => {
+      const { data } = await supabase.from('ferry_auto_alerts').select('alert_id').eq('alert_key', `notice:${code}`).maybeSingle();
+      return (data?.alert_id as string | null) || null;
+    };
+    // Forget the notice's alert, so if the same notice later turns back into cancellations it posts again
+    const forget = (code: string) => supabase.from('ferry_auto_alerts').delete().eq('alert_key', `notice:${code}`);
+
+    for (const n of notices.filter(n => ALL_CLEAR_WORDS.test(n.title))) {
+      const prev = prevByCode.get(n.code);
+      const id = await noticeAlertId(n.code);
+      if (id) {
+        await takeDown([id]);
+        await forget(n.code);
+      }
+      // Only when it has just turned into an all-clear, so a new emailed cancellation later on still shows
+      if (prev && ALL_CLEAR_WORDS.test(prev.title)) continue;
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { data: emailed } = await supabase.from('alerts')
+        .select('id, title, message')
+        .eq('active', true).eq('category', 'ferry').eq('issued_by', issuer).gte('created_at', since);
+      const candidates = (emailed || []).filter(a => DISRUPTION_WORDS.test(`${a.title} ${a.message}`));
+      if (!candidates.length) continue;
+      const { data: auto } = await supabase.from('ferry_auto_alerts').select('alert_id').in('alert_id', candidates.map(a => a.id));
+      const autoIds = new Set((auto || []).map(a => a.alert_id));
+      await takeDown(candidates.filter(a => !autoIds.has(a.id)).map(a => a.id));   // emailed ones only
+    }
+
+    // A notice BC Ferries has taken down: its alert comes down too (not forgotten, so if the
+    // notice flickers back it doesn't post a second copy)
+    const currentCodes = new Set(notices.map(n => n.code));
+    for (const code of Array.from(prevByCode.keys()).filter(c => !currentCodes.has(c))) {
+      const id = await noticeAlertId(code);
+      if (id) await takeDown([id]);
+    }
   }
 
   return NextResponse.json({
@@ -264,6 +329,7 @@ export async function GET(request: NextRequest) {
     sailings: parsed.sailings.length,
     notices: parsed.notices.length,
     alertsPosted,
+    alertsClosed,
     alertsEnabled: Boolean(issuer),
   });
 }
