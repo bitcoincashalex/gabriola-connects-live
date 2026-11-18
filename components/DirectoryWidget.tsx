@@ -1,9 +1,10 @@
 // components/DirectoryWidget.tsx
 // Business count line for the front page Directory card
-// Version: 6.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page;
+// Version: 6.1.0 - Hidden businesses aren't counted
+// Previous: 6.0.0 - Front page redesign: the card (icon, title) is now drawn by the front page;
 //                  this is the one line under the title, in dark text for the white card.
 // Previous: 5.0.1 - Error state: removed nested Sign In link (link inside the card link is invalid HTML)
-// Date: 2026-10-10
+// Date: 2026-11-17
 
 'use client';
 
@@ -25,6 +26,7 @@ export function DirectoryWidget() {
             .from('directory_businesses')
             .select('*', { count: 'exact', head: true })
             .eq('is_approved', true)
+            .eq('is_active', true)
         );
 
         setTotalCount(total || 0);

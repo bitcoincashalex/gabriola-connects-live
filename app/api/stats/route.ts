@@ -1,10 +1,11 @@
 // app/api/stats/route.ts
-// Version: 1.1.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Version: 1.1.2 - Hidden businesses aren't counted
+// Previous: 1.1.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 1.1.0 - Counts refresh every 5 minutes (they were frozen at build time, so the
 //                  front page showed stale numbers until the next deploy); "today" uses
 //                  Gabriola's date instead of UTC
 // Previous: 1.0.0 - Public community stats API (2025-12-18)
-// Date: 2026-11-01
+// Date: 2026-11-17
 // Purpose: Provide public access to community stats counts without exposing user data
 
 import { NextResponse } from 'next/server';
@@ -43,7 +44,8 @@ export async function GET() {
     // Count businesses in directory
     const { count: businessCount } = await supabaseAdmin
       .from('directory_businesses')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
 
     return NextResponse.json({
       residents: residentCount || 0,

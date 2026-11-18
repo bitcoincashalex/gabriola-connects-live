@@ -1,9 +1,10 @@
 // components/IslandMap.tsx
 // The Island Map: businesses, event venues (with upcoming events), parks and beaches, trails,
 // the ferry terminal, and "You are here" from the phone's GPS. Map: OpenStreetMap via Leaflet.
-// Version: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
+// Version: 1.0.2 - Businesses hidden by an admin aren't on the map
+// Previous: 1.0.1 - Gabriola time is fixed UTC-7 (lib/gabriolaTime.ts): B.C. no longer falls back, but many devices think it does
 // Previous: 1.0.0
-// Date: 2026-11-01
+// Date: 2026-11-17
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -76,7 +77,7 @@ export default function IslandMap() {
       const [b, v, e, p] = await Promise.all([
         supabase.from('directory_businesses')
           .select('id, name, category, address, phone, website, lat, lng, show_on_map')
-          .eq('is_approved', true).not('lat', 'is', null).not('lng', 'is', null),
+          .eq('is_approved', true).eq('is_active', true).not('lat', 'is', null).not('lng', 'is', null),
         supabase.from('venues').select('id, name, address, lat, lng, alternate_names').not('lat', 'is', null),
         supabase.from('events').select('*').eq('is_approved', true).is('deleted_at', null)
           .gte('start_date', todayPacific()).order('start_date').order('start_time').limit(300),

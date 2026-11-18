@@ -1,5 +1,6 @@
 // components/Directory.tsx
-// Version: 5.3.2 - Phones: the Chamber thank-you strip is shorter (its second sentence shows on
+// Version: 5.4.0 - Businesses hidden by an admin aren't shown
+// Previous: 5.3.2 - Phones: the Chamber thank-you strip is shorter (its second sentence shows on
 //                  wider screens), so the search box sits higher
 // Previous: 5.3.1 - No more full-screen "Loading 53+ businesses..." flash: the page shows straight
 //                  away with a small "Loading businesses..." where the list goes
@@ -10,7 +11,7 @@
 //                  not every business with a b somewhere in it (nearly all have "Gabriola").
 //                  Several words narrow it down ("hair st"). Searches the name and category.
 //                  While searching, results are one list with names starting with it first.
-// Date: 2026-10-20
+// Date: 2026-11-17
 // Previous: 5.1.0 - New businesses get a pin on the Island Map from their street address (exact
 //                  matches only), with a "Show on the Island Map" choice in the Add form
 // Earlier: 5.0.2 - On computers the category rows wrap onto more lines instead of being cut off
@@ -162,7 +163,8 @@ export default function Directory() {
         .from('directory_businesses')
         .select('*')
         .order('name');
-      setListings(data || []);
+      // Hidden businesses (Admin > Directory > Hide) aren't shown
+      setListings((data || []).filter((l: any) => l.is_active !== false));
       setLoading(false);
     };
     

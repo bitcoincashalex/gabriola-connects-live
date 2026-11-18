@@ -1,9 +1,11 @@
 // Path: app/admin/directory/page.tsx
-// Version: 4.2.0 - Link to Ownership requests (/admin/directory/claims)
+// Version: 4.3.0 - Hide / Show a business: a hidden business stays here (marked Hidden) but isn't on
+//                  the Directory, the map, search or the front page count (is_active = false)
+// Previous: 4.2.0 - Link to Ownership requests (/admin/directory/claims)
 // Previous: 4.1.0 - Map position: "Show on the Island Map", find the pin from the address,
 //                  drag it to fix it, or remove it (saved as lat, lng, show_on_map)
 // Previous: 4.0.0-UPLOAD - IMAGE UPLOAD from computer with Supabase Storage
-// Date: 2026-10-22
+// Date: 2026-11-17
 
 'use client';
 
@@ -11,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/components/AuthProvider';
-import { Building2, CheckCircle, XCircle, Edit, Trash2, Loader2, Shield } from 'lucide-react';
+import { Building2, CheckCircle, XCircle, Edit, Trash2, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -151,6 +153,21 @@ export default function DirectoryAdminPage() {
     } else {
       alert('Error deleting business: ' + error.message);
     }
+  };
+
+  // Hide a business from the public (or show it again), without deleting anything
+  const toggleHidden = async (business: Business) => {
+    const hide = business.is_active !== false;
+    if (hide && !confirm(`Hide ${business.name}? It won't show on the Directory, the map or in search until you show it again.`)) return;
+    const { error } = await supabase
+      .from('directory_businesses')
+      .update({ is_active: !hide })
+      .eq('id', business.id);
+    if (error) {
+      alert('Error: ' + error.message);
+      return;
+    }
+    setBusinesses(prev => prev.map(b => (b.id === business.id ? { ...b, is_active: !hide } : b)));
   };
 
   const updateBusiness = async () => {
@@ -839,7 +856,7 @@ export default function DirectoryAdminPage() {
           </div>
         ) : (
           filteredBusinesses.map(business => (
-            <div key={business.id} className="bg-white rounded-lg shadow-md p-6">
+            <div key={business.id} className={`rounded-lg shadow-md p-6 ${business.is_active === false ? 'bg-gray-100 border-2 border-dashed border-gray-300' : 'bg-white'}`}>
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-start gap-4">
@@ -851,7 +868,14 @@ export default function DirectoryAdminPage() {
                       />
                     )}
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">{business.name}</h3>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                        {business.name}
+                        {business.is_active === false && (
+                          <span className="ml-3 align-middle inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-700 text-white text-xs font-semibold">
+                            <EyeOff className="w-3 h-3" aria-hidden="true" /> Hidden
+                          </span>
+                        )}
+                      </h3>
                       <div className="space-y-1 text-gray-700">
                         <p><strong>Category:</strong> {business.category}</p>
                         <p><strong>Address:</strong> {business.address}</p>
@@ -886,6 +910,13 @@ export default function DirectoryAdminPage() {
                   >
                     <Edit className="w-4 h-4" />
                     Edit
+                  </button>
+                  <button
+                    onClick={() => toggleHidden(business)}
+                    className={`px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap ${business.is_active === false ? 'bg-gabriola-green text-white hover:bg-gabriola-green-dark' : 'bg-gray-600 text-white hover:bg-gray-700'}`}
+                  >
+                    {business.is_active === false ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    {business.is_active === false ? 'Show' : 'Hide'}
                   </button>
                   <button
                     onClick={() => deleteBusiness(business.id, business.name)}
