@@ -1,6 +1,7 @@
 // components/ForumWidget.tsx
 // Shows latest discussion topics and volunteer opportunities (body of the front page Community card)
-// Version: 7.3.0 - Community Voices: the newest column or letter (title and writer) at the top of the card
+// Version: 7.4.0 - Volunteer: the 3 newest listings by title, above the count of all of them
+// Previous: 7.3.0 - Community Voices: the newest column or letter (title and writer) at the top of the card
 // Previous: 7.2.1 - Lost and Found listings show "Lost" / "Found"
 // Previous: 7.2.0 - Shows the 2 newest live Buy, Sell, Rent & Free listings under 3 latest discussions.
 //                  With no live listings it shows 5 discussions as before.
@@ -36,6 +37,7 @@ export function ForumWidget() {
   const [voice, setVoice] = useState<{ title: string; by: string } | null>(null);
   const [listings, setListings] = useState<WidgetListing[]>([]);
   const [volunteerCount, setVolunteerCount] = useState(0);
+  const [volunteers, setVolunteers] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
@@ -123,17 +125,20 @@ export function ForumWidget() {
       }
 
       // Get volunteer opportunities count (with timeout)
-      const { count } = await queryWithTimeout(async () =>
+      const { data: vols, count } = await queryWithTimeout(async () =>
         supabase
           .from('volunteer_opportunities')
-          .select('*', { count: 'exact', head: true })
+          .select('id, title', { count: 'exact' })
           .eq('status', 'active')
           .eq('is_approved', true)
           .is('deleted_at', null)
           .or(`start_date.is.null,start_date.gte.${pacificToday()}`)
+          .order('created_at', { ascending: false })
+          .limit(3)
       );
 
       setVolunteerCount(count || 0);
+      setVolunteers((vols as { id: string; title: string }[]) || []);
 
     } catch (error) {
       console.error('Error fetching forum stats:', error);
@@ -199,6 +204,17 @@ export function ForumWidget() {
                 </p>
               );
             })}
+          </div>
+        </>
+      )}
+
+      {volunteers.length > 0 && (
+        <>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#5B6660] pt-3 pb-1">Volunteers wanted</p>
+          <div className="divide-y divide-[#F1ECE3]">
+            {volunteers.map(v => (
+              <p key={v.id} className="text-[15px] py-2 truncate">{v.title}</p>
+            ))}
           </div>
         </>
       )}
