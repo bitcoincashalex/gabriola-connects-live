@@ -1,5 +1,7 @@
 // Path: components/Calendar.tsx
-// Version: 4.2.0 - "Special events / Everything" switch: the calendar opens on special events
+// Version: 4.2.1 - Venue filter: one entry per place (Community Hall rooms, Zoom/ZOOM and other
+//                  spellings merged), in A to Z order (lib/venues.ts)
+// Previous: 4.2.0 - "Special events / Everything" switch: the calendar opens on special events
 //                  (concerts, fairs, AGMs), with the weekly programs one click away; each day in
 //                  Month view says how many programs are hidden, and clicking a day still lists
 //                  everything on it. Entries are coloured by category (seven colour families, key
@@ -19,7 +21,7 @@
 //                  in a small box that scrolls on its own; page no longer jumps down on first load.
 // Previous: 3.0.3 - Attribution now lists all event sources (was "Sample events data")
 // Earlier: 3.0.2 - REVERTED: Removed canCreateEvents check - ANY logged-in user can add events
-// Date: 2026-10-10
+// Date: 2026-11-21
 // FIX: "Switch to Full Event Form" opens in same window (removed target="_blank")
 // CRITICAL FIX: All hooks must run in same order every render - moved loading check to end
 'use client';
@@ -36,6 +38,7 @@ import { useUser } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import EventDetailModal from '@/components/EventDetailModal';
 import CalendarList, { formatEventTime, eventPlace } from '@/components/CalendarList';
+import { venueGroup, venueOptions as listVenues } from '@/lib/venues';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar-custom.css';
 
@@ -201,24 +204,15 @@ export default function Calendar({ events = [], loading = false }: { events?: Ev
     setImagePreview(null);
   };
 
-  // Venues to filter by: the places with the most events, busiest first
-  const venueOptions = useMemo(() => {
-    if (!Array.isArray(events)) return [];
-    const counts = new Map<string, number>();
-    for (const e of events) {
-      const place = e ? eventPlace(e) : '';
-      if (place) counts.set(place, (counts.get(place) || 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .filter(([, n]) => n >= 2)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 40)
-      .map(([name]) => name);
-  }, [events]);
+  // Venues to filter by: one name per place, A to Z
+  const venueOptions = useMemo(
+    () => (Array.isArray(events) ? listVenues(events.map(e => (e ? eventPlace(e) : ''))) : []),
+    [events]
+  );
 
   const shownEvents = useMemo(() => {
     if (!Array.isArray(events)) return [];
-    return venueFilter ? events.filter(e => e && eventPlace(e) === venueFilter) : events;
+    return venueFilter ? events.filter(e => e && venueGroup(eventPlace(e)) === venueFilter) : events;
   }, [events, venueFilter]);
 
   // Which events are regular programs (worked out from every event, not just one venue's)

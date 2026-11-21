@@ -1,5 +1,7 @@
 // Path: components/EventsManager.tsx
-// Version: 6.3.0 - A YouTube, Vimeo or Facebook video link in an event's description plays in the
+// Version: 6.3.1 - Venue filter: one entry per place (Community Hall rooms, Zoom/ZOOM and other
+//                  spellings merged), in A to Z order (lib/venues.ts)
+// Previous: 6.3.0 - A YouTube, Vimeo or Facebook video link in an event's description plays in the
 //                  open event (VideoEmbeds)
 // Previous: 6.2.1 - Event images show whole (scaled to fit, up to 512px tall) instead of cropped to a
 //                  224px strip, so posters are readable. Tap the image to open it full size.
@@ -19,7 +21,7 @@
 // Previous: 5.0.3 - Attribution now lists all event sources (was "Sample events data")
 // Earlier: 5.0.2 - Events list loads all events (was cut off at Supabase's 1,000-row limit)
 // Before: 5.0.1 - PROPER REFACTOR: Uses shared EventFormModal, keeps ALL other features
-// Date: 2026-11-17
+// Date: 2026-11-21
 
 'use client';
 
@@ -37,6 +39,7 @@ import EventDetailModal from '@/components/EventDetailModal';
 import EventFormModal from '@/components/EventFormModal';
 import { ymd } from '@/lib/eventSeries';
 import { formatEventTime, eventPlace, realDescription } from '@/components/CalendarList';
+import { venueGroup, venueOptions as listVenues } from '@/lib/venues';
 
 interface Venue {
   id: string;
@@ -560,18 +563,12 @@ export default function EventsManager() {
 
   const today = startOfDay(new Date());
 
-  // Venues to filter by: busiest first
-  const venueCounts = new Map<string, number>();
-  events.forEach(e => { const v = eventPlace(e); if (v) venueCounts.set(v, (venueCounts.get(v) || 0) + 1); });
-  const venueOptions = Array.from(venueCounts.entries())
-    .filter(([, n]) => n >= 2)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 40)
-    .map(([name]) => name);
+  // Venues to filter by: one name per place, A to Z
+  const venueOptions = listVenues(events.map(e => eventPlace(e)));
 
   // Search and venue filter
   const filteredEvents = events.filter(event => {
-    if (venueFilter && eventPlace(event) !== venueFilter) return false;
+    if (venueFilter && venueGroup(eventPlace(event)) !== venueFilter) return false;
     if (!searchQuery.trim()) return true;
     const query = searchQuery.trim().toLowerCase();
     return (
